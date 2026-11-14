@@ -10,6 +10,7 @@ import { toLocal, clamp, lerp, MARS_RADIUS_M } from './geo.js';
 import { heightAt } from './heightfield.js';
 import { TRAVEL } from './pathfind.js';
 import { SIM } from './simulation.js';
+import { RAD } from '../data/medicoes.js';
 
 export const ASSUMPTIONS = Object.freeze({
   habitatMastM: 10,
@@ -107,6 +108,35 @@ export function createSafety(field, router) {
     return blocked / SKY.directions;
   }
 
+  // Céu tapado em grade de 32 m, para a camada de radiação.
+  let skyGrid = null;
+  function skyGridOf() {
+    if (!skyGrid) {
+      skyGrid = new Float32Array(coarseCols * coarseRows);
+      for (let i = 0; i < skyGrid.length; i++) {
+        const point = coarseXZ(i);
+        skyGrid[i] = skyBlockedAt(point.x, point.z);
+      }
+    }
+    return skyGrid;
+  }
+
+  /**
+   * Taxa de dose estimada em um ponto (µSv/h): a média medida pelo RAD em Gale, reduzida na
+   * proporção do céu que o relevo tapa. A proporção vem da medição do RAD em Murray Buttes
+   * (4% a menos com 19% do céu tapado); acima de 19% é extrapolação em linha reta.
+   */
+  function radiationAt(x, z) {
+    const values = skyGridOf();
+    const fx = clamp((x + halfWidth) / coarseM, 0, coarseCols - 1);
+    const fz = clamp((z + halfDepth) / coarseM, 0, coarseRows - 1);
+    const col = Math.min(Math.floor(fx), coarseCols - 2);
+    const row = Math.min(Math.floor(fz), coarseRows - 2);
+    const i = row * coarseCols + col;
+    const blocked = lerp(lerp(values[i], values[i + 1], fx - col), lerp(values[i + coarseCols], values[i + coarseCols + 1], fx - col), fz - row);
+    return RAD.surfaceUsvPerHour * (1 - RAD.butteShieldingFraction * (blocked / RAD.butteSkyBlocked));
+  }
+
   // Pontos do relevo mais encaixados (os 3% com mais céu tapado) e onde dá para ficar em pé.
   function findShelterSites() {
     const candidates = [];
@@ -194,5 +224,5 @@ export function createSafety(field, router) {
     });
   }
 
-  return Object.freeze({ walkBackAt, commsAt, commsCoverageAt, nearestShelter, assessPlan, habitat });
+  return Object.freeze({ walkBackAt, commsAt, commsCoverageAt, radiationAt, nearestShelter, assessPlan, habitat });
 }

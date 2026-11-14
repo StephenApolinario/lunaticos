@@ -36,6 +36,11 @@ const walkBackText = (r) => (Number.isFinite(r.ret.timeH) ? `${fmtDuration(r.ret
  * Condições de alerta verdadeiras neste instante.
  * @returns {Array<{ id: string, level: string, title: string, cause: string, effect: string, action: string }>}
  */
+// Alertas que só aparecem quando alguém dispara um cenário de emergência na barra do visor.
+// O texto deles avisa que é cenário simulado, para o número não passar por leitura real.
+const SCENARIO_ALERTS = new Set(['solar', 'poeira', 'vento', 'radio', 'veiculo', 'traje']);
+const SCENARIO_NOTE = 'Cenário simulado.';
+
 export function detect(r) {
   const out = [];
   const add = (id, level, title, cause, effect, action) => out.push({ id, level, title, cause, effect, action });
@@ -173,7 +178,9 @@ export function detect(r) {
     add('fim', 'info', 'Saída encerrada no habitat', `Tempo de saída: ${fmtDuration(r.clockH)}.`,
       `Dose: ${fmtNumber(r.doseUsv)} µSv. O₂ final: ${pct(r.o2Pct)}.`, 'Reabasteça e registre a saída.');
   }
-  return out;
+  // O frio também acontece sem cenário (antes do amanhecer o ar medido pelo REMS fica abaixo da faixa do traje).
+  const isScenario = (alert) => SCENARIO_ALERTS.has(alert.id) || (alert.id === 'frio' && r.fx.tempOffsetC !== 0);
+  return out.map((alert) => (isScenario(alert) ? { ...alert, cause: `${SCENARIO_NOTE} ${alert.cause}` } : alert));
 }
 
 // Frase de "seguro": responde se dá para voltar a pé daqui.

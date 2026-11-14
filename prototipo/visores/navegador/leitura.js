@@ -3,8 +3,9 @@
 // Real: posição, distâncias, altitude, inclinação e declive (relevo USGS) e a geometria do rádio.
 // Simulado: traje, radiação, temperatura e ritmo. Cada bloco do HUD diz qual é qual.
 
+import { estimatedAirTempC } from '../../src/clima.js';
 import { STOP_HOURS } from '../../data/travessia.js';
-import { SIM } from '../../src/simulation.js';
+import { SIM, localClockOf } from '../../src/simulation.js';
 import { toLocal, headingDeg, yToElev, clamp } from '../../src/geo.js';
 import { samplePath, shortName, findStop } from '../../src/route.js';
 import { fmtDistance, fmtDuration, fmtNumber } from '../../src/format.js';
@@ -170,12 +171,6 @@ export function radioReading(analysis, distM, radioNow, planSpeedKmh) {
   return { ...radioNow, status, route, changeInH, lossInM, lossLengthM: loss ? loss.toM - loss.fromM : 0, lossSoon };
 }
 
-// Temperatura do ar SIMULADA: mesma curva de src/simulation.js (lá não é exportada).
-function airTemperature(clockH, groundTemp) {
-  const daylight = Math.max(0, Math.sin((Math.PI * (clockH - 6)) / 13));
-  return -52 + 34 * daylight + (groundTemp + 19) * 0.25;
-}
-
 // O risco mais relevante por perto. O texto de risco das paradas vem dos dados da travessia.
 function nearbyRisk(r) {
   const { hazard, terrain, target, here, mode } = r;
@@ -241,7 +236,7 @@ export function deriveReadout({ plan, analysis, state, pose, ground, attitude, a
   const route = routeAt(analysis, state.distM);
   const elapsed = elapsedH(analysis, state);
   const planH = here.travelH + state.stopsReached * STOP_HOURS - state.dwellRemainingH;
-  const clockH = SIM.startClockH + elapsed;
+  const clockH = localClockOf(plan, elapsed);
   const target = nextTarget(plan, state, here);
   const suit = suitStatus(plan, analysis, state, route);
   const offRouteLimitM = here.onFoot ? NAV.offRouteM.foot : NAV.offRouteM.cabin;
@@ -277,7 +272,7 @@ export function deriveReadout({ plan, analysis, state, pose, ground, attitude, a
     radio: radioReading(analysis, state.distM, radioNow, here.speedKmh),
     radiationRate: ground.radiation * (state.solarEvent ? SIM.solarEventFactor : 1),
     doseUsv: SIM.radiationBaseUsvH * elapsed + state.solarDoseUsv,
-    airTempC: airTemperature(clockH, ground.groundTemp),
+    airTempC: estimatedAirTempC(clockH),
   };
   return { ...readout, risk: nearbyRisk(readout), alerts: buildAlerts(state, readout) };
 }

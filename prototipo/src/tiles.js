@@ -19,7 +19,8 @@ export const MOSAIC_CANVAS = Object.freeze({
 });
 
 const TILES_AT_ZOOM = 2 ** MOSAIC.zoom;
-const METERS_PER_PX = (2 * Math.PI * MARS_RADIUS_M * Math.cos(ORIGIN.lat * DEG)) / (TILES_AT_ZOOM * MOSAIC.tilePx);
+// Tamanho de um pixel da imagem no chão, na latitude da área de estudo (cerca de 2,5 m).
+export const MOSAIC_METERS_PER_PX = (2 * Math.PI * MARS_RADIUS_M * Math.cos(ORIGIN.lat * DEG)) / (TILES_AT_ZOOM * MOSAIC.tilePx);
 
 const tileX = (lon) => ((lon + 180) / 360) * TILES_AT_ZOOM;
 const tileY = (lat) => ((1 - Math.asinh(Math.tan(lat * DEG)) / Math.PI) / 2) * TILES_AT_ZOOM;
@@ -45,7 +46,7 @@ export function mosaicUv(lat, lon) {
 export function mosaicCoverage(lat, lon, fadeM) {
   const { px, py } = mosaicPixel(lat, lon);
   const outsidePx = Math.max(-px, px - IMAGE_WIDTH_PX, -py, py - IMAGE_HEIGHT_PX);
-  return clamp(1 - (outsidePx * METERS_PER_PX) / fadeM, 0, 1);
+  return clamp(1 - (outsidePx * MOSAIC_METERS_PER_PX) / fadeM, 0, 1);
 }
 
 export function tileList() {

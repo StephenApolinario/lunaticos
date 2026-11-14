@@ -73,7 +73,8 @@ export const PROTOCOLS = Object.freeze([
       'Esperar em terreno baixo e protegido, mantendo contato com a base.',
     ],
     evidence: [
-      { text: 'A análise dos dados do REMS indica ventos de encosta à noite de até cerca de 21 m/s e máximo de dia de cerca de 14 m/s. O sensor de vento parou no sol 1491.', label: 'Ullán et al. 2017 (resumo)', url: 'https://cab.inta-csic.es/en/publicaciones/analysis-of-wind-induced-dynamic-pressure-fluctuations-during-one-and-a-half-martian-years-at-gale-crater/' },
+      { text: 'A análise das flutuações de pressão do REMS estima ventos de encosta à noite de até cerca de 21 m/s e máximo de dia de cerca de 14 m/s. É estimativa, não medida direta do sensor de vento.', label: 'Ullán et al. 2017 (resumo)', url: 'https://cab.inta-csic.es/en/publicaciones/analysis-of-wind-induced-dynamic-pressure-fluctuations-during-one-and-a-half-martian-years-at-gale-crater/' },
+      { text: 'O sensor de vento do REMS foi danificado no pouso, funcionou só em parte até o sol 1491 e então parou.', label: 'Viúdez-Moreiras et al. 2019', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6750032/' },
     ],
     source: TEAM,
   },
@@ -135,9 +136,10 @@ export const PROTOCOLS = Object.freeze([
       'Sem saída segura, tratar como pane do veículo.',
     ],
     evidence: [
-      { text: 'O Opportunity atolou em 2005 porque seguia girando as rodas sem checar a posição e continuou cavando; sair levou mais de cinco semanas.', label: 'JPL, PIA07999', url: 'https://www.jpl.nasa.gov/images/pia07999-looking-back-at-purgatory-dune/' },
+      { text: 'O Opportunity atolou em 26/04/2005 numa ondulação de areia de cerca de 30 cm de altura; sair levou mais de cinco semanas.', label: 'JPL, PIA07999', url: 'https://www.jpl.nasa.gov/images/pia07999-looking-back-at-purgatory-dune/' },
+      { text: 'Ele seguia girando as rodas um número fixo de voltas sem checar a posição, e continuou cavando. Depois disso a equipe deixou de cruzar dunas desse jeito.', label: 'NASA, podcast On a Mission', url: 'https://www.nasa.gov/podcasts/on-a-mission/a-lifetime-on-mars-the-adventures-of-spirit-and-opportunity-s4e4/' },
       { text: 'A Spirit ficou presa em 2009 ao romper uma crosta que escondia areia solta: o perigo não aparecia na superfície.', label: 'JPL, 12/11/2009', url: 'https://www.jpl.nasa.gov/news/nasa-to-begin-attempts-to-free-sand-trapped-mars-rover/' },
-      { text: 'As rodas do Curiosity foram furadas por rochas pontiagudas presas ao solo; em 2022 o rover deu meia-volta diante do terreno de rochas cortantes do pedimento Greenheugh.', label: 'JPL, 07/04/2022', url: 'https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/' },
+      { text: 'Rochas afiadas pelo vento (ventifactos) danificaram as rodas do Curiosity no início da missão; em 2022 o rover deu meia-volta diante do terreno de rochas cortantes do pedimento Greenheugh.', label: 'JPL, 07/04/2022', url: 'https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/' },
     ],
     source: TEAM,
   },

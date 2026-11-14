@@ -144,22 +144,20 @@ export function createOverlays(scene, terrain, handlers) {
 
   let routeLines = [];
   let view = 'tablet';
-  let destinationMarker = null;
+  let waypointMarkers = [];
 
-  // O destino livre ganha um pino próprio, recriado a cada novo ponto escolhido.
-  function syncDestinationMarker(plan) {
-    if (destinationMarker) {
-      group.remove(destinationMarker.pin, destinationMarker.beacon);
-      destinationMarker.beacon.geometry.dispose();
-      destinationMarker.beacon.material.dispose();
-      destinationMarker.element.remove();
-      markers.splice(markers.indexOf(destinationMarker), 1);
-      destinationMarker = null;
+  // Cada ponto da rota livre (A, B, C…) ganha um pino próprio, refeito a cada mudança da rota.
+  function syncWaypointMarkers(plan) {
+    for (const marker of waypointMarkers) {
+      group.remove(marker.pin, marker.beacon);
+      marker.beacon.geometry.dispose();
+      marker.beacon.material.dispose();
+      marker.element.remove();
+      markers.splice(markers.indexOf(marker), 1);
     }
-    if (!plan.isCustom) return;
-    destinationMarker = createStopMarker(terrain, plan.stops[0].stop, handlers.onStopClick);
-    markers.push(destinationMarker);
-    group.add(destinationMarker.pin, destinationMarker.beacon);
+    waypointMarkers = plan.isCustom ? plan.stops.map(({ stop }) => createStopMarker(terrain, stop, handlers.onStopClick)) : [];
+    markers.push(...waypointMarkers);
+    if (waypointMarkers.length > 0) group.add(...waypointMarkers.flatMap((marker) => [marker.pin, marker.beacon]));
   }
 
   function setPlan(plan) {
@@ -171,7 +169,7 @@ export function createOverlays(scene, terrain, handlers) {
       createLine(drape(terrain, toPoints(plan.returnLeg)), modeColor, LINE_STYLES.returnLeg),
     ];
     routeLines.forEach((line) => { applyLineView(line, view); group.add(line); });
-    syncDestinationMarker(plan);
+    syncWaypointMarkers(plan);
 
     const activeIds = new Set(['H', ...plan.stops.map((entry) => entry.stop.id)]);
     for (const marker of markers) {

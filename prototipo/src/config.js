@@ -11,11 +11,6 @@ export const COLORS = Object.freeze({
   tabletBackground: '#0b0f13',
 });
 
-// Sol de meio da manhã, vindo de nordeste. Vetor (leste, cima, sul).
-const SUN_RAW = [0.55, 0.72, -0.42];
-const SUN_LENGTH = Math.hypot(...SUN_RAW);
-export const SUN_DIRECTION = Object.freeze(SUN_RAW.map((component) => component / SUN_LENGTH));
-
 // Classes de declive da legenda do artifact original.
 export const SLOPE_CLASSES = Object.freeze([
   { minDeg: 20, color: 'rgb(225,50,50)', label: 'Declive acima de 20°' },
@@ -24,25 +19,30 @@ export const SLOPE_CLASSES = Object.freeze([
 ]);
 
 // Camadas em rampa de cor: faixa de valores, cores e a nota que explica de onde vem o dado.
-// `simulated` marca o que não é medição nem cálculo sobre dado real.
+// `simulated` marca o que não é medição nem cálculo sobre dado real (hoje, nenhuma camada).
 export const LAYERS = Object.freeze({
   radiation: {
     label: 'Radiação',
     unit: 'µSv/h',
-    min: 23,
-    max: 29,
+    min: 26.5,
+    max: 27.9,
+    minLabel: '26,5 µSv/h',
+    maxLabel: '27,9 µSv/h',
     ramp: ['#1b1035', '#5c2a7e', '#b0457c', '#f08a5d', '#fbe7a1'],
-    simulated: true,
-    note: 'Radiação: dado simulado para validar a interface, não é medição de missão.',
+    simulated: false,
+    note: 'Radiação: média medida pelo RAD do Curiosity em Gale (0,67 mSv por dia, cerca de 27,9 µSv/h), reduzida onde o relevo tapa o céu. A proporção vem da medição do RAD em Murray Buttes: 4% a menos com 19% do céu tapado (Ehresmann et al. 2021). O céu tapado é calculado sobre o relevo real. É estimativa, não medição ponto a ponto: o RAD só mede onde o rover está.',
   },
-  temperature: {
-    label: 'Temperatura do solo',
-    unit: '°C',
-    min: -34,
-    max: -4,
-    ramp: ['#2c5aa0', '#6fb1d6', '#e8e3c8', '#e89a5b', '#c7402f'],
-    simulated: true,
-    note: 'Temperatura do solo: dado simulado para validar a interface, não é medição de missão.',
+  thermal: {
+    label: 'Térmico (noite)',
+    unit: '',
+    // Do percentil 2 ao 98 do brilho da imagem dentro da área de estudo.
+    min: 110,
+    max: 250,
+    minLabel: 'mais frio à noite',
+    maxLabel: 'mais quente à noite',
+    ramp: ['#16204d', '#3d4f9f', '#8a6fb0', '#e08a5b', '#ffe9a8'],
+    simulated: false,
+    note: 'Infravermelho térmico noturno do THEMIS (sonda Mars Odyssey), mosaico de 100 m por pixel servido pelo NASA Mars Trek. Mais quente à noite indica rocha exposta; mais frio indica areia e poeira soltas. É brilho relativo da imagem, não temperatura em graus. Se a cor não aparecer, a imagem não pôde ser lida da rede.',
   },
   walkback: {
     label: 'Volta a pé',

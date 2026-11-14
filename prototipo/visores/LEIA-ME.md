@@ -32,6 +32,7 @@ export function createVisor(context) {
 | `terrain` | `heightAt(x, z)` devolve a altura da superfície; `probe(x, z)` devolve `{ y, slopeDeg, radiation, groundTemp }`; `isReal` e `cellM` descrevem a grade. |
 | `overlays` | `setNextStop(stopId ou null, texto)` controla o rótulo do pino da próxima parada. |
 | `onExit()` | Volta ao tablet. |
+| `onLocalHour(horaH)` | Opcional. O visor informa a hora solar local do relógio da saída e a luz da cena (Sol e sombras) acompanha. O visor único chama a cada quadro. |
 | `safety` | Segurança calculada sobre o relevo real. Ver a seção "Segurança" abaixo. |
 
 Chamadas:
@@ -40,7 +41,7 @@ Chamadas:
 - `frame(dtS)`: a cada quadro, só enquanto o visor está ativo. `dtS` é o tempo real em segundos desde o quadro anterior.
 - `stop()`: o usuário saiu do visor.
 
-O plano pode ser a travessia pré-calculada ou um **destino livre** escolhido no mapa (`plan.isCustom === true`, uma única parada de id `D`). Não presuma que as paradas são as seis de `data/travessia.js`: use sempre `plan.stops`. `findStop('D')` e `shortName('D')` funcionam.
+O plano pode ser a travessia pré-calculada ou uma **rota livre** com pontos escolhidos no mapa (`plan.isCustom === true`, de 1 a 13 paradas com ids `A`, `B`, `C`… sem o `H`, que é o habitat). Não presuma que as paradas são as seis de `data/travessia.js`: use sempre `plan.stops`. `findStop('A')` e `shortName('A')` funcionam para os pontos do plano mais recente.
 
 Coordenadas: `x` aponta para leste, `z` para sul, `y` para cima, tudo em metros. Conversões em [../src/geo.js](../src/geo.js).
 
@@ -88,3 +89,9 @@ python3 prototipo/tools/servir.py
 ```
 
 Abrir `http://localhost:5183/?visor=<id>` e clicar em "Entrar no visor do capacete".
+
+## Hora de partida e medições
+
+- `plan.startClockH` é a hora solar local escolhida no tablet para o início da saída. Use `localClockOf(plan, horasDecorridas)` de `src/simulation.js` para a hora local: ela já converte horas da Terra em horas de Marte.
+- `terrain.probe(x, z).radiation` é a média medida pelo RAD do Curiosity (igual em todo ponto) e não há mais `groundTemp`. A temperatura do ar vem de `estimatedAirTempC(horaLocal)` em `src/clima.js`, uma curva entre os extremos medidos pelo REMS.
+- A origem de cada número está em `data/fontes.js` (que gera `docs/fontes.md`). Ao mudar um dado, atualize lá.

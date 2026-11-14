@@ -116,8 +116,8 @@ function buildElements(on) {
     o2: meter('O₂'), o2Info: h('span', { class: 'guardiao-sub' }), battery: meter('Bateria', 'Bat.'),
     pressure: row('Pressão', { short: 'Press.', sim: true, trend: true }), integrity: row('Integridade', { short: 'Integr.', sim: true }),
     o2End: row('O₂ ao fim do plano', { short: 'O₂ fim', sim: true }),
-    radiation: row('Radiação', { short: 'Rad.', sim: true, trend: true }), dose: row('Dose da saída', { short: 'Dose', sim: true }),
-    temperature: row('Temp. do ar', { short: 'Temp.', sim: true, trend: true }), wind: row('Vento', { sim: true }),
+    radiation: row('Radiação', { short: 'Rad.', sim: 'RAD', trend: true }), dose: row('Dose da saída', { short: 'Dose', sim: 'est.' }),
+    temperature: row('Temp. do ar', { short: 'Temp.', sim: 'est.', trend: true }), wind: row('Vento', { sim: true }),
     slope: row('Declive · à frente', { short: 'Decl./frente' }), altitude: row('Altitude', { short: 'Alt.', trend: true }),
     radio: row('Rádio', { sim: 'calc.' }), radioAhead: h('span', { class: 'guardiao-sub unificado-radio-adiante' }), habitat: row('Habitat'),
     retLabel: label('Volto a pé ao habitat?', 'caminho no relevo real · O₂ simulado'), retVerdict: h('b', { class: 'guardiao-veredito' }), retOxygen: h('span', { class: 'guardiao-sub' }),
@@ -202,12 +202,12 @@ export function createHud(mount, on) {
       // grade; no telefone ele é a área livre, e minimapa e leituras abrem por cima dela.
       h('div', { class: 'unificado-livre' },
         h('i', { class: 'guardiao-mira', 'aria-hidden': 'true' }),
-        h('section', { class: 'guardiao-bloco unificado-leituras', 'aria-label': 'Traje e ambiente' }, label('Traje e ambiente', 'sim. = simulado'),
+        h('section', { class: 'guardiao-bloco unificado-leituras', 'aria-label': 'Traje e ambiente' }, label('Traje e ambiente', 'sim. = simulado · est. = estimado'),
           els.o2.node, els.o2Info, els.battery.node,
           h('div', { class: 'unificado-grade' }, els.pressure.node, els.integrity.node, els.o2End.node, els.radiation.node, els.dose.node,
             els.temperature.node, els.wind.node, els.slope.node, els.altitude.node),
           els.radio.node, els.radioAhead,
-          h('span', { class: 'guardiao-fonte' }, 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. O resto é simulado.')),
+          h('span', { class: 'guardiao-fonte' }, 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos medidos pelo REMS. Traje e vento: simulados.')),
         h('section', { class: 'unificado-mapa', 'aria-label': 'Minimapa' }, els.minimap,
           h('div', { class: 'unificado-zoom' }, els.zoomOut, els.zoomLabel, els.zoomIn))),
       h('div', { class: 'guardiao-assistente unificado-fala', dataset: { kind: 'guia' } },
@@ -362,7 +362,7 @@ export function createHud(mount, on) {
     alertStack.update(alerts.active);
     protocolPanel.update(proto);
     shelterPanel.update(r.shelters, proto ? proto.pick : r.nearestShelter);
-    historyPanel.update(alerts.history, historyOpen);
+    historyPanel.update(alerts.history, historyOpen, r.startClockH);
     renderSuit(r);
     renderEnvironment(r, trends, radio);
     renderReturn(r);

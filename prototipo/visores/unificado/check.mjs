@@ -111,9 +111,13 @@ const QUESTIONS = [
 
 // ---------- 1. Contexto do assistente a partir da sessão do Guardião, nos três tipos de plano ----------
 const destination = toLocal(-4.7405, 137.3985);
-const custom = createPlanner(field, router, safety).planTo(destination, 'walk', 'fast');
-ok('destino livre tem rota', custom.plan?.isCustom && custom.plan.stops.length === 1 && custom.plan.stops[0].stop.id === 'D');
-const PLANS = [['a pé', withSafety(buildPlan('walk', false))], ['veículo com extensão', withSafety(buildPlan('car', true))], ['destino livre', withSafety(custom.plan)]];
+const planner = createPlanner(field, router, safety);
+const custom = planner.planThrough([destination], 'walk');
+ok('rota livre de um ponto tem rota', custom.plan?.isCustom && custom.plan.stops.length === 1 && custom.plan.stops[0].stop.id === 'A');
+const multi = planner.planThrough([toLocal(-4.7445, 137.3975), destination], 'walk');
+ok('rota livre de dois pontos tem rota', multi.plan?.isCustom && multi.plan.stops.map((entry) => entry.stop.id).join('') === 'AB');
+// A rota de dois pontos é montada por último: os pontos A e B registrados são os dela.
+const PLANS = [['a pé', withSafety(buildPlan('walk', false))], ['veículo com extensão', withSafety(buildPlan('car', true))], ['rota livre', withSafety(multi.plan)]];
 
 for (const [name, plan] of PLANS) {
   const ctx = outing(plan);

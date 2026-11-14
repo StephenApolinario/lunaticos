@@ -245,7 +245,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   }
 
   const planSize = () => {
-    if (plan.isCustom) return 'destino livre escolhido no mapa';
+    if (plan.isCustom) return 'rota livre com pontos escolhidos no mapa';
     return plan.stopCount === 1 ? '1 parada' : `${plan.stopCount} paradas`;
   };
 

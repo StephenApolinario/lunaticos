@@ -182,6 +182,27 @@ button, select, input { font: inherit; color: inherit; }
 .opt[data-disabled="true"] { opacity: 0.45; cursor: default; }
 .destination { display: flex; flex-direction: column; gap: var(--space-2); margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
 .destination strong { color: var(--heading); }
+.waypoints { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.waypoints li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-2); }
+.waypoint-id { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--route); color: #04121a; font: 600 12px/1 var(--mono); }
+.waypoints .ghost { align-self: center; padding: 3px 8px; }
+.hour-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-2); }
+.hour-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+.hour-clock { font: 600 18px/1 var(--mono); color: var(--heading); font-variant-numeric: tabular-nums; }
+.daylight { margin: var(--space-2) 0 0; padding: 8px 10px; border-radius: 6px; font-size: 13px; color: var(--fg); background: var(--surface); border-left: 3px solid var(--ok); }
+.daylight[data-level="warn"] { border-left-color: var(--vehicle); }
+.daylight[data-level="alert"] { border-left-color: var(--hazard); }
+.measure { margin: var(--space-2) 0 0; font-size: 13px; color: var(--fg); }
+.measure a, .note a { color: var(--accent); }
+.source-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--muted); }
+.source-list strong { color: var(--fg); }
+.source-list a { color: var(--accent); }
+.kind { display: inline-block; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); font: 500 10px/1.5 var(--mono); color: var(--fg); }
+li[data-kind="medido"] .kind, li[data-kind="publicado"] .kind { border-color: var(--ok); }
+li[data-kind="simulado"] .kind, li[data-kind="ilustrativo"] .kind { border-color: var(--hazard); }
+li[data-kind="hipotese"] .kind { border-color: var(--vehicle); }
+.photos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.photos img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
 .ghost {
   all: unset; box-sizing: border-box; cursor: pointer; align-self: flex-start;
   padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; color: var(--muted);

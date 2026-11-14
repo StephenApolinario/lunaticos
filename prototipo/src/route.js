@@ -22,8 +22,8 @@ export function buildPlan(mode, includeExtension) {
 }
 
 /**
- * Plano a partir de trechos calculados na hora (destino livre). Mesmo formato de `buildPlan`.
- * As paradas de destino precisam estar registradas com `registerStop`.
+ * Plano a partir de trechos calculados na hora (rota livre). Mesmo formato de `buildPlan`.
+ * As paradas escolhidas precisam estar registradas com `registerStop`.
  */
 export function buildPlanFromLegs(mode, legs, returnLeg) {
   if (!SPEED_KMH[mode]) throw new Error(`Modo de deslocamento desconhecido: ${mode}`);
@@ -50,7 +50,7 @@ function assemblePlan(mode, includeExtension, legs, returnLeg, isCustom) {
   });
 }
 
-// Paradas criadas em tempo de uso (o destino escolhido no mapa), além das dos dados.
+// Paradas criadas em tempo de uso (os pontos escolhidos no mapa), além das dos dados.
 const customStops = new Map();
 
 /** @param {{ id: string, name: string, lat: number, lon: number, el: number }} stop */

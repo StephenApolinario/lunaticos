@@ -8,6 +8,9 @@ import { HAZARD, STOP_HOURS } from '../data/travessia.js';
 import { toLocal, headingDeg, angleDeltaDeg, clamp } from './geo.js';
 import { samplePath, headingAt, slopeDegAt, maxSlopeAheadDeg, shortName, findStop } from './route.js';
 import { fmtDistance, fmtDuration, fmtNumber } from './format.js';
+import { localSolarHour } from './luz.js';
+import { estimatedAirTempC } from './clima.js';
+import { RAD } from '../data/medicoes.js';
 
 export const SIM = Object.freeze({
   speeds: [1, 20, 60, 200],
@@ -16,8 +19,9 @@ export const SIM = Object.freeze({
   startClockH: 9,
   o2PctPerHour: Object.freeze({ foot: 12.5, cabin: 4 }),
   batteryPctPerHour: Object.freeze({ foot: 9, cabin: 5 }),
-  radiationBaseUsvH: 27,
-  solarEventFactor: 40,
+  // Média medida pelo RAD do Curiosity em Gale, e o evento solar de 11/09/2017 (mais que o dobro). Ver data/medicoes.js.
+  radiationBaseUsvH: RAD.surfaceUsvPerHour,
+  solarEventFactor: RAD.solarEventFactor,
   hazardWarnM: 200,
   slopeWarnDeg: 15,
   slopeLookaheadM: 60,
@@ -144,12 +148,6 @@ function hazardStatus(here, heading) {
   return { edgeM, side, near: edgeM < SIM.hazardWarnM };
 }
 
-// Temperatura do ar simulada: curva diurna mais um pouco do aquecimento do solo.
-function airTemperature(clockH, groundTemp) {
-  const daylight = Math.max(0, Math.sin((Math.PI * (clockH - 6)) / 13));
-  return -52 + 34 * daylight + (groundTemp + 19) * 0.25;
-}
-
 function buildAlerts(state, readout) {
   const alerts = [];
   const { suit, hazard, slopeAheadDeg } = readout;
@@ -183,17 +181,23 @@ function copilotMessage(plan, state, readout) {
 }
 
 /**
+ * Hora solar local depois de `elapsedH` horas de saída. O plano traz a hora de partida escolhida
+ * no tablet (`startClockH`); sem ela, vale a do SIM.
+ */
+export const localClockOf = (plan, elapsedH) => localSolarHour(plan.startClockH ?? SIM.startClockH, elapsedH);
+
+/**
  * Tudo o que o HUD mostra em um instante.
  * @param {object} plan
  * @param {ReturnType<typeof createSimState>} state
- * @param {{ radiation: number, groundTemp: number }} ground Leitura do terreno no ponto atual.
+ * @param {{ radiation: number }} ground Leitura do terreno no ponto atual.
  */
 export function deriveReadout(plan, state, ground) {
   const here = samplePath(plan.path, state.distM);
   const elapsedH = missionHours(plan, state);
   const heading = headingAt(plan.path, state.distM);
   const target = nextTarget(plan, state, here);
-  const clockH = SIM.startClockH + elapsedH;
+  const clockH = localClockOf(plan, elapsedH);
   const readout = {
     here,
     elapsedH,
@@ -207,7 +211,7 @@ export function deriveReadout(plan, state, ground) {
     slopeAheadDeg: maxSlopeAheadDeg(plan.path, state.distM, SIM.slopeLookaheadM, SIM.slopeStepM),
     radiationRate: ground.radiation * (state.solarEvent ? SIM.solarEventFactor : 1),
     doseUsv: SIM.radiationBaseUsvH * elapsedH + state.solarDoseUsv,
-    airTempC: airTemperature(clockH, ground.groundTemp),
+    airTempC: estimatedAirTempC(clockH),
   };
   return { ...readout, alerts: buildAlerts(state, readout), copilot: copilotMessage(plan, state, readout) };
 }

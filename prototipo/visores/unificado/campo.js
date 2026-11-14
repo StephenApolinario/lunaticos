@@ -33,7 +33,7 @@ const REPEAT_COOLDOWN_S = 45;
 const HOLD = Object.freeze({ perCharS: 0.07, minS: 6, maxS: 16 });
 
 const planSize = (plan) => {
-  if (plan.isCustom) return 'destino livre escolhido no mapa';
+  if (plan.isCustom) return 'rota livre com pontos escolhidos no mapa';
   return plan.stopCount === 1 ? '1 parada' : `${plan.stopCount} paradas`;
 };
 

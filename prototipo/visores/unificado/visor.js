@@ -49,10 +49,11 @@ const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
  *   terrain: { isReal: boolean, heightAt: (x: number, z: number) => number, probe: (x: number, z: number) => { y: number, slopeDeg: number, radiation: number, groundTemp: number } },
  *   overlays: { setNextStop: (id: string|null, label: string) => void },
  *   onExit: () => void,
+ *   onLocalHour?: (hourH: number) => void,
  *   safety: { walkBackAt: Function, commsAt: Function, nearestShelter: Function, protocolFor: Function, assumptions: object },
  * }} context
  */
-export function createVisor({ mount, stageElement, camera, terrain, overlays, onExit, safety }) {
+export function createVisor({ mount, stageElement, camera, terrain, overlays, onExit, safety, onLocalHour }) {
   if (!safety) throw new Error('O visor único precisa de context.safety (ver visores/LEIA-ME.md).');
   const audio = createAudio();
   const analyzer = createAnalyzer(safety, terrain.isReal);
@@ -246,6 +247,8 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     const before = session;
     session = stepSession(session, dtS, terrain, analyzer);
     const { r } = session;
+    // A luz da cena acompanha a hora local do relógio da saída.
+    onLocalHour?.(r.localClockH);
     // Ao chegar a uma parada, a simulação pausa: a coleta leva o tempo que o astronauta precisar.
     const arrived = session.state.stopsReached > before.state.stopsReached && session.state.dwellRemainingH > 0;
     if (arrived) session = setPaused(session, true);

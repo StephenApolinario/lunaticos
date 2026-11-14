@@ -127,7 +127,7 @@ export function createScienceView({ onRecordSample, onMic, onSuggest, onContinue
     button('O que observar aqui?', { class: 'cientista-chip', onclick: onSuggest }),
     h('h4', {}, 'Registro da amostra'),
     form, resume,
-    h('p', { class: 'cientista-fine' }, 'Textos das paradas: roteiro da travessia (dados do protótipo). Hora e posição do registro vêm da simulação.'));
+    h('p', { class: 'cientista-fine' }, 'Textos das paradas: roteiro escrito pela equipe, ainda sem fonte ligada a cada afirmação. Hora e posição do registro vêm da simulação.'));
 
   function showStop(stop) {
     stopId = stop.id;

@@ -7,10 +7,7 @@
 import * as THREE from 'three';
 import { HAZARD } from '../data/travessia.js';
 import { toLocal, toGeo, yToElev, DATA_BOUNDS, clamp } from './geo.js';
-import {
-  buildHeightField, fieldFromElevation, heightAt, probe, slopeDegOf, sunFacingOf,
-  simulatedRadiation, simulatedGroundTemp,
-} from './heightfield.js';
+import { buildHeightField, fieldFromElevation, heightAt, probe, slopeDegOf } from './heightfield.js';
 import { fbm, valueNoise, mulberry32 } from './noise.js';
 import { mosaicUv, mosaicCoverage } from './tiles.js';
 import { SLOPE_CLASSES, LAYERS } from './config.js';
@@ -135,7 +132,7 @@ function rampColor(stops, t) {
 }
 
 // Devolve a cor e a opacidade da camada em um vértice, ou null se não há o que pintar.
-// `sources` traz funções (x, z) => valor para camadas calculadas fora daqui (volta a pé, rádio).
+// `sources` traz funções (x, z) => valor para as camadas calculadas fora daqui (volta a pé, rádio, radiação).
 function createLayerSampler(field, layer, sources) {
   if (layer === 'slope') {
     return (i) => {
@@ -147,17 +144,12 @@ function createLayerSampler(field, layer, sources) {
   const spec = LAYERS[layer];
   if (!spec) return () => null;
   const stops = spec.ramp.map(linear);
+  // Toda camada em rampa vem de fora (setLayerSource), com a fonte registrada em config.js.
   const source = sources[layer];
-  const builtIn = (i, x, z) => {
-    const gradX = field.gradX[i];
-    const gradZ = field.gradZ[i];
-    return layer === 'radiation'
-      ? simulatedRadiation(slopeDegOf(gradX, gradZ), x, z)
-      : simulatedGroundTemp(sunFacingOf(gradX, gradZ), yToElev(field.heights[i]), x, z);
-  };
+  if (!source) return () => null;
   return (i) => {
     const { x, z } = vertexXZ(field, i);
-    const value = source ? source(x, z) : builtIn(i, x, z);
+    const value = source(x, z);
     if (!Number.isFinite(value)) return null;
     return { rgb: rampColor(stops, (value - spec.min) / (spec.max - spec.min)), alpha: LAYER_OPACITY };
   };
@@ -205,13 +197,8 @@ export function createTerrain(elevation) {
   const detail = createDetailTexture();
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
+    // Até a foto real chegar, um grão neutro; depois, a imagem HiRISE (attachImagery).
     map: detail,
-    bumpMap: detail,
-    bumpScale: 5,
-    // O grão também escurece um pouco a luz ambiente: dá textura ao chão visto de perto,
-    // onde a foto orbital (2,5 m por pixel) fica lisa.
-    aoMap: detail,
-    aoMapIntensity: 1.4,
     roughness: 0.96,
     metalness: 0,
     // Empurra o terreno um pouco para trás no depth buffer, para as linhas da rota não piscarem.
@@ -221,6 +208,7 @@ export function createTerrain(elevation) {
   });
 
   let imagery = null;
+  let closeDetail = null;
   const layerSources = {};
   let lastPaint = { layer: 'none', dimOutsideData: true };
 
@@ -244,7 +232,7 @@ export function createTerrain(elevation) {
   }
 
   /**
-   * @param {{ layer: 'none'|'slope'|'radiation'|'temperature', dimOutsideData: boolean }} options
+   * @param {{ layer: 'none'|'slope'|'radiation'|'walkback'|'comms', dimOutsideData: boolean }} options
    */
   function paint(options) {
     lastPaint = options;
@@ -252,6 +240,8 @@ export function createTerrain(elevation) {
     // Com a foto, o declive real é desenhado na própria textura; sem ela, vem do relevo ilustrativo.
     const slopeFromMap = Boolean(imagery) && layer === 'slope';
     if (imagery) imagery.setSlopeOverlay(slopeFromMap);
+    // O declive é pintado na própria foto; o detalhe fino usa a foto borrada e apagaria as classes.
+    closeDetail?.setEnabled(!slopeFromMap);
     const sampleLayer = slopeFromMap ? () => null : createLayerSampler(field, layer, layerSources);
     const colorOf = imagery ? photoColor : proceduralColor;
 
@@ -278,10 +268,21 @@ export function createTerrain(elevation) {
     paint(lastPaint);
   }
 
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
   return Object.freeze({
-    mesh: new THREE.Mesh(geometry, material),
+    mesh,
     paint,
     attachImagery,
+    // Liga o detalhe fino (64 cm e 25 cm por pixel) sobre a foto. Chamar depois de attachImagery.
+    attachDetail: (detail) => {
+      closeDetail = detail;
+      material.onBeforeCompile = detail.patchShader;
+      material.needsUpdate = true;
+      paint(lastPaint);
+    },
     // Registra de onde vem o valor de uma camada calculada fora do terreno.
     setLayerSource: (id, valueAt) => { layerSources[id] = valueAt; },
     field,

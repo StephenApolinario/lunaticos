@@ -9,13 +9,17 @@ import { createOverlays } from './overlays.js';
 import { createTabletPanel } from './tablet.js';
 import { VISORS, DEFAULT_VISOR, visorIdFromUrl, loadVisor } from '../visores/registry.js';
 import { loadImagery } from './imagery.js';
+import { createDetailImagery } from './detalhe.js';
 import { loadElevation } from './elevation.js';
 import { buildPlan } from './route.js';
-import { toLocal, toGeo } from './geo.js';
+import { toLocal, toGeo, ORIGIN } from './geo.js';
+import { sunAt, solarLongitudeDeg, julianDateTT } from './luz.js';
+import { loadSeasonWeather, loadRecentDose, loadNightThermal } from './nasa.js';
+import { useMeasuredRanges } from './clima.js';
 import { mosaicCoverage } from './tiles.js';
 import { createRouter } from './pathfind.js';
 import { createSafety, ASSUMPTIONS } from './safety.js';
-import { createPlanner } from './planner.js';
+import { createPlanner, MAX_WAYPOINTS } from './planner.js';
 import { PROTOCOLS, SHELTER_KINDS, protocolFor } from '../data/protocolos.js';
 import { byId } from './dom.js';
 
@@ -23,16 +27,24 @@ const TABLET_CAMERA = Object.freeze({ position: [-700, 4300, -5500], target: [0,
 const ORBIT_LIMITS = Object.freeze({ minDistanceM: 150, maxDistanceM: 16000, maxPolarRad: Math.PI * 0.47 });
 const FOCUS = Object.freeze({ distanceM: 1300, durationS: 0.9 });
 const MAX_FRAME_S = 0.1;
+// Hora solar local em que o mapa abre, e de quanto em quanto a luz é refeita enquanto o relógio do visor anda.
+const DEFAULT_HOUR_H = 10;
+const SUN_STEP_H = 1 / 60;
+const FOCUS_REFRESH_S = 0.15;
 // Clique no mapa: até quantos pixels o ponteiro pode andar sem virar arrasto, e o passo da busca do ponto no relevo.
 const PICK = Object.freeze({ clickTolerancePx: 5, stepM: 8, maxM: 40000, refineSteps: 12 });
 const OUTSIDE_DATA_NOTICE = 'Escolha um ponto dentro da área fotografada do mapa.';
 const RAD_TO_DEG = 180 / Math.PI;
 const easeOutCubic = (t) => 1 - (1 - t) ** 3;
 // Selo sobre o mapa: diz o que é real no que está na tela.
-function badgeText({ imagery, relief }) {
+function badgeText({ imagery, relief, detail }) {
   const reliefText = relief === 'real' ? 'relevo real (USGS)' : 'altura do relevo aproximada';
   if (imagery === 'loading') return `Carregando imagem HiRISE… · ${reliefText}`;
-  if (imagery === 'ready') return relief === 'real' ? 'Imagem HiRISE e relevo reais (USGS)' : `Imagem HiRISE real · ${reliefText}`;
+  if (imagery === 'ready') {
+    const base = relief === 'real' ? 'Imagem HiRISE e relevo reais (USGS)' : `Imagem HiRISE real · ${reliefText}`;
+    if (detail === 'offline') return `${base} · sem rede para o detalhe fino`;
+    return detail ? `${base} · detalhe de ${detail} por pixel` : base;
+  }
   return `Imagem HiRISE indisponível · ${reliefText}`;
 }
 
@@ -44,8 +56,7 @@ function boot(elevation, visor) {
   const badge = byId('map-badge');
 
   const terrain = createTerrain(elevation);
-  const corridor = ['walk', 'car'].flatMap((mode) => buildPlan(mode, true).path.points);
-  const scenery = createScenery(terrain, corridor);
+  const scenery = createScenery(terrain);
   const stage = createStage(stageElement, scenery);
   stage.scene.add(terrain.mesh, scenery.props);
 
@@ -60,6 +71,8 @@ function boot(elevation, visor) {
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
   stage.camera.position.set(...TABLET_CAMERA.position);
   controls.target.set(...TABLET_CAMERA.target);
+  // Com ?debug na URL, expõe a câmera para testes automatizados posicionarem a vista.
+  if (new URLSearchParams(window.location.search).has('debug')) window.lunaticos = { camera: stage.camera, controls };
 
   // Rotas e segurança calculadas sobre o mesmo campo de altitude do terreno.
   const router = createRouter(terrain.field);
@@ -67,23 +80,37 @@ function boot(elevation, visor) {
   const planner = createPlanner(terrain.field, router, safety);
   terrain.setLayerSource('walkback', (x, z) => safety.walkBackAt(x, z));
   terrain.setLayerSource('comms', (x, z) => safety.commsCoverageAt(x, z));
-  const withSafety = (base) => Object.freeze({ ...base, safety: safety.assessPlan(base) });
+  terrain.setLayerSource('radiation', (x, z) => safety.radiationAt(x, z));
+  // O plano leva a avaliação de segurança e a hora solar local em que a saída começa.
+  const withSafety = (base, hourH) => Object.freeze({ ...base, safety: safety.assessPlan(base), startClockH: hourH });
 
-  // Plano para um estado: destino livre (rota calculada na hora) ou a travessia pré-calculada.
+  // Plano para um estado: rota livre pelos pontos escolhidos (calculada na hora) ou a travessia pré-calculada.
   function planFor(next) {
-    if (!next.destination) return { plan: withSafety(buildPlan(next.mode, next.includeExtension)), reason: null };
-    const result = planner.planTo(next.destination, next.mode, next.routeOption);
-    return result.plan ? { plan: withSafety(result.plan), reason: null } : { plan: null, reason: result.reason };
+    if (next.waypoints.length === 0) return { plan: withSafety(buildPlan(next.mode, next.includeExtension), next.hourH), reason: null };
+    const result = planner.planThrough(next.waypoints, next.mode);
+    return result.plan ? { plan: withSafety(result.plan, next.hourH), reason: null } : { plan: null, reason: result.reason };
   }
 
   let state = Object.freeze({
     mode: 'walk', includeExtension: false, layer: 'none', view: 'tablet',
     imagery: 'loading', relief: terrain.isReal ? 'real' : 'approx',
-    destination: null, routeOption: 'fast', notice: null,
+    waypoints: Object.freeze([]), notice: null, detail: '', hourH: DEFAULT_HOUR_H,
+    // Medições lidas da NASA: undefined enquanto carregam, null se a rede falhar.
+    weather: undefined, dose: undefined,
   });
   let { plan } = planFor(state);
   let tween = null;
   let savedPose = null;
+
+  // Estação de hoje em Marte (longitude solar), que define o caminho do Sol no céu.
+  const lsDeg = solarLongitudeDeg(julianDateTT(new Date()));
+  let sunHourH = null;
+  // Põe o Sol na posição da hora dada. No visor é chamado a cada quadro, então só refaz a luz a cada minuto.
+  function applySun(hourH, force = false) {
+    if (!force && sunHourH !== null && Math.abs(hourH - sunHourH) < SUN_STEP_H) return;
+    sunHourH = hourH;
+    stage.setSun(sunAt(ORIGIN.lat, lsDeg, hourH));
+  }
 
   // Leva a câmera do tablet até uma parada, mantendo o ângulo atual.
   function focusOn(stop) {
@@ -117,6 +144,8 @@ function boot(elevation, visor) {
     terrain,
     overlays,
     onExit: () => setState({ view: 'tablet' }),
+    // O visor informa a hora local do relógio da saída, e a luz acompanha.
+    onLocalHour: (hourH) => applySun(hourH),
     // Segurança calculada sobre o relevo real, para as variantes de visor consumirem.
     safety: Object.freeze({
       walkBackAt: safety.walkBackAt,
@@ -131,20 +160,21 @@ function boot(elevation, visor) {
   });
   const panel = createTabletPanel(byId('panel'), {
     onModeChange: (mode) => setState({ mode }),
+    onHourChange: (hourH) => setState({ hourH }),
     onExtensionChange: (includeExtension) => setState({ includeExtension }),
     onLayerChange: (layer) => setState({ layer }),
     onStopFocus: focusOn,
     onEnterVisor: () => setState({ view: 'visor' }),
     // A variante é carregada na abertura da página, então trocar recarrega com ?visor=<id>.
-    onRouteOptionChange: (routeOption) => setState({ routeOption }),
-    onClearDestination: () => setState({ destination: null }),
-    onPlanTo: ({ lat, lon }) => setState({ destination: toLocal(lat, lon) }),
+    onClearDestination: () => setState({ waypoints: Object.freeze([]) }),
+    onRemoveWaypoint: (index) => setState({ waypoints: Object.freeze(state.waypoints.filter((_, i) => i !== index)) }),
+    onPlanTo: ({ lat, lon }) => addWaypoint(toLocal(lat, lon)),
     onVisorChange: (id) => {
       const url = new URL(window.location.href);
       url.searchParams.set('visor', id);
       window.location.assign(url);
     },
-  }, { realRelief: terrain.isReal, visors: VISORS, visorId: visor.id });
+  }, { realRelief: terrain.isReal, visors: VISORS, visorId: visor.id, lsDeg });
 
   function applyView() {
     const isVisor = state.view === 'visor';
@@ -163,15 +193,25 @@ function boot(elevation, visor) {
         controls.target.copy(savedPose.target);
       }
       controls.update();
+      applySun(state.hourH, true);
     }
     stage.resize();
   }
 
-  const PLAN_KEYS = ['mode', 'includeExtension', 'destination', 'routeOption'];
-  // Só o que de fato muda o plano: com destino livre a extensão não conta; sem ele, o critério da rota não conta.
-  const planKey = (s) => (s.destination
-    ? `destino|${s.destination.x}|${s.destination.z}|${s.mode}|${s.routeOption}`
+  const PLAN_KEYS = ['mode', 'includeExtension', 'waypoints'];
+  // Só o que de fato muda o plano: na rota livre a extensão não conta.
+  const planKey = (s) => (s.waypoints.length > 0
+    ? `livre|${s.waypoints.map((point) => `${point.x},${point.z}`).join(';')}|${s.mode}`
     : `travessia|${s.mode}|${s.includeExtension}`);
+
+  // Acrescenta um ponto ao fim da rota livre (A, B, C…).
+  function addWaypoint(point) {
+    if (state.waypoints.length >= MAX_WAYPOINTS) {
+      setState({ notice: `A rota livre aceita até ${MAX_WAYPOINTS} pontos. Remova um para escolher outro.` });
+      return;
+    }
+    setState({ waypoints: Object.freeze([...state.waypoints, point]) });
+  }
 
   function setState(changes) {
     const previous = state;
@@ -189,6 +229,10 @@ function boot(elevation, visor) {
         state = Object.freeze({ ...state, ...kept, notice: next.reason });
       }
     }
+    if (state.hourH !== previous.hourH) {
+      if (plan.startClockH !== state.hourH) plan = Object.freeze({ ...plan, startClockH: state.hourH });
+      applySun(state.hourH, true);
+    }
     if (state.layer !== previous.layer || state.view !== previous.view) {
       const isTablet = state.view === 'tablet';
       terrain.paint({ layer: isTablet ? state.layer : 'none', dimOutsideData: isTablet });
@@ -202,7 +246,7 @@ function boot(elevation, visor) {
     panel.update(plan, state);
   }
 
-  // Clique (sem arrastar) no mapa escolhe o destino livre.
+  // Clique (sem arrastar) no mapa acrescenta um ponto à rota livre.
   const canvas = stage.renderer.domElement;
   const raycaster = new THREE.Raycaster();
   // Vale qualquer ponto dentro da imagem orbital (a parte clara do mapa).
@@ -211,11 +255,11 @@ function boot(elevation, visor) {
     return mosaicCoverage(lat, lon, 1) >= 1;
   };
 
-  // Acha onde o raio do clique encontra o relevo: anda em passos e refina por bisseção.
-  function pickTerrain(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const pointer = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
-    raycaster.setFromCamera(pointer, stage.camera);
+  // Acha onde um raio da câmera encontra o relevo: anda em passos e refina por bisseção.
+  // (ndcX, ndcY) vão de -1 a 1 na tela, com (0, 0) no centro.
+  const pointer = new THREE.Vector2();
+  function groundUnder(ndcX, ndcY) {
+    raycaster.setFromCamera(pointer.set(ndcX, ndcY), stage.camera);
     const { origin, direction } = raycaster.ray;
     const { halfWidth, halfDepth } = terrain.field;
     const below = (t) => {
@@ -238,6 +282,37 @@ function boot(elevation, visor) {
     return null;
   }
 
+  function pickTerrain(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return groundUnder(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  }
+
+  // Onde o detalhe fino da imagem deve ficar: no visor, em volta do astronauta; no tablet, no chão do centro da tela.
+  // O ponto do chão no centro da tela é procurado poucas vezes por segundo: a busca anda o raio inteiro quando ele não acha o relevo.
+  let detail = null;
+  let tabletFocus = null;
+  let focusAgeS = Infinity;
+  function updateDetail(dtS) {
+    if (!detail) return;
+    const eye = stage.camera.position;
+    if (state.view === 'visor') {
+      detail.update(eye, 0, dtS);
+      return;
+    }
+    focusAgeS += dtS;
+    if (!tabletFocus || focusAgeS >= FOCUS_REFRESH_S) {
+      tabletFocus = groundUnder(0, 0) ?? { x: controls.target.x, z: controls.target.z };
+      focusAgeS = 0;
+    }
+    const { x, z } = tabletFocus;
+    detail.update(tabletFocus, Math.hypot(eye.x - x, eye.y - terrain.heightAt(x, z), eye.z - z), dtS);
+  }
+  // Atualiza só o selo: o painel não depende do detalhe e não precisa ser refeito.
+  function setDetailStatus(status) {
+    state = Object.freeze({ ...state, detail: status });
+    badge.textContent = badgeText(state);
+  }
+
   // Só o ponteiro primário conta como clique: um segundo dedo (pinça, giro) cancela.
   let press = null;
   canvas.addEventListener('pointerdown', (event) => {
@@ -251,10 +326,12 @@ function boot(elevation, visor) {
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > PICK.clickTolerancePx) return;
     const hit = pickTerrain(event.clientX, event.clientY);
     if (!hit) return;
-    setState(insideData(hit) ? { destination: hit } : { notice: OUTSIDE_DATA_NOTICE });
+    if (insideData(hit)) addWaypoint(hit);
+    else setState({ notice: OUTSIDE_DATA_NOTICE });
   });
 
   overlays.setPlan(plan);
+  applySun(state.hourH, true);
   terrain.paint({ layer: state.layer, dimOutsideData: true });
   applyView();
   badge.textContent = badgeText(state);
@@ -264,12 +341,31 @@ function boot(elevation, visor) {
   loadImagery()
     .then((imagery) => {
       terrain.attachImagery(imagery);
+      detail = createDetailImagery({ onStatus: setDetailStatus });
+      terrain.attachDetail(detail);
       setState({ imagery: 'ready' });
     })
     .catch((error) => {
       console.warn(error);
       setState({ imagery: 'failed' });
     });
+
+  // Medições do Curiosity lidas dos serviços da NASA. O painel é refeito quando cada uma chega;
+  // sem rede, ele mostra o valor de reserva e avisa.
+  const setLive = (changes) => {
+    state = Object.freeze({ ...state, ...changes });
+    panel.update(plan, state);
+  };
+  // O aviso de "sem rede" só vale para a leitura que falhou: erro ao mostrar o dado não cai aqui.
+  const orNull = (key) => (error) => { console.warn(error); setLive({ [key]: null }); };
+  loadSeasonWeather(lsDeg).then((weather) => { useMeasuredRanges(weather); setLive({ weather }); }, orNull('weather'));
+  loadRecentDose().then((dose) => setLive({ dose }), orNull('dose'));
+  loadNightThermal()
+    .then((valueAt) => {
+      terrain.setLayerSource('thermal', valueAt);
+      if (state.layer === 'thermal' && state.view === 'tablet') terrain.paint({ layer: 'thermal', dimOutsideData: true });
+    })
+    .catch((error) => console.warn(error));
 
   new ResizeObserver(() => stage.resize()).observe(stageElement);
 
@@ -284,6 +380,7 @@ function boot(elevation, visor) {
       controls.update();
       north.style.transform = `rotate(${controls.getAzimuthalAngle() * RAD_TO_DEG}deg)`;
     }
+    updateDetail(dtS);
     stage.render();
     requestAnimationFrame(frame);
   }

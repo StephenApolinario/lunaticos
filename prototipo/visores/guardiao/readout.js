@@ -1,6 +1,7 @@
 // Leitura completa de um instante: tudo o que o HUD mostra e que as regras consultam.
 
-import { SIM } from '../../src/simulation.js';
+import { estimatedAirTempC } from '../../src/clima.js';
+import { SIM, localClockOf } from '../../src/simulation.js';
 import { headingDeg, yToElev } from '../../src/geo.js';
 import { samplePath, maxSlopeAheadDeg } from '../../src/route.js';
 import { RULES, FAULTS, SHELTER_NAMES } from './catalog.js';
@@ -30,12 +31,6 @@ export function updateTrends(previous, values, dtH) {
 
 // Seta do consumo: vem direto da taxa, que o motor conhece.
 const drainTrend = (ratePctH, nominalPctH) => (ratePctH < 0.1 ? 'flat' : ratePctH > nominalPctH * 1.3 ? 'down2' : 'down');
-
-// Mesma curva diurna do visor base (simulation.js não exporta a função).
-function airTemperature(clockH, groundTemp) {
-  const daylight = Math.max(0, Math.sin((Math.PI * (clockH - 6)) / 13));
-  return -52 + 34 * daylight + (groundTemp + 19) * 0.25;
-}
 
 function bearingTo(from, to) {
   const dx = to.x - from.x;
@@ -70,7 +65,7 @@ export function buildReadout({ plan, state, pos, ground, base, analysis }) {
   const rates = ratesOf(plan, state, ground);
   const o2Pct = o2PctOf(state);
   const batteryPct = batteryPctOf(state);
-  const localClockH = SIM.startClockH + state.clockH;
+  const localClockH = localClockOf(plan, state.clockH);
   const target = currentTarget(plan, state, pos, m, base);
   const backward = state.nav.kind === 'goto' && target.kind === 'shelter' && state.nav.target.kind !== 'terrain' && state.nav.target.distM < state.distM;
   const dwelling = state.nav.kind === 'plan' && state.dwellRemainingH > 0;
@@ -99,7 +94,7 @@ export function buildReadout({ plan, state, pos, ground, base, analysis }) {
   return {
     plan, mode: plan.mode, fx, m, rates, nav: state.nav,
     finished: state.finished, sheltered: state.sheltered, offRoute: Boolean(state.off), moving,
-    clockH: state.clockH, localClockH,
+    clockH: state.clockH, localClockH, startClockH: plan.startClockH ?? SIM.startClockH,
     heading, target, targetBearing: bearingTo(pos, target.position),
     dwell: dwelling ? { stop: plan.stops[state.stopsReached - 1].stop, remainingH: state.dwellRemainingH } : null,
     o2Pct, o2RatePctH: rates.o2PctH, o2AutonomyH: rates.o2PctH > 0 ? o2Pct / rates.o2PctH : Infinity,
@@ -109,7 +104,7 @@ export function buildReadout({ plan, state, pos, ground, base, analysis }) {
     pressureKpa: RULES.pressureNominalKpa * (1 - FAULTS.pressureDropPerPoint * (100 - state.integrityPct)),
     radiationRate: rates.doseUsvH, doseUsv: state.doseUsv,
     doseEtaH: doseLeftUsv > 0 ? doseLeftUsv / rates.doseUsvH : 0,
-    airTempC: airTemperature(localClockH, ground.groundTemp) + fx.tempOffsetC,
+    airTempC: estimatedAirTempC(localClockH) + fx.tempOffsetC,
     windMps: fx.windMps, radio, comms: analysis.comms,
     slopeDeg, slopeAheadDeg, altitudeM: state.off ? yToElev(ground.y) : m.here.elev,
     hazard: base.hazard,

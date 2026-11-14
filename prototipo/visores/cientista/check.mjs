@@ -97,12 +97,12 @@ for (const [question, expected] of CASES) {
 }
 
 // Respostas apoiadas nos dados das paradas e da simulação.
-assert.match(answerByRules('Qual é a tarefa aqui?', atStop).text, /Fotografar e amostrar o contato entre arenito e argila/);
+assert.match(answerByRules('Qual é a tarefa aqui?', atStop).text, /Fotografar e amostrar o contato entre o arenito e as camadas mais antigas/);
 assert.match(answerByRules('Por que esta parada importa?', atStop).text, /lacuna no tempo/);
 assert.match(answerByRules('Quanto falta?', walking).text, /parada 1, Borda do Greenheugh Pediment/);
 assert.match(answerByRules('Quanto falta para o habitat?', walking).text, /^O habitat fica a 400 m/);
 assert.match(answerByRules('Por que a parada 3 importa?', walking).text, /enxofre puro/i);
-assert.match(answerByRules('A radiação é real?', walking).text, /^Reais: .*Simulados: traje, radiação/);
+assert.match(answerByRules('A radiação é real?', walking).text, /^Reais: .*taxa de radiação \(média medida pelo RAD.*Simulados: traje, vento/);
 
 // Comandos devolvem ação, com a nota na grafia original.
 assert.deepEqual(answerByRules('relatar perigo areia fofa', walking).action, { type: 'report-hazard', hazardType: 'areia', note: '' });

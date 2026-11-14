@@ -7,9 +7,9 @@
 // ao longo do trajeto do Curiosity e das rotas e preenche o resto com tendência e ruído.
 
 import { TRACK, ROUTES } from '../data/travessia.js';
-import { toLocal, elevToY, yToElev, clamp } from './geo.js';
+import { toLocal, elevToY, clamp } from './geo.js';
 import { fbm, ridged } from './noise.js';
-import { SUN_DIRECTION } from './config.js';
+import { RAD } from '../data/medicoes.js';
 
 // Janela do terreno em torno da origem local. `cellM` vale para o relevo aproximado;
 // a grade real traz o próprio tamanho de célula.
@@ -28,8 +28,6 @@ const BUCKET_OFFSET = 100;
 const BUCKET_KEY_BASE = 1000;
 const RAD_TO_DEG = 180 / Math.PI;
 
-const RADIATION_BASE_USV_H = 27;
-const REFERENCE_ELEV_M = -4144;
 
 function collectSamples() {
   const samples = TRACK.map(([lat, lon, elev]) => ({ ...toLocal(lat, lon), elev }));
@@ -214,24 +212,6 @@ export function heightAt(field, x, z) {
 
 export const slopeDegOf = (gradX, gradZ) => Math.atan(Math.hypot(gradX, gradZ)) * RAD_TO_DEG;
 
-// Quanto a superfície está virada para o sol (0 a 1).
-export function sunFacingOf(gradX, gradZ) {
-  const length = Math.hypot(gradX, 1, gradZ);
-  const dot = (-gradX * SUN_DIRECTION[0] + SUN_DIRECTION[1] - gradZ * SUN_DIRECTION[2]) / length;
-  return Math.max(0, dot);
-}
-
-// Camadas SIMULADAS (não são dados de missão): servem só para validar a interface.
-export function simulatedRadiation(slopeDeg, x, z) {
-  const shielding = clamp(slopeDeg / 25, 0, 1) * 0.6 + fbm(x / 500, z / 500, 2, 91) * 0.4;
-  return RADIATION_BASE_USV_H * (1.06 - 0.16 * shielding);
-}
-
-export function simulatedGroundTemp(sunFacing, elevM, x, z) {
-  const altitudeCooling = 0.9 * ((elevM - REFERENCE_ELEV_M) / 100);
-  return -24 + 20 * sunFacing - altitudeCooling + 5 * (fbm(x / 300, z / 300, 2, 63) - 0.5);
-}
-
 // Leitura completa em um ponto: altura, declive e as camadas simuladas.
 export function probe(field, x, z) {
   const { index, tx, tz } = cellAt(field, x, z);
@@ -243,7 +223,7 @@ export function probe(field, x, z) {
   return {
     y,
     slopeDeg,
-    radiation: simulatedRadiation(slopeDeg, x, z),
-    groundTemp: simulatedGroundTemp(sunFacingOf(gradX, gradZ), yToElev(y), x, z),
+    // Média medida pelo RAD do Curiosity em Gale. Não varia de ponto a ponto: o RAD só mede onde o rover está.
+    radiation: RAD.surfaceUsvPerHour,
   };
 }

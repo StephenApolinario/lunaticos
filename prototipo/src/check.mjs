@@ -106,8 +106,22 @@ for (const stop of STOPS) {
 }
 const reading = probe(field, 0, 0);
 assert.ok(reading.slopeDeg >= 0 && reading.slopeDeg < 60, 'declive plausível');
-assert.ok(reading.radiation > 20 && reading.radiation < 32, 'radiação simulada na faixa');
-assert.ok(reading.groundTemp > -60 && reading.groundTemp < 20, 'temperatura simulada na faixa');
+// Radiação e temperatura vêm das medições do Curiosity (data/medicoes.js), não de fórmula inventada.
+{
+  const { RAD, REMS } = await import('../data/medicoes.js');
+  const { estimatedAirTempC, estimatedGroundTempC } = await import('./clima.js');
+  near(reading.radiation, 27.9, 0.05, 'leitura de radiação é a média medida pelo RAD (0,67 mSv/dia)');
+  assert.equal(reading.groundTemp, undefined, 'não há mais temperatura do solo inventada por ponto');
+  near(estimatedAirTempC(6), REMS.air.minC, 1e-9, 'ar mais frio no nascer do Sol');
+  near(estimatedAirTempC(15), REMS.air.maxC, 1e-9, 'ar mais quente no meio da tarde');
+  near(estimatedGroundTempC(13), REMS.ground.maxC, 1e-9, 'solo mais quente no começo da tarde');
+  for (let hour = 0; hour <= 24; hour += 0.5) {
+    assert.ok(estimatedAirTempC(hour) >= REMS.air.minC - 1e-9 && estimatedAirTempC(hour) <= REMS.air.maxC + 1e-9, 'ar dentro da faixa medida');
+    assert.ok(estimatedGroundTempC(hour) >= REMS.ground.minC - 1e-9 && estimatedGroundTempC(hour) <= REMS.ground.maxC + 1e-9, 'solo dentro da faixa medida');
+  }
+  near(estimatedAirTempC(0), estimatedAirTempC(24), 1e-9, 'a curva fecha em um sol');
+  assert.equal(RAD.solarEventFactor, 2, 'evento solar no valor medido em 2017');
+}
 
 // Relevo real: a grade extraída do DEM do USGS bate com as altitudes das paradas e do trajeto do Curiosity.
 const REAL_TOLERANCE_M = 4;
@@ -157,22 +171,51 @@ if (meta) {
   assert.ok(baseSafety.commsGaps.every((gap) => gap.toM > gap.fromM), 'trechos sem rádio bem formados');
   assert.ok(baseSafety.shelter.habitat.walkH > 0);
 
+  // Radiação estimada: nunca acima da média do RAD, nunca abaixo dela menos 4%, e menor onde o relevo tapa o céu.
+  {
+    const { RAD } = await import('../data/medicoes.js');
+    let lowest = Infinity;
+    let highest = -Infinity;
+    for (let x = -3000; x <= 3000; x += 250) {
+      for (let z = -4000; z <= 4000; z += 250) {
+        const value = safety.radiationAt(x, z);
+        lowest = Math.min(lowest, value);
+        highest = Math.max(highest, value);
+      }
+    }
+    assert.ok(highest <= RAD.surfaceUsvPerHour + 1e-9, 'radiação não passa da média medida');
+    assert.ok(lowest > RAD.surfaceUsvPerHour * 0.8, 'blindagem do relevo fica em poucos por cento, como na medição de Murray Buttes');
+    assert.ok(highest - lowest > 0.05, 'o relevo muda a estimativa de um ponto para outro');
+  }
+
   // Destino livre: plano no mesmo formato dos pré-calculados, e simulação roda nele.
   const planner = createPlanner(real, router, safety);
-  const custom = planner.planTo(localOf('2'), 'walk', 'fast');
-  assert.ok(custom.plan && custom.plan.isCustom && custom.plan.stops[0].stop.id === 'D');
+  const custom = planner.planThrough([localOf('2')], 'walk');
+  assert.ok(custom.plan && custom.plan.isCustom && custom.plan.stops[0].stop.id === 'A');
   near(custom.plan.path.totalM / 1000, custom.plan.stats.totalKm, 0.01, 'caminho do destino livre fecha com o total');
   // O tempo do plano é o do roteador (com declive), não distância dividida pela velocidade no plano.
-  const routed = router.findPath(localOf('H'), localOf('2'), TRAVEL.walk);
-  const routedBack = router.findPath(localOf('2'), localOf('H'), TRAVEL.walk);
+  const routed = router.findPath(localOf('H'), localOf('2'), planner.profileFor('walk'));
+  const routedBack = router.findPath(localOf('2'), localOf('H'), planner.profileFor('walk'));
+  assert.ok(routed.hours >= router.findPath(localOf('H'), localOf('2'), TRAVEL.walk).hours - 1e-9, 'a rota mais segura não é mais rápida que a mais rápida');
   near(custom.plan.path.totalTravelH, routed.hours + routedBack.hours, 0.02, 'tempo do destino livre igual ao do roteador');
   assert.ok(custom.plan.stats.maxSlopeDeg <= TRAVEL.walk.maxSlopeDeg, 'rota desenhada respeita o declive máximo');
-  assert.equal(planner.planTo({ x: safety.habitat.x + 3, z: safety.habitat.z }, 'walk', 'fast').plan, null, 'destino colado no habitat é recusado');
+  assert.equal(planner.planThrough([{ x: safety.habitat.x + 3, z: safety.habitat.z }], 'walk').plan, null, 'ponto colado no habitat é recusado');
   let customSim = createSimState();
   for (let i = 0; i < 200000 && !customSim.finished; i++) customSim = advance(custom.plan, customSim, 1 / 30);
   assert.ok(customSim.finished, 'simulação termina no plano de destino livre');
-  assert.equal(deriveReadout(custom.plan, createSimState(), GROUND).target.name, 'Destino livre');
-  assert.ok(planner.planTo(localOf('2'), 'car', 'safe').plan, 'opção segura de veículo encontra rota');
+  assert.equal(deriveReadout(custom.plan, createSimState(), GROUND).target.name, 'Ponto A');
+  assert.ok(planner.planThrough([localOf('2')], 'car').plan, 'rota livre de veículo encontra rota');
+
+  // Rota livre com vários pontos: habitat, A, B, C e volta, sem saltos entre os trechos.
+  const multi = planner.planThrough([localOf('1'), localOf('2'), localOf('3')], 'walk');
+  assert.deepEqual(multi.plan.stops.map((entry) => entry.stop.id), ['A', 'B', 'C']);
+  assert.deepEqual([...multi.plan.legs, multi.plan.returnLeg].map((leg) => `${leg.from}>${leg.to}`), ['H>A', 'A>B', 'B>C', 'C>H']);
+  assert.ok(multi.plan.stops.every((entry, i, all) => i === 0 || entry.distM > all[i - 1].distM), 'pontos em ordem ao longo da rota');
+  near(multi.plan.path.totalM / 1000, multi.plan.stats.totalKm, 0.01, 'caminho da rota livre fecha com o total');
+  assert.ok(multi.plan.path.points.every((point, i, all) => i === 0 || Math.hypot(point.x - all[i - 1].x, point.z - all[i - 1].z) < 60), 'sem saltos entre trechos');
+  assert.ok(multi.plan.stats.hours > custom.plan.stats.hours, 'três pontos levam mais tempo que um');
+  assert.equal(planner.planThrough(Array.from({ length: 14 }, () => localOf('1')), 'walk').plan, null, 'acima do limite de pontos é recusado');
+  assert.equal(planner.planThrough([localOf('1'), localOf('1')], 'walk').plan, null, 'ponto repetido em seguida é recusado');
 } else {
   process.stdout.write('aviso: grade de altitude real ausente, relevo real não conferido\n');
 }
@@ -200,5 +243,45 @@ assert.equal(fmtDuration(1.5), '1h30');
 assert.equal(fmtDuration(-0.25), '-0h15');
 assert.equal(fmtDistance(1840), '1,84 km');
 assert.equal(fmtDistance(124), '120 m');
+
+
+// Ortofoto de 25 cm e mosaico do Mars Trek: a conversão entre coordenada e pixel vai e volta,
+// as duas grades concordam no tamanho do chão, e o PackBits descomprime cópias e repetições.
+{
+  const { orthoPixelAt, orthoGeoAt, unpackBits } = await import('./ortofoto.js');
+  const { trekPixelAt, trekGeoAt } = await import('./trek.js');
+  for (const [pixelAt, geoAt] of [[orthoPixelAt, orthoGeoAt], [trekPixelAt, trekGeoAt]]) {
+    const { px, py } = pixelAt(-4.77, 137.394);
+    const back = geoAt(px, py);
+    near(back.lat, -4.77, 1e-9, 'latitude vai e volta');
+    near(back.lon, 137.394, 1e-9, 'longitude vai e volta');
+    assert.ok(pixelAt(-4.76, 137.394).py < py && pixelAt(-4.77, 137.4).px > px, 'norte sobe e leste avança');
+  }
+  const ortho = orthoPixelAt(-4.77, 137.394);
+  assert.ok(ortho.px > 0 && ortho.px < 180000 && ortho.py > 0 && ortho.py < 280000, 'área de estudo dentro da ortofoto');
+  const spanOrtho = orthoPixelAt(-4.78, 137.394).py - ortho.py;
+  const spanTrek = trekPixelAt(-4.78, 137.394).py - trekPixelAt(-4.77, 137.394).py;
+  near((spanOrtho * 0.25) / spanTrek, 0.636, 0.002, 'Mars Trek no nível 16 tem cerca de 64 cm por pixel');
+  assert.deepEqual([...unpackBits(Uint8Array.from([2, 7, 8, 9, 0xfd, 5, 0x80, 0, 1]), 8)], [7, 8, 9, 5, 5, 5, 5, 1]);
+}
+
+// Sol em Marte: o exemplo publicado do Mars24 (6 de janeiro de 2000, 0h UTC) e a geometria do céu.
+{
+  const { solarLongitudeDeg, sunAt, daylightHours, localSolarHour, compassName } = await import('./luz.js');
+  near(solarLongitudeDeg(2451549.50074), 277.18758, 0.01, 'Ls do exemplo do Mars24');
+  const noon = sunAt(-4.77, 277.19, 12);
+  near(noon.elevationDeg, 90 - Math.abs(-4.77 - (-24.8)), 0.6, 'Sol do meio-dia: 90° menos a distância entre latitude e declinação');
+  near(noon.azimuthDeg, 180, 0.01, 'no verão do sul o Sol do meio-dia fica ao sul de Gale');
+  const morning = sunAt(-4.77, 0, 8);
+  assert.ok(morning.direction[0] > 0 && morning.elevationDeg > 0 && morning.elevationDeg < 90, 'de manhã o Sol está a leste e acima do horizonte');
+  near(Math.hypot(...morning.direction), 1, 1e-9, 'direção do Sol é vetor unitário');
+  assert.equal(compassName(morning.azimuthDeg), 'leste');
+  assert.ok(sunAt(-4.77, 0, 0).elevationDeg < -80, 'à meia-noite o Sol está do outro lado');
+  const day = daylightHours(-4.77, 0);
+  near(day.sunriseH, 6, 0.01, 'no equinócio o Sol nasce às 6h');
+  near(sunAt(-4.77, 123, daylightHours(-4.77, 123).sunsetH).elevationDeg, 0, 0.01, 'no pôr do Sol a altura é zero');
+  near(localSolarHour(10, 24.6598), 34, 0.001, 'um sol (24h39min da Terra) depois, a hora local é a mesma');
+  assert.ok(deriveReadout({ ...plan, startClockH: 14 }, createSimState(), GROUND).clockH === 14, 'o relógio do visor parte da hora escolhida no tablet');
+}
 
 process.stdout.write('ok: projeção, rotas e formatação conferidas\n');

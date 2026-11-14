@@ -164,12 +164,12 @@ function replySources(context, { norm }) {
   const aboutProtocol = /\b(protocolo|passos?|disso|isso|desse|deste)\b/.test(norm);
   const asked = aboutProtocol ? Object.keys(EMERGENCY_WORDS).find((id) => EMERGENCY_WORDS[id].test(norm)) ?? context.protocol?.id : null;
   if (asked && context.protocols?.[asked]) return `Base do protocolo de ${EMERGENCIES[asked].label.toLowerCase()}, que é proposta da equipe: ${protocolEvidenceText(asked, context)}`;
-  return 'Reais: relevo, declive, altitude e rotas (MSL Gale Merged DEM, USGS Astrogeology / JPL-Caltech / NASA), a linha de visada de rádio calculada sobre esse relevo e os textos das paradas. Simulados: traje, radiação, temperatura e emergências. Os protocolos são propostas da equipe, cada um com fatos de missão e fonte: pergunte, por exemplo, “qual a fonte do protocolo de evento solar?”.';
+  return 'Reais: relevo, declive, altitude e rotas (MSL Gale Merged DEM, USGS Astrogeology / JPL-Caltech / NASA), a linha de visada de rádio calculada sobre esse relevo, a taxa de radiação (média medida pelo RAD do Curiosity) e a faixa de temperatura (REMS do Curiosity). Estimada: a temperatura de cada hora, entre os extremos medidos. Simulados: traje, vento e emergências. Os textos das paradas são o roteiro da equipe. Os protocolos são propostas da equipe, cada um com fatos de missão e fonte: pergunte, por exemplo, “qual a fonte do protocolo de evento solar?”.';
 }
 
 function replyRadiation({ env, emergencies }) {
   const solar = emergencies.solar ? ` Há um evento solar simulado em curso: a taxa está ${SIM.solarEventFactor}× acima do normal. Vá para o habitat.` : '';
-  return `Taxa de ${fmtNumber(env.radiationUsvH)} µSv/h e dose acumulada de ${fmtNumber(env.doseUsv)} µSv nesta saída. São valores simulados, não medidos.${solar}`;
+  return `Taxa de ${fmtNumber(env.radiationUsvH)} µSv/h e dose acumulada de ${fmtNumber(env.doseUsv)} µSv nesta saída. A taxa é a média medida pelo RAD do Curiosity em Gale; a dose da saída é essa taxa vezes o tempo, não uma medição.${solar}`;
 }
 
 function replyTerrain({ env, riskZone }) {
@@ -298,7 +298,7 @@ const INTENTS = Object.freeze([
   { id: 'bateria', match: /\b(bateria|energia|carga)\b/, reply: replyBattery },
   { id: 'abrigo', match: /\b(abrigo|abrigar|refugio|proteger|onde (fica|esta) o habitat|(voltar|retornar|retorno) (para|pro|ao|a) (o )?(habitat|base))\b/, reply: replyShelter },
   { id: 'radiacao', match: /\b(radiacao|dose|solar|sievert|clima espacial)\b/, reply: replyRadiation },
-  { id: 'temperatura', match: /\b(temperatura|frio|quente|calor)\b/, reply: ({ env }) => `Temperatura do ar em ${fmtNumber(env.airTempC)} °C. É um valor simulado por uma curva diurna, não uma medição.` },
+  { id: 'temperatura', match: /\b(temperatura|frio|quente|calor)\b/, reply: ({ env }) => `Temperatura do ar em ${fmtNumber(env.airTempC)} °C. É uma estimativa para esta hora, entre a mínima e a máxima medidas pelo REMS do Curiosity; não é medição direta.` },
   { id: 'comunicacao', match: /\b(radio|comunicacao|sinal|visada)\b/, reply: replyComms },
   { id: 'seguranca', match: /\b(seguro|segura|seguranca|posso (continuar|seguir|prosseguir)|devo (continuar|voltar|parar)|algum (risco|alerta)|alertas?)\b/, reply: replySafety },
   { id: 'importancia', match: /\b(por que|porque|pra que|para que|importa\w*|importancia|relevan\w*|vale a pena)\b/, reply: forStop(replyWhy) },

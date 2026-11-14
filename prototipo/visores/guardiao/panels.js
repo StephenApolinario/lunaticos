@@ -3,6 +3,7 @@
 // para um clique não cair em um botão que acabou de ser recriado.
 
 import { SIM } from '../../src/simulation.js';
+import { localSolarHour } from '../../src/luz.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock } from '../../src/format.js';
 import { h, setText } from '../../src/dom.js';
 import { LEVELS } from './catalog.js';
@@ -14,7 +15,7 @@ const SHELTER_KINDS = Object.freeze(['habitat', 'vehicle', 'terrain']);
 export const setData = (node, key, value) => { const text = String(value); if (node.dataset[key] !== text) node.dataset[key] = text; };
 export const setHidden = (node, hidden) => { if (node.hidden !== hidden) node.hidden = hidden; };
 const key = (letter) => h('kbd', {}, letter);
-const clock = (hours) => fmtClock(SIM.startClockH + hours);
+const clock = (hours, startH) => fmtClock(localSolarHour(startH, hours));
 
 /** Ícone de nível: a forma muda junto com a cor, para não depender só dela. */
 export function levelIcon() {
@@ -183,9 +184,9 @@ export function createShelterPanel() {
   };
 }
 
-function historyState(entry) {
-  if (entry.clearedH !== null) return `encerrado ${clock(entry.clearedH)}`;
-  if (entry.ackH !== null) return `reconhecido ${clock(entry.ackH)}`;
+function historyState(entry, startH) {
+  if (entry.clearedH !== null) return `encerrado ${clock(entry.clearedH, startH)}`;
+  if (entry.ackH !== null) return `reconhecido ${clock(entry.ackH, startH)}`;
   return entry.level === 'info' ? 'ativo' : 'aguardando reconhecimento';
 }
 
@@ -199,10 +200,11 @@ export function createHistoryPanel(onClose) {
   let signature = null;
   return {
     root,
-    update(history, open) {
+    // `startH`: hora solar local em que a saída começou.
+    update(history, open, startH = SIM.startClockH) {
       setHidden(root, !open);
       if (!open) return;
-      const next = history.map((entry) => `${entry.id}${entry.raisedH}${entry.ackH}${entry.clearedH}`).join('|');
+      const next = `${startH}|${history.map((entry) => `${entry.id}${entry.raisedH}${entry.ackH}${entry.clearedH}`).join('|')}`;
       if (next === signature) return;
       signature = next;
       setHidden(empty, history.length > 0);
@@ -210,8 +212,8 @@ export function createHistoryPanel(onClose) {
         const icon = levelIcon();
         setLevel(icon, entry.level);
         return h('li', { dataset: { level: entry.level, open: String(entry.clearedH === null) } },
-          h('time', {}, clock(entry.raisedH)), icon,
-          h('span', {}, h('b', {}, entry.title), entry.note ? ` (${entry.note})` : '', h('small', {}, ` ${LEVELS[entry.level].label} · ${historyState(entry)}`)));
+          h('time', {}, clock(entry.raisedH, startH)), icon,
+          h('span', {}, h('b', {}, entry.title), entry.note ? ` (${entry.note})` : '', h('small', {}, ` ${LEVELS[entry.level].label} · ${historyState(entry, startH)}`)));
       }));
     },
   };

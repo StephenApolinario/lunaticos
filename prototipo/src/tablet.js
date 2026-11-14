@@ -3,13 +3,19 @@
 
 import { STOPS, SPEED_KMH, STOP_HOURS } from '../data/travessia.js';
 import { shortName } from './route.js';
-import { fmtKm, fmtDuration, fmtDistance, fmtNumber } from './format.js';
-import { ROUTE_OPTIONS } from './planner.js';
+import { fmtKm, fmtDuration, fmtDistance, fmtNumber, fmtClock } from './format.js';
+import { ORIGIN } from './geo.js';
+import { sunAt, daylightHours, localSolarHour, compassName, EARTH_HOURS_PER_MARS_HOUR } from './luz.js';
+import { estimatedAirTempC, estimatedGroundTempC } from './clima.js';
+import { REMS, RAD } from '../data/medicoes.js';
+import { loadSurfaceImages } from './nasa.js';
+import { MAX_WAYPOINTS } from './planner.js';
 import { ASSUMPTIONS } from './safety.js';
 import { PROTOCOLS, SHELTER_KINDS } from '../data/protocolos.js';
 import { OPPORTUNITIES, trackPositionAtSol } from '../data/oportunidades.js';
 import { LAYERS, SLOPE_CLASSES } from './config.js';
 import { h, svg } from './dom.js';
+import { KINDS, SOURCE_GROUPS, CHALLENGE_RESOURCES } from '../data/fontes.js';
 
 const LAYER_OPTIONS = Object.freeze([
   { id: 'none', label: 'Relevo' },
@@ -17,7 +23,7 @@ const LAYER_OPTIONS = Object.freeze([
   { id: 'walkback', label: 'Volta a pé' },
   { id: 'comms', label: 'Rádio' },
   { id: 'radiation', label: 'Radiação' },
-  { id: 'temperature', label: 'Temperatura' },
+  { id: 'thermal', label: 'Térmico' },
 ]);
 const SLOPE_LIMIT_DEG = Object.freeze({ walk: 20, car: 15 });
 const PROFILE = Object.freeze({ width: 380, height: 150, left: 40, right: 10, top: 12, bottom: 22, gridStepM: 100 });
@@ -57,9 +63,10 @@ function buildModeControls(handlers) {
     walk.setAttribute('aria-pressed', String(state.mode === 'walk'));
     car.setAttribute('aria-pressed', String(state.mode === 'car'));
     extension.checked = state.includeExtension;
-    // A extensão é da travessia pré-calculada: não se aplica a um destino livre.
-    extension.disabled = Boolean(state.destination);
-    extensionLabel.dataset.disabled = String(Boolean(state.destination));
+    // A extensão é da travessia pré-calculada: não se aplica à rota livre.
+    const isFreeRoute = state.waypoints.length > 0;
+    extension.disabled = isFreeRoute;
+    extensionLabel.dataset.disabled = String(isFreeRoute);
   };
   return { node, sync };
 }
@@ -187,6 +194,7 @@ function stopCard(stop, handlers) {
       h('span', { class: 'chapter' }, stop.ch),
       h('span', { class: 'meta' }, `sol ${stop.sol} · ${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)} · ${stop.el} m`),
       h('span', { class: 'txt' }, stop.sci),
+      stop.sources ? h('span', { class: 'meta' }, 'Fonte: ', stop.sources.flatMap((source, i) => [i > 0 ? ' · ' : null, sourceLink(source)])) : null,
       question('Pergunta', stop.q),
       question('Tarefa', stop.task),
       h('details', { class: 'why' },
@@ -195,8 +203,34 @@ function stopCard(stop, handlers) {
         question('O que a torna interessante', stop.int),
       ),
       stop.risk ? h('span', { class: 'risk' }, stop.risk) : null,
+      surfacePhotos(stop),
     ),
   );
+}
+
+// Fotos brutas da Navcam do Curiosity no sol em que ele passou pela parada, buscadas só quando se abre.
+function surfacePhotos(stop) {
+  const gallery = h('div', { class: 'photos' });
+  let loaded = false;
+  const details = h('details', { class: 'why', ontoggle: async () => {
+    if (!details.open || loaded) return;
+    loaded = true;
+    gallery.textContent = 'Buscando no acervo da NASA…';
+    try {
+      const images = await loadSurfaceImages(stop.sol);
+      gallery.replaceChildren(...(images.length === 0 ? ['Nenhuma foto da Navcam neste sol.'] : images.map((image) =>
+        h('a', { href: image.url, target: '_blank', rel: 'noopener noreferrer' },
+          h('img', { src: image.url, alt: `Foto da Navcam do Curiosity no sol ${image.sol}`, loading: 'lazy', width: 96, height: 96 })))));
+    } catch (error) {
+      loaded = false;
+      gallery.textContent = 'Não foi possível buscar as fotos agora. Verifique a rede e abra de novo.';
+      console.warn(error);
+    }
+  } },
+  h('summary', {}, `O que o Curiosity viu aqui (sol ${stop.sol})`),
+  gallery,
+  h('span', { class: 'note' }, 'Fotos brutas da Navcam, do acervo público da missão · NASA/JPL-Caltech.'));
+  return details;
 }
 
 function buildStops(handlers) {
@@ -209,34 +243,101 @@ function buildStops(handlers) {
   return { node, render };
 }
 
-// Destino livre: escolhido com um clique no mapa; a rota sai na hora.
+// Rota livre: cada clique no mapa vira a próxima parada (A, B, C…); a rota sai na hora.
 function buildDestination(handlers) {
-  const optionButtons = ROUTE_OPTIONS.map((option) => ({
-    id: option.id,
-    node: h('button', { type: 'button', onclick: () => handlers.onRouteOptionChange(option.id) }, option.label),
-  }));
-  const where = h('span', { class: 'meta' });
+  const list = h('ol', { class: 'waypoints' });
   const card = h('div', { class: 'destination', hidden: true },
-    h('strong', {}, 'Destino escolhido'),
-    where,
-    h('div', { class: 'seg', role: 'group', 'aria-label': 'Critério da rota' }, optionButtons.map((button) => button.node)),
-    h('span', { class: 'note' }, 'A mais segura foge mais das encostas e evita onde não há rádio direto com o habitat.'),
+    h('strong', {}, 'Pontos da rota, na ordem da visita'),
+    list,
+    h('span', { class: 'note' }, 'A rota é a mais segura: foge das encostas e evita onde não há rádio direto com o habitat.'),
     h('button', { class: 'ghost', type: 'button', onclick: handlers.onClearDestination }, 'Voltar à travessia do Monte Sharp'),
   );
   const notice = h('p', { class: 'notice', role: 'status', hidden: true });
   const node = h('section', {},
-    h('h2', {}, 'Destino livre'),
-    h('p', { class: 'note' }, 'Clique em um ponto do mapa, sem arrastar, e a rota de ida e volta sai na hora, calculada sobre o relevo real.'),
+    h('h2', {}, 'Rota livre'),
+    h('p', { class: 'note' }, `Clique no mapa, sem arrastar: cada clique vira a próxima parada (A, B, C… até ${MAX_WAYPOINTS}). A rota sai do habitat, passa por todas na ordem e volta, calculada na hora sobre o relevo real.`),
     card,
     notice,
   );
   const render = (plan, state) => {
-    const stop = plan.isCustom ? plan.stops[0].stop : null;
-    card.hidden = !stop;
-    if (stop) where.textContent = `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)} · ${stop.el} m`;
-    optionButtons.forEach((button) => button.node.setAttribute('aria-pressed', String(button.id === state.routeOption)));
+    const stops = plan.isCustom ? plan.stops : [];
+    card.hidden = stops.length === 0;
+    list.replaceChildren(...stops.map(({ stop, distM }, index) => h('li', {},
+      h('span', { class: 'waypoint-id' }, stop.id),
+      h('span', { class: 'meta' }, `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)} · ${stop.el} m · ${fmtDistance(distM)} de rota`),
+      h('button', { class: 'ghost', type: 'button', 'aria-label': `Remover o ponto ${stop.id}`, onclick: () => handlers.onRemoveWaypoint(index) }, 'Remover'),
+    )));
     notice.hidden = !state.notice;
     notice.textContent = state.notice ?? '';
+  };
+  return { node, render };
+}
+
+// Hora do dia: muda a luz e as sombras do mapa e diz quanta luz sobra para a saída.
+const LOW_DAYLIGHT_H = 1;
+function buildDaylight(handlers, options) {
+  const { sunriseH, sunsetH } = daylightHours(ORIGIN.lat, options.lsDeg);
+  const slider = h('input', { type: 'range', id: 'hour', min: '0', max: '23.75', step: '0.25', oninput: (event) => handlers.onHourChange(Number(event.target.value)) });
+  const clock = h('output', { class: 'hour-clock', for: 'hour' });
+  const sunText = h('span', { class: 'meta' });
+  const margin = h('p', { class: 'daylight', role: 'status' });
+  const temperature = h('span', { class: 'meta' });
+  const node = h('section', {},
+    h('h2', {}, 'Hora do dia'),
+    h('div', { class: 'hour-row' },
+      h('label', { class: 'visually-hidden', for: 'hour' }, 'Hora solar local em que a saída começa'), slider, clock),
+    sunText,
+    temperature,
+    margin,
+    h('p', { class: 'note' }, `Sol calculado para a estação de hoje em Marte (Ls ${Math.round(options.lsDeg)}°) com o algoritmo Mars24 da NASA: nasce às ${fmtClock(sunriseH)} e se põe às ${fmtClock(sunsetH)}, sem contar a poeira. As sombras são as do relevo real.`),
+  );
+
+  // Texto e gravidade da folga de luz: começa `startH`, dura `hours` (horas da Terra) e precisa acabar antes do pôr do Sol.
+  function marginOf(startH, hours) {
+    if (startH < sunriseH || startH >= sunsetH) return { level: 'alert', text: `Às ${fmtClock(startH)} está escuro: a saída começaria sem luz do Sol.` };
+    const endH = localSolarHour(startH, hours);
+    const spareH = (sunsetH - endH) * EARTH_HOURS_PER_MARS_HOUR;
+    if (spareH < 0) return { level: 'alert', text: `Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)}, ${fmtDuration(-spareH)} depois do pôr do Sol.` };
+    return { level: spareH < LOW_DAYLIGHT_H ? 'warn' : 'ok', text: `Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)} e sobram ${fmtDuration(spareH)} de luz.` };
+  }
+
+  const render = (plan, state) => {
+    if (Number(slider.value) !== state.hourH) slider.value = String(state.hourH);
+    clock.textContent = fmtClock(state.hourH);
+    const sun = sunAt(ORIGIN.lat, options.lsDeg, state.hourH);
+    sunText.textContent = sun.elevationDeg > 0
+      ? `Sol a ${Math.round(sun.elevationDeg)}° de altura, a ${compassName(sun.azimuthDeg)} · calculado`
+      : 'Sol abaixo do horizonte · calculado';
+    temperature.textContent = `Ar ${Math.round(estimatedAirTempC(state.hourH))} °C · solo ${Math.round(estimatedGroundTempC(state.hourH))} °C · estimado entre os extremos do REMS`;
+    const { level, text } = marginOf(state.hourH, plan.stats.hours);
+    margin.dataset.level = level;
+    margin.textContent = text;
+  };
+  return { node, render };
+}
+
+// Medições do Curiosity lidas da NASA quando o protótipo abre. Sem rede, mostra o valor de reserva e diz que é de reserva.
+function buildMeasurements() {
+  const weather = h('p', { class: 'measure' });
+  const dose = h('p', { class: 'measure' });
+  const node = h('section', {},
+    h('h2', {}, 'Medições do Curiosity em Gale'),
+    weather,
+    dose,
+    h('p', { class: 'measure' }, 'Geologia: toda a área fica em uma só unidade do mapa geológico global de Marte (1:20.000.000), a Htu, “Hesperian transition undivided unit”. O mapa de detalhe da região (Aeolis Mons, 1:60.000) ainda está em preparação. ',
+      link('https://doi.org/10.3133/sim3292', 'USGS SIM 3292 · Tanaka et al. 2014')),
+  );
+  const reserve = (value) => (value === undefined ? 'lendo da NASA; por enquanto, valor de reserva' : 'sem rede, valor de reserva');
+  const degrees = (value) => `${Math.round(value)} °C`;
+  const render = (plan, state) => {
+    const w = state.weather;
+    weather.replaceChildren(...(w
+      ? [`Temperatura e pressão nesta estação do ano: ar de ${degrees(w.air.minC)} a ${degrees(w.air.maxC)}, solo de ${degrees(w.ground.minC)} a ${degrees(w.ground.maxC)}, pressão de ${Math.round(w.pressurePa)} Pa. Média de ${w.sols} sols medidos pelo REMS com a estação a até ${w.windowDeg}° da de hoje (último sol do feed: ${w.lastSol}). `, sourceLink(w.source)]
+      : [`Temperatura (${reserve(w)}): em um sol típico do início da missão, ar de ${degrees(REMS.air.minC)} a ${degrees(REMS.air.maxC)} e solo de ${degrees(REMS.ground.minC)} a ${degrees(REMS.ground.maxC)}. `, sourceLink(REMS.source)]));
+    const d = state.dose;
+    dose.replaceChildren(...(d
+      ? [`Radiação agora: ${Math.round(d.ugyPerDay)} µGy por dia de dose absorvida, média das ${d.samples} leituras do RAD nos ${d.days} dias até ${d.until.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}. `, sourceLink(d.source)]
+      : [`Radiação (${reserve(d)}): ${String(RAD.surfaceMsvPerDay).replace('.', ',')} mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013. `, sourceLink(RAD.sources.surface)]));
   };
   return { node, render };
 }
@@ -294,14 +395,15 @@ function buildOpportunities(handlers) {
     const position = trackPositionAtSol(entry.sol);
     return h('article', { class: 'opportunity' },
       h('strong', {}, entry.name),
-      h('span', { class: 'meta' }, `sol ${entry.sol} · ${position.lat.toFixed(5)}, ${position.lon.toFixed(5)} · ${position.elev} m`),
+      // A posição é a do ponto do trajeto mais recente até o sol da tentativa, que pode ser de alguns sols antes.
+      h('span', { class: 'meta' }, `tentativa no sol ${entry.sol} · ${position.lat.toFixed(5)}, ${position.lon.toFixed(5)} · ${position.elev} m${position.sol === entry.sol ? '' : ` (posição do rover no sol ${position.sol})`}`),
       h('p', { class: 'evidence' }, `${entry.what} `, sourceLink(entry.source)),
-      h('button', { class: 'ghost', type: 'button', onclick: () => handlers.onPlanTo(position) }, 'Planejar ida até aqui'),
+      h('button', { class: 'ghost', type: 'button', onclick: () => handlers.onPlanTo(position) }, 'Adicionar à rota'),
     );
   };
   return h('section', {},
-    h('h2', {}, 'O que o rover não conseguiu coletar'),
-    h('p', { class: 'note' }, 'Tentativas de perfuração do Curiosity que falharam nesta região. A posição é a do rover naquele sol, tirada do trajeto real. Para a equipe, são bons alvos para uma tripulação: quem está lá escolhe outra rocha, firma o bloco ou usa outra ferramenta.'),
+    h('h2', {}, 'Onde a coleta do rover deu trabalho'),
+    h('p', { class: 'note' }, 'Perfurações do Curiosity nesta região que falharam ou ficaram incompletas na primeira tentativa; o texto de cada caso diz como terminou. A posição é a do rover naquele sol, tirada do trajeto real. Para a equipe, mostram o que uma tripulação resolveria na hora: escolher outra rocha, firmar o bloco ou usar outra ferramenta.'),
     h('div', { class: 'stops' }, OPPORTUNITIES.map(card)),
   );
 }
@@ -389,7 +491,7 @@ function buildLegend() {
       item('rover', 'Trajeto do Curiosity'),
       item('route', 'Rota a pé (calculada)'),
       item('vehicle', 'Rota de veículo (calculada)'),
-      item('hazard', 'Zona de risco / veículo não passa'),
+      item('hazard', 'Zona de exclusão da equipe (250 m) em volta das rochas cortantes'),
     ),
     h('p', { class: 'note' }, 'As rotas são o caminho de menor custo sobre o mapa de altitude de 1 m do USGS (reamostrado para 2 m). O custo pesa declividade, rugosidade e a zona de rochas cortantes. A zona de rochas é aproximada, e blocos menores que cerca de 2 m não aparecem no mapa de altitude.'),
   );
@@ -397,18 +499,19 @@ function buildLegend() {
 
 const link = (href, text) => h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, text);
 
+// De onde vem cada informação: a mesma lista de data/fontes.js que gera docs/fontes.md.
 function buildSources(realRelief) {
-  const derived = realRelief ? 'Relevo, rotas, perfis e declive: ' : 'Rotas, perfis e declive: calculados sobre o ';
-  const simulated = realRelief
-    ? 'Simulado neste protótipo: as camadas de radiação e temperatura, a telemetria do traje e as mensagens do copiloto.'
-    : 'Simulado neste protótipo: a altura do relevo entre as rotas, as camadas de radiação e temperatura, a telemetria do traje e as mensagens do copiloto.';
+  const row = ({ item, kind, source, url }) => h('li', { dataset: { kind } },
+    h('strong', {}, item), ' ', h('span', { class: 'kind' }, KINDS[kind]), ' ', source, url ? [' ', link(url, 'fonte')] : null);
   return h('section', { class: 'sources' },
-    h('h2', {}, 'Fontes e o que é simulado'),
-    h('span', {}, 'Imagem: HiRISE colorida (MRO), mosaico da equipe MSL · NASA/JPL-Caltech/UArizona.'),
-    h('span', {}, 'Trajeto e altitudes: ', link('https://mars.nasa.gov/maps/location/?mission=MSL', 'mapa oficial do Curiosity (MMGIS)'), ', sol 2300 a 4893.'),
-    h('span', {}, derived, link('https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_dem_1m', 'MSL Gale Merged DEM 1 m'), ' (USGS, Calef & Parker).'),
-    h('span', {}, 'Unidades geológicas: ', link('https://science.nasa.gov/resource/curiositys-proposed-path-up-mount-sharp/', "Curiosity's Proposed Path up Mount Sharp"), ' (PIA23179).'),
-    h('span', { class: 'simulated' }, simulated),
+    h('h2', {}, 'De onde vem cada informação'),
+    realRelief ? null : h('span', { class: 'simulated' }, 'O arquivo de relevo real não carregou: a altura do relevo entre as rotas está aproximada.'),
+    SOURCE_GROUPS.map((group) => h('details', { class: 'why' },
+      h('summary', {}, `${group.title} (${group.entries.length})`),
+      h('ul', { class: 'source-list' }, group.entries.map(row)))),
+    h('details', { class: 'why' },
+      h('summary', {}, `Recursos do desafio (${CHALLENGE_RESOURCES.length})`),
+      h('ul', { class: 'source-list' }, CHALLENGE_RESOURCES.map((resource) => h('li', {}, link(resource.url, resource.name), ': ', resource.use)))),
   );
 }
 
@@ -416,20 +519,24 @@ function buildSources(realRelief) {
  * @param {HTMLElement} root
  * @param {{
  *   onModeChange: (mode: 'walk'|'car') => void,
+ *   onHourChange: (hourH: number) => void,
  *   onExtensionChange: (include: boolean) => void,
  *   onLayerChange: (layer: string) => void,
  *   onStopFocus: (stop: object) => void,
  *   onEnterVisor: () => void,
  *   onVisorChange: (id: string) => void,
- *   onRouteOptionChange: (option: 'fast'|'safe') => void,
  *   onClearDestination: () => void,
+ *   onRemoveWaypoint: (index: number) => void,
  *   onPlanTo: (position: { lat: number, lon: number }) => void,
  * }} handlers
- * @param {{ realRelief: boolean, visors: Array<{ id: string, name: string }>, visorId: string }} options
+ * @param {{ realRelief: boolean, visors: Array<{ id: string, name: string }>, visorId: string, lsDeg: number }} options
+ *   `lsDeg` é a longitude solar de Marte (estação) usada para a posição do Sol.
  */
 export function createTabletPanel(root, handlers, options) {
   const mode = buildModeControls(handlers);
   const destination = buildDestination(handlers);
+  const daylight = buildDaylight(handlers, options);
+  const measurements = buildMeasurements();
   const safety = buildSafety();
   const layers = buildLayerControls(handlers);
   const stats = buildStats();
@@ -437,7 +544,7 @@ export function createTabletPanel(root, handlers, options) {
   const stops = buildStops(handlers);
   const profile = buildProfile();
   root.replaceChildren(
-    buildHeader(handlers, options), mode.node, destination.node, layers.node, stats.node, safety.node, legs.node,
+    buildHeader(handlers, options), mode.node, destination.node, daylight.node, measurements.node, layers.node, stats.node, safety.node, legs.node,
     stops.node, buildOpportunities(handlers), profile.node, buildLegend(), buildSources(options.realRelief),
   );
 
@@ -446,6 +553,8 @@ export function createTabletPanel(root, handlers, options) {
     layers.sync(state);
     [stats, legs, stops, profile, safety].forEach((section) => section.render(plan));
     destination.render(plan, state);
+    daylight.render(plan, state);
+    measurements.render(plan, state);
   }
 
   return Object.freeze({ update });
