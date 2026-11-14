@@ -1,0 +1,13 @@
+{
+  "source": "MSL Gale Merged DEM 1 m v3 (Calef & Parker, USGS Astrogeology / JPL-Caltech / NASA)",
+  "sourceUrl": "https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_dem_1m",
+  "file": "monte-sharp.u16",
+  "encoding": "uint16 little-endian; altitude = elevMinM + valor * elevStepM",
+  "cols": 801,
+  "rows": 1051,
+  "cellM": 8,
+  "halfWidthM": 3200,
+  "halfDepthM": 4200,
+  "elevMinM": -4410.1845703125,
+  "elevStepM": 0.022705752412832837
+}

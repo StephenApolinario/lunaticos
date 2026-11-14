@@ -1,0 +1,36 @@
+/* Estilo dos componentes do navegador que funcionam fora do HUD dele: a guia desenhada sobre a cena
+   (mundo.js), o indicador de borda, o minimapa (minimapa.js) e o perfil de altitude (perfil.js).
+   Outro visor pode importar só este arquivo. As variáveis têm valor de reserva, então nada aqui
+   depende de estar dentro de .navegador. */
+
+/* Canvas da guia: cobre a cena inteira, abaixo dos blocos do HUD. */
+.navegador-mundo { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* Indicador de borda: criado por createEdgeIndicator() e posicionado por pointTo(). */
+.navegador-borda {
+  position: absolute; left: 0; top: 0; z-index: 2; translate: -50% -50%; will-change: transform; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+}
+/* Perto das laterais o rótulo cresce para dentro, para não sair da tela. */
+.navegador-borda[data-side="right"] { align-items: flex-end; translate: calc(-100% + 9px) -50%; }
+.navegador-borda[data-side="left"] { align-items: flex-start; translate: -9px -50%; }
+.navegador-borda i {
+  width: 0; height: 0; border: 9px solid transparent; border-right: 0;
+  border-left: 17px solid var(--navegador-rota, var(--route));
+  filter: drop-shadow(0 0 6px rgba(4, 7, 10, 0.9));
+}
+.navegador-borda span {
+  padding: 2px 8px; border-radius: 4px; white-space: nowrap; color: #eafcff;
+  font: 400 11px var(--mono);
+  background: rgba(4, 10, 14, 0.84); border: 1px solid var(--navegador-rota, var(--route));
+}
+
+/* Minimapa: o canvas é quadrado e o desenho é redondo. O lado vem de --navegador-minimapa-lado. */
+.navegador-minimapa {
+  display: block; flex: none; border-radius: 50%;
+  width: var(--navegador-minimapa-lado, 214px); height: var(--navegador-minimapa-lado, 214px);
+  box-shadow: 0 0 0 1px var(--navegador-fio, rgba(191, 243, 250, 0.3)), 0 0 26px rgba(4, 7, 10, 0.55);
+}
+
+/* Perfil à frente: ocupa a largura do pai. A altura vem de --navegador-perfil-altura. */
+.navegador-perfil-tela { display: block; flex: none; width: 100%; height: var(--navegador-perfil-altura, 86px); }

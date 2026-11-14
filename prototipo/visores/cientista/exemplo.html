@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Peças do visor cientista fora do HUD</title>
+  <meta name="color-scheme" content="dark">
+  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="./componentes.css">
+  <style>
+    body { height: auto; min-height: 100%; padding: 28px 20px 40px; }
+    .exemplo-head { max-width: 1080px; margin: 0 auto 20px; }
+    .exemplo-head h1 { margin: 0 0 6px; font: 800 26px/1.1 var(--display); color: var(--heading); }
+    .exemplo-head p { margin: 0; max-width: 72ch; color: var(--muted); }
+    .exemplo-grid { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .exemplo-grid > section { height: 440px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+  </style>
+</head>
+<body>
+  <header class="exemplo-head">
+    <h1>Conversa, diário e perigos, sem o HUD</h1>
+    <p>Esta página monta as peças do visor cientista sozinhas, com um ponto fixo da rota a pé e sem o mapa 3D. Serve de exemplo de integração e de teste manual: pergunte algo, diga “relatar perigo areia fofa” ou “registrar amostra: veio amarelo” e veja o diário. Os perigos desta página ficam só na memória.</p>
+  </header>
+  <main class="exemplo-grid" id="exemplo-grid"></main>
+  <script type="module" src="./exemplo.js"></script>
+</body>
+</html>
