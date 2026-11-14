@@ -44,6 +44,56 @@ O local pode ser um já bem explorado por rovers (mais dados e imagens) ou um po
 
 A NASA não endossa sites fora do governo dos EUA. Ao usar dados de terceiros, seguir os termos de uso de cada site.
 
+## Protótipo
+
+A pasta `prototipo/` tem um protótipo em Three.js para validar a ideia de duas telas sobre a mesma rota: o mapa de planejamento (tablet) e o visor do capacete. Ele usa a travessia do Monte Sharp como exemplo. Não tem build; basta servir a pasta:
+
+```bash
+python3 prototipo/tools/servir.py
+```
+
+Depois abrir http://localhost:5183. Para conferir a matemática de projeção, rotas e relevo:
+
+```bash
+node prototipo/src/check.mjs
+```
+
+O que ele faz hoje:
+
+- **Tablet:** mapa 3D com relevo e imagem reais, camadas (declive, volta a pé, rádio, radiação, temperatura), a travessia do Monte Sharp com as paradas científicas e o painel "Segurança da saída".
+- **Destino livre:** um clique no mapa calcula na hora a rota de ida e volta sobre o relevo real, a pé ou de veículo, na opção mais rápida ou mais segura.
+- **Segurança:** até onde o oxigênio cobre a volta a pé, onde a rota perde o rádio direto com o habitat, o abrigo no ponto mais afastado e o protocolo de cada cenário de perigo.
+- **O que o rover não conseguiu coletar:** sete tentativas de perfuração do Curiosity que falharam na região, cada uma com a fonte e um botão que planeja a ida até lá.
+- **Visor do capacete:** um visor único com alertas por gravidade, protocolos de emergência conduzidos passo a passo, abrigo mais próximo, minimapa, perfil do terreno à frente, guia no chão, assistente por texto e voz, ciência nas paradas, diário de amostras e relato de perigos. Ele nasceu da junção de três variantes, que continuam em `prototipo/visores/` (ver `prototipo/visores/LEIA-ME.md`).
+
+A pesquisa que sustenta os protocolos e as lições de missões passadas está em [docs/pesquisa.md](docs/pesquisa.md), com link em cada fato.
+
+O que é dado real e o que é simulado no protótipo:
+
+- **Real:** o relevo, a imagem orbital HiRISE, o mapa de declive, o trajeto e as altitudes do Curiosity, as rotas a pé e de veículo com perfil de altitude e as paradas científicas.
+- **Simulado:** as camadas de radiação e temperatura, a telemetria do traje e as mensagens do copiloto.
+- **Hipótese da equipe:** velocidade a pé e de veículo, consumo de oxigênio, reserva de 10%, alturas das antenas de rádio e os protocolos de emergência.
+
+As rotas de destino livre usam a função de caminhada de Tobler sobre a grade de 8 m; blocos menores que isso não aparecem, então elas servem para planejar e não substituem a leitura do terreno.
+
+Os dados ficam em `prototipo/assets/` (cerca de 10 MB):
+
+| Dado | Fonte |
+|---|---|
+| Relevo (`elevation/`, grade de 8 m) | [MSL Gale Merged DEM 1 m v3](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_dem_1m), Calef & Parker, USGS Astrogeology / JPL-Caltech / NASA |
+| Imagem (`hirise/`) | HiRISE colorida (MRO), mosaico da equipe MSL, NASA/JPL-Caltech/UArizona |
+| Declive (`slope.png`) | Classes de declive calculadas sobre o mesmo DEM |
+
+O relevo é um recorte do DEM de 3,6 GB do USGS, lido direto do servidor. Para refazer o recorte (leva alguns minutos):
+
+```bash
+cd prototipo/tools && npm install && npm run extrair-dem
+```
+
+Se o arquivo de relevo faltar, o protótipo abre com um relevo aproximado e avisa no selo do mapa.
+
+O protótipo não fecha nenhuma das decisões abaixo.
+
 ## Decisões em aberto
 
 Nada abaixo foi decidido ainda.
