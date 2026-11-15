@@ -71,7 +71,7 @@ O que ele faz hoje:
 
 A pesquisa que sustenta os protocolos e as lições de missões passadas está em [docs/pesquisa.md](docs/pesquisa.md), com link em cada fato.
 
-De onde vem cada informação está em [docs/fontes.md](docs/fontes.md), item por item, com o tipo (dado de sonda ou rover, cálculo sobre dado real, estimativa, hipótese da equipe, simulado ou ilustrativo) e o link. A mesma lista aparece no fim do painel do tablet. Em resumo:
+De onde vem cada informação está em [docs/fontes.md](docs/fontes.md), item por item, com o tipo (dado de sonda ou rover, cálculo sobre dado real, estimativa, hipótese da equipe, simulado ou ilustrativo) e o link. A mesma lista aparece no fim do painel do tablet e numa página com filtro por tipo de dado, [Fontes do Martian Map](https://claude.ai/artifact/F5u8sQ8ddFkvBahT6FrXXn) (artifact privado: só abre para quem recebeu acesso). Em resumo:
 
 - **Dado de sonda ou rover:** relevo (DEM do USGS), imagens HiRISE (2,5 m, 64 cm e 25 cm), imagem térmica THEMIS, unidade geológica (USGS), trajeto do Curiosity, temperatura e pressão (REMS), radiação (RAD) e fotos da Navcam.
 - **Cálculo ou estimativa sobre esses dados:** posição do Sol e sombras, declive, rotas, volta a pé, rádio, abrigo de relevo, temperatura por hora e o efeito do relevo na radiação.
