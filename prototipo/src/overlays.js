@@ -165,7 +165,8 @@ export function createOverlays(scene, terrain, handlers) {
   let astronautPin = null;
   /**
    * Marca no mapa do tablet onde o astronauta está na saída em andamento, ou tira a marca (null).
-   * A posição é simulada (ele anda sobre a rota no visor), e o rótulo diz isso.
+   * A posição é simulada (ele anda sobre a rota no visor). Na tela é só o ponto, sem texto;
+   * o nome lido por leitor de tela diz que a posição é simulada.
    * @param {{ x: number, z: number, elapsedH: number } | null} spot
    */
   function setAstronaut(spot) {
@@ -174,14 +175,11 @@ export function createOverlays(scene, terrain, handlers) {
       return;
     }
     if (!astronautPin) {
-      const element = h('div', { class: 'pin', role: 'img', dataset: { kind: 'astronaut' } }, h('span', { class: 'pin-label' }));
+      const element = h('div', { class: 'pin', role: 'img', dataset: { kind: 'astronaut' } });
       astronautPin = new CSS2DObject(element);
       group.add(astronautPin);
     }
-    const title = `Astronauta · ${fmtDuration(spot.elapsedH)} de saída · posição simulada`;
-    astronautPin.element.title = title;
-    astronautPin.element.setAttribute('aria-label', title);
-    astronautPin.element.querySelector('.pin-label').textContent = title;
+    astronautPin.element.setAttribute('aria-label', `Astronauta · ${fmtDuration(spot.elapsedH)} de saída · posição simulada`);
     astronautPin.position.set(spot.x, terrain.heightAt(spot.x, spot.z), spot.z);
     astronautPin.visible = true;
   }

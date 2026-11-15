@@ -72,7 +72,7 @@ O desenho é a "Opção A · Cabine escura", escolhida pela equipe entre três p
 
 **O que a IA põe e tira.** Os cartões que a IA fixa entram na mesma fileira dos blocos (até seis) e sobem para uma linha de cima quando falta espaço. Pedir uma leitura que já está na tela (oxigênio, bateria, volta a pé, próxima parada, tempo de saída, hora) não cria cartão repetido: a peça que existe pisca e a IA diz onde ela fica. Os três blocos saem a pedido e voltam sozinhos em qualquer alerta de atenção para cima; essa regra é decisão da equipe. "Leituras" abre e fecha a folha "Traje e ambiente"; "mapa" é o minimapa.
 
-**Volta ao tablet.** Pelo botão "Voltar ao tablet", pela tecla `Esc` ou tocando no minimapa. Pelo minimapa, o mapa do tablet abre centrado no astronauta. Enquanto a saída está em andamento, o tablet mostra um pino no ponto em que ele parou, com o rótulo "posição simulada" (`outing()` em `visor.js`, `setAstronaut` em `src/overlays.js`).
+**Volta ao tablet.** Pelo botão "Voltar ao tablet", pela tecla `Esc` ou tocando no minimapa. Pelo minimapa, o mapa do tablet abre centrado no astronauta. Enquanto a saída está em andamento, o tablet mostra uma bolinha no ponto em que ele parou, sem texto; a posição é simulada (`outing()` em `visor.js`, `setAstronaut` em `src/overlays.js`).
 
 **Controles do protótipo.** Uma barra fina embaixo, com "Voltar ao tablet", pausa, velocidade e a posição na rota. O botão "Controles" abre o resto: assistente, relato de perigo, histórico, som, voz e os cenários de treino.
 
