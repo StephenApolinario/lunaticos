@@ -118,3 +118,16 @@ Nada abaixo foi decidido ainda.
 - Quais camadas de dado entram (mínimo três tipos) e de quais missões
 - Formato da entrega (habitat, tablet, HUD, outro)
 - Stack técnica
+
+## Planejador de travessia
+
+A pasta `planejador/` tem uma aplicação React + Vite para planejar a saída: o usuário marca os pontos no mapa 2D ou no terreno 3D, escolhe a pé, veículo ou híbrido, e o app calcula a rota de menor custo sobre o relevo real (DEM de 1 m), com tempo pela declividade, limite de declive de 15°, alcance de ida e volta, linha de visada de rádio com o habitat, alertas de ponto de não retorno e simulação 3D com visor do capacete. Tem uma versão só com os recursos listados no desafio (JPL Mars Trek).
+
+```bash
+cd planejador/app
+npm install
+npm run dev               # versão com NASA/JPL (MMGIS) e USGS
+npm run dev:hackathon     # versão só com recursos do desafio
+```
+
+Detalhes, fontes e pipeline de dados em [`planejador/README.md`](planejador/README.md).

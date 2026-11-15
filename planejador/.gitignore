@@ -1,0 +1,8 @@
+node_modules/
+app/dist/
+__pycache__/
+app/dist-hackathon/
+data/tiles_hd/
+data_hk/tiles_hd/
+data_hk/dem_rows.npy
+app/.claude/
