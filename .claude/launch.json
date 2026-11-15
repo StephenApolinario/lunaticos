@@ -4,8 +4,20 @@
     {
       "name": "prototipo",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "exec python3 prototipo/tools/servir.py \"${PORT:-5183}\""],
+      "runtimeArgs": [
+        "-c",
+        "exec python3 prototipo/tools/servir.py \"${PORT:-5183}\""
+      ],
       "port": 5183
+    },
+    {
+      "name": "voz",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "exec prototipo/tools/voz/servir-voz.sh"
+      ],
+      "port": 5184
     }
   ]
 }

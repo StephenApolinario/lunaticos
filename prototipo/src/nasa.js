@@ -103,6 +103,20 @@ export async function loadNightThermal() {
   };
 }
 
+// ---------- Posição atual do rover Curiosity ----------
+const ROVER_POSITION = 'https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints_current.json';
+
+/**
+ * @returns {Promise<{ lat: number, lon: number, elevM: number, sol: number, totalKm: number, live: true }>}
+ *   Onde o Curiosity está, do arquivo que alimenta o mapa "Where is Curiosity?" da NASA.
+ */
+export async function loadRoverPosition() {
+  const { features } = await (await fetchOk(ROVER_POSITION)).json();
+  const { lat, lon, elev_geoid: elevM, sol, dist_total_m: totalM } = features[0].properties;
+  if (![lat, lon, elevM, sol, totalM].every(Number.isFinite)) throw new Error('Posição do rover fora do formato esperado.');
+  return Object.freeze({ lat, lon, elevM, sol, totalKm: totalM / 1000, live: true });
+}
+
 // ---------- Fotos brutas do Curiosity (Navcam) em um sol ----------
 const RAW_IMAGES = 'https://mars.nasa.gov/api/v1/raw_image_items/';
 const RAW_IMAGE_HOSTS = Object.freeze(['mars.nasa.gov']);

@@ -11,14 +11,16 @@ import { fmtDistance, fmtDuration, fmtNumber } from './format.js';
 import { localSolarHour } from './luz.js';
 import { estimatedAirTempC } from './clima.js';
 import { RAD } from '../data/medicoes.js';
+import { SUIT, O2_PCT_PER_HOUR } from '../data/traje.js';
 
 export const SIM = Object.freeze({
   speeds: [1, 20, 60, 200],
   defaultSpeed: 60,
   dwellSpeed: 900,
   startClockH: 9,
-  o2PctPerHour: Object.freeze({ foot: 12.5, cabin: 4 }),
-  batteryPctPerHour: Object.freeze({ foot: 9, cabin: 5 }),
+  // Consumo de oxigênio calculado a partir de valores publicados; bateria é hipótese. Ver data/traje.js.
+  o2PctPerHour: O2_PCT_PER_HOUR,
+  batteryPctPerHour: SUIT.batteryPctPerHour,
   // Média medida pelo RAD do Curiosity em Gale, e o evento solar de 11/09/2017 (mais que o dobro). Ver data/medicoes.js.
   radiationBaseUsvH: RAD.surfaceUsvPerHour,
   solarEventFactor: RAD.solarEventFactor,

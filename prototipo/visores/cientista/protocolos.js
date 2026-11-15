@@ -35,7 +35,7 @@ export const EMERGENCIES = Object.freeze({
     label: 'Evento solar',
     alert: 'solar',
     protocolId: 'evento-solar',
-    live: (context) => `Agora: taxa simulada de ${fmtNumber(context.env.radiationUsvH)} µSv/h. ${shelterLine(context)}`,
+    live: (context) => `Agora: taxa de ${fmtNumber(context.env.radiationUsvH)} µSv/h (média medida pelo RAD do Curiosity${context.emergencies?.solar ? ', com o fator do cenário de evento solar' : ''}). ${shelterLine(context)}`,
   }),
   radio: Object.freeze({
     label: 'Perda de rádio',

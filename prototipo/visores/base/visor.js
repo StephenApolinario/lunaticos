@@ -61,9 +61,9 @@ const HUD_TEMPLATE = `
       <span class="hud-label">Ambiente</span>
       <div class="hud-row"><span>Declive</span><b id="hud-slope">–</b></div>
       <div class="hud-row"><span>Altitude</span><b id="hud-altitude">–</b></div>
-      <div class="hud-row"><span>Radiação <small>sim.</small></span><b id="hud-radiation">–</b></div>
-      <div class="hud-row"><span>Dose na saída <small>sim.</small></span><b id="hud-dose">–</b></div>
-      <div class="hud-row"><span>Temp. do ar <small>sim.</small></span><b id="hud-temperature">–</b></div>
+      <div class="hud-row"><span>Radiação <small>RAD</small></span><b id="hud-radiation">–</b></div>
+      <div class="hud-row"><span>Dose na saída <small>est.</small></span><b id="hud-dose">–</b></div>
+      <div class="hud-row"><span>Temp. do ar <small>est.</small></span><b id="hud-temperature">–</b></div>
     </section>
 
     <p class="hud-copilot">

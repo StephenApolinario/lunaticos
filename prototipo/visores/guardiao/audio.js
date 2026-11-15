@@ -1,9 +1,18 @@
-// Som dos alertas (Web Audio) e voz do assistente (speechSynthesis), cada um com a
-// própria chave de liga e desliga. A preferência fica guardada no navegador.
+// Som dos alertas (Web Audio) e voz do assistente, cada um com a própria chave de liga e
+// desliga. A preferência fica guardada no navegador. A voz vem do servidor local
+// (prototipo/tools/voz, Kokoro) quando ele responde; senão, do speechSynthesis do navegador.
+
+import { toSpeech } from '../cientista/voz.js';
 
 const STORAGE = Object.freeze({ sound: 'guardiao:som', voice: 'guardiao:voz' });
 const VOLUME = 0.09;
 const ATTACK_S = 0.012;
+const VOICE_SERVER = 'http://127.0.0.1:5184';
+const PROBE_TIMEOUT_MS = 1500;
+const PROBE_RETRY_MS = 10000;
+const SYNTH_RATE = 1.1;
+// Vozes do sistema, da mais natural para a menos: Premium/Enhanced/Natural, depois Google.
+const VOICE_RANKS = Object.freeze([/premium|enhanced|natural/i, /google/i]);
 
 // Um padrão por nível: [frequência em Hz, início em s, duração em s].
 const PATTERNS = Object.freeze({
@@ -31,18 +40,14 @@ function writePref(key, on) {
   }
 }
 
-// Texto para a voz: símbolos e abreviações viram palavras.
-function toSpeech(text) {
-  return text
-    .replaceAll('O₂', 'oxigênio')
-    .replaceAll('µSv/h', 'microsieverts por hora')
-    .replaceAll('µSv', 'microsieverts')
-    .replaceAll('%/h', 'por cento por hora')
-    .replaceAll('m/s', 'metros por segundo')
-    .replaceAll('kPa', 'quilopascais')
-    .replaceAll('×', ' vezes')
-    .replaceAll('·', ',')
-    .replace(/(\d+)h(\d\d)/g, (_, hours, mins) => (hours === '0' ? `${Number(mins)} minutos` : `${hours} hora${hours === '1' ? '' : 's'} e ${Number(mins)} minutos`));
+/** Melhor voz pt-BR instalada, ou null (o navegador usa a padrão). */
+function bestSystemVoice(synth) {
+  const portuguese = synth.getVoices().filter((voice) => voice.lang?.replace('_', '-').toLowerCase() === 'pt-br');
+  for (const rank of VOICE_RANKS) {
+    const found = portuguese.find((voice) => rank.test(voice.name));
+    if (found) return found;
+  }
+  return portuguese[0] ?? null;
 }
 
 export function createAudio() {
@@ -51,6 +56,24 @@ export function createAudio() {
   let soundOn = readPref(STORAGE.sound);
   let voiceOn = readPref(STORAGE.voice);
   let speakingPriority = -1;
+  let remote = null; // { modelo, voz } quando o servidor local responde
+  let lastProbe = -Infinity;
+  let request = 0; // numera cada fala; uma resposta de rede atrasada não toca por cima de uma nova
+  let pending = null; // AbortController da busca em curso
+  let player = null; // { audio, url } da fala local em curso
+
+  /** Pergunta ao servidor local se está de pé. Sem ele, fica a voz do navegador. */
+  async function probe() {
+    lastProbe = performance.now();
+    try {
+      const response = await fetch(`${VOICE_SERVER}/saude`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+      const health = await response.json();
+      remote = health.ok ? { modelo: health.modelo, voz: health.voz } : null;
+    } catch {
+      remote = null;
+    }
+  }
+  probe();
 
   // O contexto de áudio só pode nascer depois de um gesto do usuário (entrar no visor).
   function unlock() {
@@ -58,6 +81,7 @@ export function createAudio() {
     if (!Context) return;
     context ??= new Context();
     if (context.state === 'suspended') context.resume().catch(() => { /* fica mudo até o próximo gesto */ });
+    if (!remote && performance.now() - lastProbe > PROBE_RETRY_MS) probe(); // o servidor pode ter subido depois
   }
 
   /** Toca o padrão sonoro de um nível de alerta. */
@@ -80,21 +104,87 @@ export function createAudio() {
     }
   }
 
-  /** Fala uma frase. Só interrompe a fala em curso se a nova for de prioridade igual ou maior. */
-  function speak(text, priority) {
-    if (!voiceOn || !synth) return;
+  function stopPlayer() {
+    pending?.abort();
+    pending = null;
+    if (!player) return;
+    player.audio.pause();
+    URL.revokeObjectURL(player.url);
+    player = null;
+  }
+
+  function speakWithSystem(text, priority) {
+    if (!synth) return;
     if (synth.speaking && priority < speakingPriority) return;
     synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(toSpeech(text));
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'pt-BR';
-    utterance.rate = 1.1;
+    utterance.voice = bestSystemVoice(synth);
+    utterance.rate = SYNTH_RATE;
     utterance.onend = () => { speakingPriority = -1; };
     utterance.onerror = () => { speakingPriority = -1; };
     speakingPriority = priority;
     synth.speak(utterance);
   }
 
+  async function speakWithServer(text, priority) {
+    stopPlayer();
+    const mine = ++request;
+    const controller = new AbortController();
+    pending = controller;
+    speakingPriority = priority;
+    try {
+      const response = await fetch(`${VOICE_SERVER}/falar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: text, voz: remote.voz }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`servidor de voz: ${response.status}`);
+      const blob = await response.blob();
+      if (mine !== request) return; // chegou depois de uma fala mais nova (ou do silêncio)
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      const finish = () => {
+        if (player?.audio !== audio) return;
+        stopPlayer();
+        speakingPriority = -1;
+      };
+      audio.onended = finish;
+      audio.onerror = finish;
+      pending = null;
+      player = { audio, url };
+      await audio.play();
+    } catch (error) {
+      if (mine !== request || error.name === 'AbortError') return;
+      if (error.name === 'NotAllowedError') { // o navegador pede um gesto antes de tocar; o servidor está bem
+        stopPlayer();
+        speakingPriority = -1;
+        return;
+      }
+      console.warn('Guardião: voz local falhou, usando a voz do navegador.', error);
+      remote = null;
+      stopPlayer();
+      speakingPriority = -1;
+      speakWithSystem(text, priority);
+    }
+  }
+
+  /** Fala uma frase. Só interrompe a fala em curso se a nova for de prioridade igual ou maior. */
+  function speak(text, priority) {
+    if (!voiceOn) return;
+    const spoken = toSpeech(text);
+    if (remote) {
+      if (speakingPriority >= 0 && priority < speakingPriority) return;
+      speakWithServer(spoken, priority);
+      return;
+    }
+    speakWithSystem(spoken, priority);
+  }
+
   function silence() {
+    request += 1; // invalida qualquer áudio ainda a caminho
+    stopPlayer();
     synth?.cancel();
     speakingPriority = -1;
   }
@@ -115,7 +205,12 @@ export function createAudio() {
     play: guarded(play, () => { soundOn = false; }),
     speak: guarded(speak, () => { voiceOn = false; }),
     silence,
-    hasVoice: synth !== null,
+    get hasVoice() { return remote !== null || synth !== null; },
+    get voiceInfo() {
+      if (remote) return `voz neural local · ${remote.modelo.replace(/-\d+M$/, '')} (${remote.voz})`;
+      const voice = synth ? bestSystemVoice(synth) : null;
+      return voice ? `voz do sistema · ${voice.name}` : 'voz do sistema';
+    },
     get soundOn() { return soundOn; },
     get voiceOn() { return voiceOn; },
     toggleSound() { soundOn = !soundOn; writePref(STORAGE.sound, soundOn); },

@@ -284,4 +284,33 @@ assert.equal(fmtDistance(124), '120 m');
   assert.ok(deriveReadout({ ...plan, startClockH: 14 }, createSimState(), GROUND).clockH === 14, 'o relógio do visor parte da hora escolhida no tablet');
 }
 
-process.stdout.write('ok: projeção, rotas e formatação conferidas\n');
+// Areia escura estimada: a rota que conhece a areia passa menos por ela, sem deixar de chegar.
+{
+  const { readFile: read } = await import('node:fs/promises');
+  const { decodeSand } = await import('./areia.js');
+  const { createSafety: safetyFor } = await import('./safety.js');
+  const { createPlanner: plannerFor } = await import('./planner.js');
+  const { toLocal: local } = await import('./geo.js');
+  const { buildPlan: fixedPlan } = await import('./route.js');
+  const dir = new URL('../assets/', import.meta.url);
+  const meta = JSON.parse(await read(new URL('elevation/monte-sharp.json', dir), 'utf8'));
+  const bytes = await read(new URL(`elevation/${meta.file}`, dir));
+  const real = fieldFromElevation(meta, new Uint16Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)));
+  const sand = decodeSand(new Uint8Array(await read(new URL('areia/areia.bits', dir))), real.heights.length);
+  assert.ok(sand, 'o arquivo da areia tem um bit por célula da grade do relevo');
+  assert.equal(decodeSand(new Uint8Array(3), real.heights.length), null, 'arquivo de outra grade é recusado');
+  const aware = createRouter(real, { sand });
+  const blind = createRouter(real);
+  assert.ok(aware.hasSand && !blind.hasSand && !blind.sandAt(0, 0), 'sem o arquivo, o roteador não vê areia');
+  const measure = safetyFor(real, aware);
+  const stops = fixedPlan('walk', false).stops.map(({ stop }) => local(stop.lat, stop.lon));
+  const sandOn = (router) => {
+    const result = plannerFor(real, router, safetyFor(real, router)).planThrough(stops, 'walk');
+    assert.ok(result.plan, 'a rota pelas paradas continua existindo');
+    return measure.assessPlan(result.plan).sandM;
+  };
+  const [withSand, without] = [sandOn(aware), sandOn(blind)];
+  assert.ok(withSand < without * 0.75, `a rota que conhece a areia cruza menos areia (${withSand.toFixed(0)} m contra ${without.toFixed(0)} m)`);
+}
+
+process.stdout.write('ok: projeção, rotas, areia e formatação conferidas\n');

@@ -143,7 +143,7 @@ const ok = (label, condition) => { assert.ok(condition, label); checks += 1; };
   ok('fim do evento: volta à rota e retoma o plano', run(solar, 200000, (session) => session.state.off === null).state.nav.kind === 'plan');
 
   const dust = start('walk', false);
-  scrub(dust, 0.9);
+  scrub(dust, 0.95);
   act(dust, toggleScenario, 'poeira');
   confirmUntilDecision(dust, 'poeira');
   ok('perto do fim, a recomendação é seguir', PROTOCOLS.poeira.recommend(dust.session.r).abort === false);

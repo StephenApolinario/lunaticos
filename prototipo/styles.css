@@ -110,6 +110,7 @@ button, select, input { font: inherit; color: inherit; }
 .pin[data-kind="destination"] { background: var(--route); border-color: #fff; color: #04121a; }
 .pin[data-kind="destination"][data-mode="car"] { background: var(--vehicle); }
 .pin[data-kind="hazard"] { background: var(--hazard); border-color: #fff; font-size: 15px; cursor: default; }
+.pin[data-kind="rover"] { background: #c4b5fd; border-color: #fff; color: #18181b; cursor: default; }
 .pin[data-off="true"] { opacity: 0.35; }
 .pin-label {
   position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
@@ -186,6 +187,17 @@ button, select, input { font: inherit; color: inherit; }
 .waypoints li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-2); }
 .waypoint-id { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--route); color: #04121a; font: 600 12px/1 var(--mono); }
 .waypoints .ghost { align-self: center; padding: 3px 8px; }
+.ia-log { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+.ia-log:empty { display: none; }
+.ia-log li { padding: 7px 10px; border-radius: 8px; font-size: 13px; color: var(--fg); background: var(--surface); border-left: 2px solid var(--accent); overflow-wrap: anywhere; }
+.ia-log li[data-from="user"] { align-self: flex-end; border-left: 0; border-right: 2px solid var(--route); color: var(--heading); }
+.ia-busy { margin: 6px 0 0; font-size: 12px; font-style: italic; color: var(--muted); }
+.ia-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-2); }
+.ia-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-top: var(--space-2); }
+.ia-form input { min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); font: inherit; font-size: 13px; }
+.ia-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ia-form button { padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: #17100b; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.ia-form button:disabled { opacity: 0.5; cursor: progress; }
 .hour-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-2); }
 .hour-row input[type="range"] { width: 100%; accent-color: var(--accent); }
 .hour-clock { font: 600 18px/1 var(--mono); color: var(--heading); font-variant-numeric: tabular-nums; }

@@ -2,9 +2,9 @@
 
 Gerado por `node prototipo/tools/gerar-fontes.mjs` a partir de `prototipo/data/fontes.js`. Para corrigir, edite aquele arquivo e gere de novo.
 
-Cada item diz o tipo: dado de sonda ou rover, cálculo sobre dado real, estimativa a partir de medição, hipótese da equipe, simulado ou ilustrativo.
+Cada item diz o tipo: dado de sonda ou rover, fato publicado, cálculo sobre dado real, estimativa a partir de medição, hipótese da equipe, simulado, como o sistema funciona, ilustrativo.
 
-Resumo: 12 dado de sonda ou rover · 2 fato publicado · 8 cálculo sobre dado real · 2 estimativa a partir de medição · 7 hipótese da equipe · 5 simulado · 1 ilustrativo.
+Resumo: 13 dado de sonda ou rover · 8 fato publicado · 13 cálculo sobre dado real · 3 estimativa a partir de medição · 8 hipótese da equipe · 2 simulado · 4 como o sistema funciona · 3 ilustrativo.
 
 ## Mapa e terreno
 
@@ -16,44 +16,61 @@ Resumo: 12 dado de sonda ou rover · 2 fato publicado · 8 cálculo sobre dado r
 6. **Térmico (noite)** — Dado de sonda ou rover. Infravermelho térmico noturno do THEMIS (sonda Mars Odyssey), mosaico de 100 m servido pelo NASA Mars Trek. É brilho relativo da imagem, não temperatura em graus. [fonte](https://trek.nasa.gov/mars/)
 7. **Unidade geológica** — Dado de sonda ou rover. Mapa geológico global de Marte, USGS SIM 3292 (Tanaka et al. 2014), 1:20.000.000: a área inteira é a unidade Htu. Consultado em 14/11/2026. [fonte](https://doi.org/10.3133/sim3292)
 8. **Trajeto do Curiosity** — Dado de sonda ou rover. Mapa oficial da missão (MMGIS, NASA/JPL), sols 2300 a 4893. Os pontos vieram do artifact original; a data da cópia não foi registrada. [fonte](https://mars.nasa.gov/maps/location/?mission=MSL)
-9. **Sombras do relevo** — Cálculo sobre dado real. Sombra projetada pelo relevo do DEM para a posição calculada do Sol.
+9. **Posição atual do rover Curiosity** — Dado de sonda ou rover. Marcada com um R no mapa. Vem do arquivo que alimenta o mapa "Where is Curiosity?" da NASA, lido quando o protótipo abre; sem rede, vale a posição guardada em 15/11/2026 (sol 5073). O rover segue em operação: tratá-lo como parado no fim da missão dele é o cenário da equipe. [fonte](https://science.nasa.gov/mission/msl-curiosity/location-map/)
+10. **Sombras do relevo** — Cálculo sobre dado real. Sombra projetada pelo relevo do DEM para a posição calculada do Sol.
 
 ## Sol, clima e radiação
 
-10. **Posição do Sol, nascer e pôr** — Cálculo sobre dado real. Algoritmo Mars24 (Allison & McEwen 2000), do NASA GISS, para a estação de hoje em Marte. Não conta poeira nem refração. [fonte](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html)
-11. **Luz do dia que sobra para a saída** — Cálculo sobre dado real. Hora do pôr do Sol (Mars24) menos a duração do plano.
-12. **Temperatura e pressão da estação** — Dado de sonda ou rover. REMS (Curiosity): média dos sols medidos na mesma estação do ano, lida do feed público da NASA. Sem rede, vale o sol típico de 2012 (JPL). [fonte](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json)
-13. **Temperatura por hora** — Estimativa a partir de medição. Curva nossa entre a mínima (nascer do Sol) e a máxima (começo da tarde) medidas pelo REMS.
-14. **Radiação agora** — Dado de sonda ou rover. RAD (Curiosity): dose absorvida, média dos últimos 30 dias, lida da série msl_rad_dosimetry do NASA CCMC iSWA. [fonte](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry)
-15. **Taxa de radiação do visor e do mapa** — Dado de sonda ou rover. RAD (Curiosity): 0,67 mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013 (cerca de 27,9 µSv/h). [fonte](https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/)
-16. **Radiação menor onde o relevo protege** — Estimativa a partir de medição. Céu tapado pelo relevo (calculado no DEM) na proporção medida pelo RAD em Murray Buttes: 4% a menos com 19% do céu tapado (Ehresmann et al. 2021). Acima de 19% é extrapolação em linha reta. [fonte](https://doi.org/10.1029/2021JE006851)
-17. **Evento solar (cenário)** — Simulado. O disparo é um botão de cenário. No evento de 11/09/2017 o RAD mediu mais que o dobro de qualquer valor anterior; aplicar 2 vezes sobre a média é simplificação da equipe. [fonte](https://www.jpl.nasa.gov/news/large-solar-storm-sparks-global-aurora-and-doubles-radiation-levels-on-the-martian-surface/)
-18. **Vento** — Simulado. 5 m/s no normal e 28 m/s no cenário, sem fonte. O sensor de vento do REMS parou no sol 1491.
-19. **Tempestade de poeira e frio extremo (cenários)** — Simulado. Frente de poeira em 40 min, visibilidade de 30 m e 45 °C a menos: valores sem fonte, só para exercitar os protocolos.
+11. **Posição do Sol, nascer e pôr** — Cálculo sobre dado real. Algoritmo Mars24 (Allison & McEwen 2000), do NASA GISS, para a estação de hoje em Marte. Não conta poeira nem refração. [fonte](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html)
+12. **Luz do dia que sobra para a saída** — Cálculo sobre dado real. Hora do pôr do Sol (Mars24) menos a duração do plano.
+13. **Temperatura e pressão da estação** — Dado de sonda ou rover. REMS (Curiosity): média dos sols medidos na mesma estação do ano, lida do feed público da NASA. Sem rede, vale o sol típico de 2012 (JPL). [fonte](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json)
+14. **Temperatura por hora** — Estimativa a partir de medição. Curva nossa entre a mínima (nascer do Sol) e a máxima (começo da tarde) medidas pelo REMS.
+15. **Radiação agora** — Dado de sonda ou rover. RAD (Curiosity): dose absorvida, média dos últimos 30 dias, lida da série msl_rad_dosimetry do NASA CCMC iSWA. [fonte](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry)
+16. **Taxa de radiação do visor e do mapa** — Dado de sonda ou rover. RAD (Curiosity): 0,67 mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013 (cerca de 27,9 µSv/h). [fonte](https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/)
+17. **Radiação menor onde o relevo protege** — Estimativa a partir de medição. Céu tapado pelo relevo (calculado no DEM) na proporção medida pelo RAD em Murray Buttes: 4% a menos com 19% do céu tapado (Ehresmann et al. 2021). Acima de 19% é extrapolação em linha reta. [fonte](https://doi.org/10.1029/2021JE006851)
+18. **Evento solar (cenário de treino)** — Fato publicado. O disparo é um botão de treino. No evento de 11/09/2017 o RAD mediu mais que o dobro de qualquer valor anterior; aplicar 2 vezes sobre a média é simplificação da equipe. [fonte](https://www.jpl.nasa.gov/news/large-solar-storm-sparks-global-aurora-and-doubles-radiation-levels-on-the-martian-surface/)
+19. **Vento** — Fato publicado. Não há medição de vento para hoje: o sensor do REMS parou no sol 1491, e o visor mostra “sem medição”. O cenário de vento usa 27 m/s, os ventos mais fortes publicados para Marte, e calcula a força equivalente na Terra pela densidade do ar (pressão e temperatura do REMS). [fonte](https://www.nasa.gov/content/the-fact-and-fiction-of-martian-dust-storms)
+20. **Tempestade de poeira (cenário de treino)** — Fato publicado. A visibilidade do cenário (menos de 3 km) é a medida em Gale no pico da tempestade global de 2018. O aviso de frente chegando em 40 min é parâmetro do treino. [fonte](https://arxiv.org/pdf/1910.00986)
+21. **Frio extremo (cenário de treino)** — Fato publicado. O ar do cenário vai a −100 °C, o mais frio medido pelo REMS em dois anos marcianos. [fonte](https://www.jpl.nasa.gov/news/second-cycle-of-martian-seasons-completing-for-curiosity-rover/)
 
 ## Rotas e segurança
 
-20. **Distância, subida e declive das rotas** — Cálculo sobre dado real. Caminho de menor custo sobre o DEM do USGS. A travessia do Monte Sharp veio pré-calculada do artifact original (DEM reamostrado a 2 m; o programa não está no repositório). A rota livre é calculada na hora, na grade de 8 m.
-21. **Velocidade e tempo** — Hipótese da equipe. 2,5 km/h a pé e 4,5 km/h de veículo em terreno plano, 45 min por parada. Na rota livre, o efeito do declive usa a função de caminhada de Tobler (1993), feita para a Terra.
-22. **Limite de declive** — Hipótese da equipe. 20° a pé e 15° de veículo.
-23. **Volta a pé até o habitat** — Cálculo sobre dado real. Tempo de caminhada sobre o DEM, com a velocidade de hipótese.
-24. **Rádio** — Cálculo sobre dado real. Linha de visada até o habitat sobre o DEM, com a curvatura de Marte. As alturas das antenas (10 m e 2 m) são hipótese.
-25. **Abrigo de relevo** — Cálculo sobre dado real. Fração do céu tapada pelo relevo em volta, estimada sobre o DEM.
-26. **Zona de rochas cortantes** — Hipótese da equipe. O ponto é a posição oficial do Curiosity no sol 3420, onde a missão viu as rochas “gator-back” à frente e deu meia-volta. É a borda do terreno, não o centro, e não há contorno publicado: o círculo de 250 m é da equipe e cobre, a leste, chão por onde o rover passou sem problema. [fonte](https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/)
-27. **Oxigênio, bateria, pressão e integridade do traje** — Simulado. Não existe traje real: consumo de 12,5% por hora a pé e 4% na cabine, bateria de 9% e 5% por hora, reserva de 10%.
-28. **Limites dos alertas** — Hipótese da equipe. Dose de 1.000 µSv por saída, traje até −60 °C, vento de 15 e 25 m/s, 10 min sem rádio.
-29. **Protocolos de emergência** — Hipótese da equipe. Proposta da equipe. Cada protocolo cita a evidência de missões reais reunida em docs/pesquisa.md.
+22. **Distância, subida e declive das rotas** — Cálculo sobre dado real. Caminho de menor custo sobre o DEM do USGS. A travessia do Monte Sharp veio pré-calculada do artifact original (DEM reamostrado a 2 m; o programa não está no repositório). A rota livre é calculada na hora, na grade de 8 m.
+23. **Velocidade a pé** — Fato publicado. 2 km/h: valor de planejamento da NASA para a volta a pé de traje (cerca de 10 km em 5 horas). Na rota livre, o efeito do declive usa a função de caminhada de Tobler (1993), feita para a Terra. [fonte](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
+24. **Velocidade do veículo e tempo de parada** — Hipótese da equipe. 4,5 km/h de veículo em terreno plano e 45 min por parada.
+25. **Limite de declive** — Hipótese da equipe. 20° a pé e 15° de veículo.
+26. **Volta a pé até o habitat** — Cálculo sobre dado real. Tempo de caminhada sobre o DEM, com a velocidade a pé de planejamento da NASA.
+27. **Rádio** — Cálculo sobre dado real. Linha de visada até o habitat sobre o DEM, com a curvatura de Marte. As alturas das antenas (10 m e 2 m) são hipótese.
+28. **Abrigo de relevo** — Cálculo sobre dado real. Fração do céu tapada pelo relevo em volta, estimada sobre o DEM.
+29. **Simulação do plano a pé ou de veículo** — Cálculo sobre dado real. A IA refaz o mesmo plano no outro modo, com as paradas de coleta: rota sobre o relevo real, velocidade reduzida pelo declive e oxigênio pelo consumo do traje. A velocidade do veículo, o declive máximo e o tempo de parada continuam sendo hipóteses da equipe.
+30. **Tempo que dá para ficar parado** — Cálculo sobre dado real. Oxigênio de agora menos a reserva e o gasto do caminho, e a luz até o pôr do Sol. Usa o consumo de quem caminha: parado o gasto é menor, então é o mínimo garantido. Não achamos taxa metabólica publicada de astronauta parado de pé; só sentado no jipe lunar.
+31. **Pontos seguros para parar** — Cálculo sobre dado real. Ponto mais próximo na rota, à frente e atrás, com chão de até 5° de declive, rádio direto com o habitat e fora da zona de rochas cortantes. O relevo e o rádio são calculados sobre o DEM; o critério é da equipe.
+32. **Zona de rochas cortantes** — Hipótese da equipe. O ponto é a posição oficial do Curiosity no sol 3420, onde a missão viu as rochas “gator-back” à frente e deu meia-volta. É a borda do terreno, não o centro, e não há contorno publicado: o círculo de 250 m é da equipe e cobre, a leste, chão por onde o rover passou sem problema. [fonte](https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/)
+33. **Areia escura (fofa)** — Estimativa a partir de medição. Camada Areia e desvio das rotas. Uma célula de 8 m conta como areia quando a imagem HiRISE ali é escura e mais azul que vermelha e o declive é menor que 12°; manchas com menos de 60 células são descartadas (2,48 km² no total). É classificação da equipe pela cor realçada da imagem, não mapa de areia da NASA, e pode marcar rocha escura como areia. Nas rotas livres a areia custa 2,5 vezes mais a pé e 8 vezes mais de veículo (hipótese da equipe). A travessia pronta veio do artifact original e não foi refeita: ela cruza 2,2 km dessa areia, e o painel avisa.
+34. **Oxigênio do traje** — Cálculo sobre dado real. Não existe traje real, então não é medição. O consumo sai de uma conta: taxa metabólica medida nas saídas lunares da Apollo (1267 kJ por hora a pé, 414 no veículo), 20,9 kJ por litro de oxigênio e o tanque de 1,8 lb do traje avançado da NASA. Dá cerca de 10,6% por hora a pé e 3,5% no veículo. [fonte](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+35. **Tanque de oxigênio e pressão do traje** — Fato publicado. Tanque primário de cerca de 1,8 lb utilizável a 3000 psia (traje avançado da NASA, Campbell 2012) e pressão de operação de 4,3 psi (traje EMU da estação espacial). [fonte](https://ntrs.nasa.gov/api/citations/20120009158/downloads/20120009158.pdf)
+36. **Reserva de oxigênio** — Cálculo sobre dado real. 1 hora de contingência além da saída planejada, como no conceito de operações de saída da NASA (EVA-EXP-0042); a pé, isso dá 10,6% do tanque. [fonte](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
+37. **Bateria do traje** — Hipótese da equipe. Consumo de 9% por hora a pé e 5% no veículo. Não achamos a capacidade publicada em fonte primária.
+38. **Falhas do traje, do rádio e do veículo (cenários de treino)** — Simulado. Queda com vazamento, falha de tanque, rádio mudo e pane do veículo são situações hipotéticas, disparadas por botão para treinar os protocolos.
+39. **Posição do astronauta no visor** — Simulado. O protótipo move o astronauta ao longo da rota. Não há localização real: em Marte não existe GPS, e os rovers se localizam casando imagens com o mapa orbital.
+40. **Limites dos alertas** — Hipótese da equipe. Dose de 1.000 µSv por saída, traje até −60 °C, vento de 15 e 25 m/s, 10 min sem rádio, e a proteção de cada abrigo contra radiação.
+41. **Protocolos de emergência** — Hipótese da equipe. Proposta da equipe. Cada protocolo cita a evidência de missões reais reunida em docs/pesquisa.md.
 
 ## Ciência e visor
 
-30. **Posição e altitude das paradas** — Dado de sonda ou rover. Pontos do trajeto do Curiosity (MMGIS, NASA/JPL). [fonte](https://mars.nasa.gov/maps/location/?mission=MSL)
-31. **Textos científicos das paradas** — Fato publicado. Conferidos em 14/11/2026 contra páginas da NASA e do JPL e artigos científicos; a fonte de cada parada aparece no cartão. A parada 2 fica no furo Sequoia, a cerca de 300 m da crista de Gediz Vallis.
-32. **Perguntas e tarefas das paradas** — Hipótese da equipe. Roteiro escrito pela equipe.
-33. **Fotos nas paradas** — Dado de sonda ou rover. Navcam do Curiosity no sol da parada, do acervo de imagens brutas da missão (NASA/JPL-Caltech). [fonte](https://mars.nasa.gov/msl/multimedia/raw-images/)
-34. **Coletas que deram trabalho ao rover** — Fato publicado. Relatos da missão Curiosity, conferidos em 14/11/2026; o link de cada caso está no cartão. Em quatro dos sete casos a missão conseguiu amostra depois, ali perto.
-35. **Objetivo da missão e local do habitat** — Hipótese da equipe. Proposta da equipe. O objetivo científico e o local seguem como decisões em aberto no README.
-36. **Assistente do visor** — Simulado. Motor de regras local. Não é IA e não consulta nenhum dado externo.
-37. **Céu, chão além da área com dados e modelo do habitat** — Ilustrativo. Só aparência. Rochas soltas e montanhas desenhadas foram retiradas.
+42. **Posição e altitude das paradas** — Dado de sonda ou rover. Pontos do trajeto do Curiosity (MMGIS, NASA/JPL). [fonte](https://mars.nasa.gov/maps/location/?mission=MSL)
+43. **Textos científicos das paradas** — Fato publicado. Conferidos em 14/11/2026 contra páginas da NASA e do JPL e artigos científicos; a fonte de cada parada aparece no cartão. A parada 2 fica no furo Sequoia, a cerca de 300 m da crista de Gediz Vallis.
+44. **Perguntas e tarefas das paradas** — Hipótese da equipe. Roteiro escrito pela equipe.
+45. **Fotos nas paradas** — Dado de sonda ou rover. Navcam do Curiosity no sol da parada, do acervo de imagens brutas da missão (NASA/JPL-Caltech). [fonte](https://mars.nasa.gov/msl/multimedia/raw-images/)
+46. **Coletas que deram trabalho ao rover** — Fato publicado. Relatos da missão Curiosity, conferidos em 14/11/2026; o link de cada caso está no cartão. Em quatro dos sete casos a missão conseguiu amostra depois, ali perto.
+47. **Objetivo da missão e local do habitat** — Hipótese da equipe. Proposta da equipe. O objetivo científico e o local seguem como decisões em aberto no README.
+48. **IA de bordo (visor e tablet)** — Como o sistema funciona. Modelo de linguagem que faz o papel do computador de bordo. Não gera dado: recebe os valores desta lista a cada pergunta, consulta ferramentas e só pode citar número que veio delas (a resposta é conferida antes de aparecer). Recusa assunto fora da missão. Como o modelo é servido no protótipo está no README.
+49. **Alertas e protocolos do visor** — Como o sistema funciona. Regras fixas sobre as leituras da saída. Não dependem da IA.
+50. **Voz do assistente** — Como o sistema funciona. Fala: Kokoro-82M, modelo de voz neural rodando neste computador (voz pf_dora, português do Brasil); sem o servidor de voz, usa a voz do sistema. Escuta: Whisper (modelo small) no mesmo servidor, que transcreve o que é dito no botão Falar sem mandar o áudio para a internet; sem o servidor, usa o reconhecimento do navegador, se houver. [fonte](https://github.com/thewh1teagle/kokoro-onnx)
+51. **Leituras fixadas no visor pela IA** — Como o sistema funciona. A pedido do astronauta (“me mostra meu oxigênio”, “coloca na tela a velocidade média”, “tira o mapa”), a IA fixa ou tira leituras do visor e liga ou desliga o mapa, as leituras e o histórico. Os valores são os mesmos desta lista, lidos de novo duas vezes por segundo. Também pinta sobre o terreno do visor uma camada do mapa do tablet (térmico noturno, declive, rádio, radiação, volta a pé ou areia). Alertas, protocolo e a volta a pé não saem da tela.
+52. **Céu, chão além da área com dados e modelo do habitat** — Ilustrativo. Só aparência. Rochas soltas e montanhas desenhadas foram retiradas.
+53. **Modelo 3D do veículo** — Ilustrativo. Buggy aberto de dois lugares desenhado pela equipe com formas simples, na linha do jipe lunar da Apollo: o astronauta vai de traje, que é o que o protótipo assume para o consumo de oxigênio. Não vem de dado. O acervo de modelos 3D da NASA só tem o veículo pressurizado SEV, que não combina com essa hipótese. [fonte](https://github.com/nasa/NASA-3D-Resources)
+54. **Grão do chão no visor** — Ilustrativo. Textura fina aplicada ao chão a até cerca de 40 m dos olhos, só no visor. A foto mais fina tem 25 cm por pixel e de perto vira um borrão; o grão devolve a noção de escala sem mudar a cor média. Não representa pedras reais.
 
 ## Recursos da aba Resources do desafio
 
@@ -65,23 +82,32 @@ Resumo: 12 dado de sonda ou rover · 2 fato publicado · 8 cálculo sobre dado r
 
 ## Todos os links
 
-Só os links, sem repetir: 86 no total, agrupados por onde são usados.
+Só os links, sem repetir: 107 no total, agrupados por onde são usados.
 
-### Dados e serviços usados pelo protótipo (23)
+### Dados e serviços usados pelo protótipo (32)
 
 - [Relevo e altitude](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_dem_1m)
 - [Detalhe de 64 cm por pixel](https://trek.nasa.gov/mars/)
 - [Detalhe de 25 cm por pixel](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_orthophoto_mosaic_25cm)
 - [Unidade geológica](https://doi.org/10.3133/sim3292)
 - [Trajeto do Curiosity](https://mars.nasa.gov/maps/location/?mission=MSL)
+- [Posição atual do rover Curiosity](https://science.nasa.gov/mission/msl-curiosity/location-map/)
 - [Posição do Sol, nascer e pôr](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html)
 - [Temperatura e pressão da estação](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json)
 - [Radiação agora](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry)
 - [Taxa de radiação do visor e do mapa](https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/)
 - [Radiação menor onde o relevo protege](https://doi.org/10.1029/2021JE006851)
-- [Evento solar (cenário)](https://www.jpl.nasa.gov/news/large-solar-storm-sparks-global-aurora-and-doubles-radiation-levels-on-the-martian-surface/)
+- [Evento solar (cenário de treino)](https://www.jpl.nasa.gov/news/large-solar-storm-sparks-global-aurora-and-doubles-radiation-levels-on-the-martian-surface/)
+- [Vento](https://www.nasa.gov/content/the-fact-and-fiction-of-martian-dust-storms)
+- [Tempestade de poeira (cenário de treino)](https://arxiv.org/pdf/1910.00986)
+- [Frio extremo (cenário de treino)](https://www.jpl.nasa.gov/news/second-cycle-of-martian-seasons-completing-for-curiosity-rover/)
+- [Velocidade a pé](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
 - [Zona de rochas cortantes](https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/)
+- [Oxigênio do traje](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+- [Tanque de oxigênio e pressão do traje](https://ntrs.nasa.gov/api/citations/20120009158/downloads/20120009158.pdf)
 - [Fotos nas paradas](https://mars.nasa.gov/msl/multimedia/raw-images/)
+- [Voz do assistente](https://github.com/thewh1teagle/kokoro-onnx)
+- [Modelo 3D do veículo](https://github.com/nasa/NASA-3D-Resources)
 - [USGS-NASA Planetary Geologic Mapping](https://astrogeology-usgs.hub.arcgis.com/pages/interactive-maps-mars)
 - [Curiosity’s Proposed Path up Mount Sharp](https://science.nasa.gov/resource/curiositys-proposed-path-up-mount-sharp/)
 - [NASA Worldview](https://worldview.earthdata.nasa.gov/)
@@ -116,7 +142,7 @@ Só os links, sem repetir: 86 no total, agrupados por onde são usados.
 - [Blog da missão, sols 4214–4215](https://science.nasa.gov/blog/sols-4214-4215-the-best-laid-plans/)
 - [Blog da missão, sols 4879–4885](https://science.nasa.gov/blog/curiosity-blog-sols-4879-4885-struggle-at-atacama/)
 
-### Protocolos de emergência (10)
+### Protocolos de emergência (9)
 
 - [Viúdez-Moreiras et al. 2019](https://pmc.ncbi.nlm.nih.gov/articles/PMC6750032/)
 - [JPL, 10/06/2024](https://www.jpl.nasa.gov/news/nasa-watches-mars-light-up-during-epic-solar-storm/)
@@ -124,12 +150,11 @@ Só os links, sem repetir: 86 no total, agrupados por onde são usados.
 - [Ullán et al. 2017 (resumo)](https://cab.inta-csic.es/en/publicaciones/analysis-of-wind-induced-dynamic-pressure-fluctuations-during-one-and-a-half-martian-years-at-gale-crater/)
 - [Manual do LCRU, 1971](https://apollojournals.org/alsj/HSI-481184-LCRU.pdf)
 - [NASA OCHMO-TB-023](https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-023-extraterrestrial-surface-transport-vehicles-rovers.pdf)
-- [NASA EVA-EXP-0042 Rev. B](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
 - [JPL, PIA07999](https://www.jpl.nasa.gov/images/pia07999-looking-back-at-purgatory-dune/)
 - [NASA, podcast On a Mission](https://www.nasa.gov/podcasts/on-a-mission/a-lifetime-on-mars-the-adventures-of-spirit-and-opportunity-s4e4/)
 - [JPL, 12/11/2009](https://www.jpl.nasa.gov/news/nasa-to-begin-attempts-to-free-sand-trapped-mars-rover/)
 
-### Pesquisa (docs/pesquisa.md) (36)
+### Pesquisa (docs/pesquisa.md) (49)
 
 - [JPL, 25/06/2009](https://www.jpl.nasa.gov/news/mars-rover-yielding-new-clues-while-lodged-in-martian-soil/)
 - [JPL, página da missão](https://www.jpl.nasa.gov/missions/mars-exploration-rover-spirit-mer-spirit/)
@@ -161,9 +186,22 @@ Só os links, sem repetir: 86 no total, agrupados por onde são usados.
 - [NASA Science](https://science.nasa.gov/resource/radiation-measurements-on-mars/)
 - [SwRI](https://www.swri.org/newsroom/press-releases/swri-scientists-publish-first-radiation-measurements-the-surface-of-mars)
 - [Hassler et al. 2014, Science](https://doi.org/10.1126/science.1244797)
-- [JPL, 2016](https://www.jpl.nasa.gov/news/second-cycle-of-martian-seasons-completing-for-curiosity-rover/)
 - [JPL, 20/06/2018](https://www.jpl.nasa.gov/news/martian-dust-storm-grows-global-curiosity-captures-photos-of-thickening-haze/)
 - [ICES-2026-126](https://ntrs.nasa.gov/api/citations/20260003024/downloads/Final_ICES2026_Mars_PLSS_Plan.pdf)
 - [Axiom Space, 16/10/2024](https://www.axiomspace.com/release/axiom-space-prada-unveil-spacesuit-design-for-moon-return)
 - [ALSJ, PLSS](https://apollojournals.org/alsj/plss.html)
+- [NASA, EMU](https://ntrs.nasa.gov/api/citations/20140009556/downloads/20140009556.pdf)
+- [Popular Science, entrevista com Fred Calef](https://www.popsci.com/keeper-maps-mars/)
+- [JPL, 18/02/2026](https://www.jpl.nasa.gov/news/nasas-perseverance-now-autonomously-pinpoints-its-location-on-mars/)
+- [NASA TN D-7469](https://www.nasa.gov/wp-content/uploads/static/history/alsj/19740003321_1974003321.pdf)
+- [NASA, Apollo 14: Science at Fra Mauro](https://ntrs.nasa.gov/api/citations/19710012245/downloads/19710012245.pdf)
+- [NASA SP-350, cap. 12](https://www.nasa.gov/wp-content/uploads/static/history/SP-350/ch-12-6.html)
+- [Apollo 16 Time and Motion Study, NASA M72-6](https://ntrs.nasa.gov/api/citations/19730008098/downloads/19730008098.pdf)
+- [NASA, High Performance EVA Glove Collaboration](https://ntrs.nasa.gov/citations/20140014058)
+- [Crawford 2012, Astronomy & Geophysics](https://arxiv.org/pdf/1203.6250)
+- [NASA, Learn About Me: Curiosity](https://mars.nasa.gov/multimedia/interactives/learncuriosity/index-2.html)
+- [JPL, 2013](https://www.jpl.nasa.gov/news/curiosity-makes-its-longest-one-day-drive-on-mars/)
+- [NASA, 12/10/2026](https://science.nasa.gov/blogs/perseverance-mars-rover/2026/10/12/nasas-perseverance-sets-off-world-record-for-total-distance-driven/)
+- [ALSJ, Apollo 17, Station 4](https://apollojournals.org/alsj/a17/a17.sta4.html)
+- [NASA APOD, 24/11/2017](https://science.nasa.gov/image-article/apod-2017-november-24-apollo-17-at-shorty-crater/)
 - [JPL, 2020](https://jpl.nasa.gov/news/news.php?feature=7617)

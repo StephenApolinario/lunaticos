@@ -110,8 +110,8 @@ export function createHud(mount, on) {
     statusIcon: levelIcon(), statusWord: h('b'), statusText: h('span'),
     o2: meter('O₂'), o2Info: h('span', { class: 'guardiao-sub' }), battery: meter('Bateria', 'Bat.'),
     pressure: row('Pressão', { trend: true }), integrity: row('Integridade', { short: 'Integr.' }), o2End: row('O₂ ao fim do plano', { short: 'O₂ no fim' }),
-    radiation: row('Radiação', { short: 'Rad.', sim: true, trend: true }), dose: row('Dose da saída', { short: 'Dose', sim: true }),
-    temperature: row('Temp. do ar', { short: 'Temp.', sim: true, trend: true }), wind: row('Vento', { sim: true }),
+    radiation: row('Radiação', { short: 'Rad.', sim: 'RAD', trend: true }), dose: row('Dose da saída', { short: 'Dose', sim: 'est.' }),
+    temperature: row('Temp. do ar', { short: 'Temp.', sim: 'est.', trend: true }), wind: row('Vento', { sim: true }),
     slope: row('Declive · à frente', { short: 'Decl. · frente' }), altitude: row('Altitude', { short: 'Alt.', trend: true }), radio: row('Rádio', { sim: 'calc.' }), habitat: row('Habitat'),
     retLabel: label('Volto a pé ao habitat?', 'caminho no relevo real · O₂ simulado'), retVerdict: h('b', { class: 'guardiao-veredito' }), retOxygen: h('span', { class: 'guardiao-sub' }),
     strip: h('div', { class: 'guardiao-faixa', role: 'img' }), stripDone: h('i', { class: 'guardiao-faixa-feito' }),
@@ -157,7 +157,7 @@ export function createHud(mount, on) {
       h('section', { class: 'guardiao-bloco guardiao-retorno', 'aria-label': 'Retorno a pé' }, els.retLabel, els.retVerdict, els.retOxygen, els.strip, els.pnrText),
       h('section', { class: 'guardiao-bloco guardiao-ambiente', 'aria-label': 'Ambiente' }, label('Ambiente'),
         els.radiation.node, els.dose.node, els.temperature.node, els.wind.node, els.slope.node, els.altitude.node, els.radio.node,
-        h('span', { class: 'guardiao-fonte' }, 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese. O resto é simulado.')),
+        h('span', { class: 'guardiao-fonte' }, 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos do REMS. Vento: simulado.')),
       h('p', { class: 'guardiao-assistente' }, label('Oficial de protocolo', 'IA simulada · motor de regras'), els.assistant)),
     historyPanel.root,
     h('div', { class: 'guardiao-doca' },
@@ -201,7 +201,7 @@ export function createHud(mount, on) {
     setRow(els.radiation, `${fmtNumber(r.radiationRate)} µSv/h`, r.fx.radFactor > 1 ? 'danger' : 'ok');
     setRow(els.dose, `${fmtNumber(r.doseUsv)}/${fmtNumber(RULES.doseLimitUsv)} µSv`, above(r.doseUsv / RULES.doseLimitUsv, RULES.doseCautionFrac, 1));
     setRow(els.temperature, `${fmtNumber(r.airTempC)} °C`, r.airTempC < RULES.suitMinTempC ? 'danger' : 'ok');
-    setRow(els.wind, `${fmtNumber(r.windMps)} m/s`, above(r.windMps, RULES.windCautionMps, RULES.windDangerMps));
+    setRow(els.wind, r.windMps === null ? 'sem medição' : `${fmtNumber(r.windMps)} m/s`, above(r.windMps ?? 0, RULES.windCautionMps, RULES.windDangerMps));
     setRow(els.slope, `${fmtSigned(r.slopeDeg)}° · ${fmtNumber(r.slopeAheadDeg)}°`, above(r.slopeAheadDeg, RULES.slopeCautionDeg, RULES.slopeDangerDeg));
     setRow(els.altitude, `${fmtNumber(r.altitudeM)} m`);
     const lost = r.radio.state === 'lost';

@@ -1,5 +1,6 @@
 // Leitura completa de um instante: tudo o que o HUD mostra e que as regras consultam.
 
+import { REMS } from '../../data/medicoes.js';
 import { estimatedAirTempC } from '../../src/clima.js';
 import { SIM, localClockOf } from '../../src/simulation.js';
 import { headingDeg, yToElev } from '../../src/geo.js';
@@ -104,7 +105,8 @@ export function buildReadout({ plan, state, pos, ground, base, analysis }) {
     pressureKpa: RULES.pressureNominalKpa * (1 - FAULTS.pressureDropPerPoint * (100 - state.integrityPct)),
     radiationRate: rates.doseUsvH, doseUsv: state.doseUsv,
     doseEtaH: doseLeftUsv > 0 ? doseLeftUsv / rates.doseUsvH : 0,
-    airTempC: estimatedAirTempC(localClockH) + fx.tempOffsetC,
+    // No cenário de frio, o ar vai ao mínimo já medido pelo REMS; fora dele, a estimativa da hora.
+    airTempC: fx.tempOffsetC < 0 ? REMS.recordAirMinC : estimatedAirTempC(localClockH),
     windMps: fx.windMps, radio, comms: analysis.comms,
     slopeDeg, slopeAheadDeg, altitudeM: state.off ? yToElev(ground.y) : m.here.elev,
     hazard: base.hazard,

@@ -1,0 +1,15 @@
+{
+  "file": "areia.bits",
+  "encoding": "1 bit por célula da grade do relevo, na mesma ordem; bit menos significativo primeiro",
+  "cols": 801,
+  "rows": 1051,
+  "cellM": 8,
+  "cells": 38689,
+  "source": "Estimativa da equipe: cor da imagem HiRISE (escura e azulada) e declive do DEM do USGS. Não é mapa de areia da NASA.",
+  "rule": {
+    "maxLuminance": 92,
+    "minBlueOverRed": 2,
+    "maxSlopeDeg": 12,
+    "minPatchCells": 60
+  }
+}

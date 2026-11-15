@@ -4,7 +4,7 @@
 // do assistente. Nenhuma depende do HUD; o CSS delas está em componentes.css.
 // Todo texto de quem usa (pergunta, observação, nota) entra como nó de texto, via h().
 
-import { h, setText } from '../../src/dom.js';
+import { emphasized, h, setText } from '../../src/dom.js';
 import { MAX_NOTE_CHARS, entryLabel, fmtPosition, fmtStamp } from './diario.js';
 import { HAZARD_TYPES } from './perigos.js';
 
@@ -15,7 +15,7 @@ const TABS = Object.freeze([
 ]);
 const MAX_MESSAGES = 120;
 const MAX_QUESTION_CHARS = 240;
-const SPEAKER = Object.freeze({ user: 'Você', assistant: 'Assistente', alert: 'Assistente · alerta' });
+const SPEAKER = Object.freeze({ user: 'Você', assistant: 'Assistente', alert: 'Alerta do visor' });
 
 const button = (label, props = {}) => h('button', { type: 'button', ...props }, label);
 
@@ -37,10 +37,11 @@ function micButton(idleLabel, onClick) {
 export function createChatView({ onAsk, onMic }) {
   let quickKey = '';
   const log = h('ol', { class: 'cientista-log', tabIndex: 0, 'aria-label': 'Histórico da conversa' });
-  const quick = h('div', { class: 'cientista-quick', role: 'group', 'aria-label': 'Perguntas rápidas' });
+  const quick = h('div', { class: 'cientista-quick', role: 'group', 'aria-label': 'Perguntas de exemplo' });
+  const busy = h('p', { class: 'cientista-busy', role: 'status', hidden: true });
   const input = h('input', {
     type: 'text', class: 'cientista-input', maxLength: MAX_QUESTION_CHARS, autocomplete: 'off', enterKeyHint: 'send',
-    placeholder: 'Pergunte ao assistente…', 'aria-label': 'Pergunta para o assistente',
+    placeholder: 'Pergunte sobre a saída…', 'aria-label': 'Pergunta para o assistente',
   });
   const mic = micButton('Falar', onMic);
   const form = h('form', {
@@ -53,7 +54,7 @@ export function createChatView({ onAsk, onMic }) {
       onAsk(text);
     },
   }, input, mic.node, h('button', { type: 'submit', class: 'cientista-send' }, 'Enviar'));
-  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-chat', 'aria-label': 'Conversa' }, log, quick, form);
+  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-chat', 'aria-label': 'Conversa' }, log, busy, quick, form);
 
   const scrollToEnd = () => { log.scrollTop = log.scrollHeight; };
 
@@ -61,7 +62,7 @@ export function createChatView({ onAsk, onMic }) {
   function addMessage({ from, text, stamp }) {
     log.append(h('li', { class: 'cientista-msg', dataset: { from } },
       h('span', { class: 'cientista-msg-meta' }, `${SPEAKER[from] ?? SPEAKER.assistant} · ${stamp}`),
-      h('p', {}, text)));
+      h('p', {}, ...emphasized(text))));
     while (log.childElementCount > MAX_MESSAGES) log.firstElementChild.remove();
     scrollToEnd();
   }
@@ -74,14 +75,22 @@ export function createChatView({ onAsk, onMic }) {
     quick.replaceChildren(...questions.map(([label, question]) => button(label, { class: 'cientista-chip', onclick: () => onAsk(question) })));
   }
 
+  /** Mostra o que o assistente está fazendo ("consultando o traje…") ou esconde a linha com null. */
+  function setBusy(text) {
+    busy.hidden = !text;
+    busy.textContent = text ?? '';
+    if (text) scrollToEnd();
+  }
+
   function clear() {
+    setBusy(null);
     log.replaceChildren();
     input.value = '';
     quickKey = '';
     quick.replaceChildren();
   }
 
-  return Object.freeze({ element, addMessage, setQuickQuestions, setListening: mic.setListening, focusInput: () => input.focus(), scrollToEnd, clear });
+  return Object.freeze({ element, addMessage, setQuickQuestions, setBusy, setListening: mic.setListening, focusInput: () => input.focus(), scrollToEnd, clear });
 }
 
 function checkItem(text, props = {}) {
@@ -232,10 +241,13 @@ export function createPanel(root, handlers) {
   const voiceButton = button('Voz desligada', { class: 'cientista-chip', 'aria-pressed': 'false', onclick: handlers.onVoiceToggle });
   const tabButtons = TABS.map((tab) => button(tab.label, { 'aria-pressed': 'false', dataset: { tab: tab.id }, onclick: () => setTab(tab.id) }));
 
+  // Quem responde: por padrão as regras fixas; o visor único troca pelo nome da IA de bordo.
+  const engineNote = h('small', { class: 'cientista-sim' }, 'simulado por regras', h('span', { class: 'cientista-wide' }, ' · sem modelo de linguagem'));
+
   root.classList.add('cientista-ui');
   root.append(
     h('header', { class: 'cientista-panel-head' },
-      h('div', {}, h('strong', {}, 'Assistente de campo'), h('small', { class: 'cientista-sim' }, 'simulado por regras', h('span', { class: 'cientista-wide' }, ' · sem modelo de linguagem'))),
+      h('div', {}, h('strong', {}, 'Assistente de campo'), engineNote),
       voiceButton,
       button('×', { class: 'cientista-close', 'aria-label': 'Fechar painel do assistente', onclick: handlers.onClose })),
     h('div', { class: 'cientista-tabs', role: 'group', 'aria-label': 'Seções do painel' }, tabButtons),
@@ -266,5 +278,5 @@ export function createPanel(root, handlers) {
   }
 
   setTab('chat');
-  return Object.freeze({ chat, science, journal, setTab, setVoiceState, reset });
+  return Object.freeze({ chat, science, journal, setTab, setVoiceState, reset, setEngineNote: (text) => { engineNote.textContent = text; } });
 }

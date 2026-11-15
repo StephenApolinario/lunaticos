@@ -129,6 +129,91 @@ Ver também o item 6: a parte ondulada da Marker Band ficou sem amostra depois d
 - Reserva de emergência Apollo: o OPS dava cerca de 30 minutos de oxigênio, ou 75 a 90 minutos quando combinado com o BSLSS. [ALSJ, PLSS](https://apollojournals.org/alsj/plss.html)
 - Traje de Marte: ainda sem duração fixada; o estudo do PLSS marciano avaliou EVAs de 2, 4, 6 e 8 horas e admite encurtar a EVA ou restringir a distância ao habitat para caber na meta de massa. [ICES-2026-126](https://ntrs.nasa.gov/api/citations/20260003024/downloads/Final_ICES2026_Mars_PLSS_Plan.pdf)
 
+### 12. Oxigênio, taxa metabólica e pressão do traje
+
+- Nas 14 saídas lunares da Apollo, a taxa metabólica média foi de 930 BTU/h (980 kJ/h, cerca de 234 kcal/h), com médias por tripulante e saída entre 780 e 1200 BTU/h (822 a 1267 kJ/h); operar o jipe lunar gastava 392 BTU/h (414 kJ/h), menos que andar de automóvel. [Paul, NASA, Energy Expenditure During EVA Through Apollo](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+- A regra usada em fisiologia para converter energia em oxigênio é de cerca de 5 kcal (20,9 kJ) por litro de oxigênio consumido. [Paul, NASA](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+- O sistema de suporte de vida do traje avançado da NASA (precursor do xEMU) leva cerca de 1,8 lb de oxigênio primário utilizável e outro tanto de secundário, carregados a 3000 psia, com pressão de traje de 4,1 a 8,4 psid. [Campbell 2012, NASA](https://ntrs.nasa.gov/api/citations/20120009158/downloads/20120009158.pdf)
+- O traje EMU da estação espacial opera a 4,3 psi, em saídas de até 7 horas, e foi projetado para uma taxa metabólica média de 1000 BTU/h e máxima de 2000 BTU/h. [NASA, EMU](https://ntrs.nasa.gov/api/citations/20140009556/downloads/20140009556.pdf)
+- Com esses números, o protótipo calcula o consumo de oxigênio: 1267 kJ/h a pé dão cerca de 87 g de oxigênio por hora, ou 10,6% do tanque de 1,8 lb por hora; 414 kJ/h no veículo dão 3,5% por hora. A capacidade da bateria do traje não foi encontrada em fonte primária. [Paul, NASA](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+
+### 13. Vento e visibilidade na poeira
+
+- Os ventos das tempestades mais fortes de Marte chegam a cerca de 60 milhas por hora (27 m/s), mas a atmosfera tem cerca de 1% da densidade da terrestre, e esse vento não derruba nem arranca equipamento pesado. [NASA, The Fact and Fiction of Martian Dust Storms](https://www.nasa.gov/content/the-fact-and-fiction-of-martian-dust-storms)
+- No pico da tempestade global de 2018, a visibilidade em Gale caiu para menos de 3 km (na maior parte do ano dá para ver a borda da cratera, a cerca de 30 km). A conversão usual é a lei de Koschmieder: a distância visível é cerca de 3,9 dividido pela extinção do ar. [Smith, Moores et al. 2019, GRL](https://arxiv.org/pdf/1910.00986)
+
+### 14. Navegação e localização sem GPS
+
+- Marte não tem GPS nem campo magnético global, então bússola não funciona. O Curiosity é localizado contando voltas de roda e usando o sensor inercial, e a equipe corrige a posição casando as imagens em 360° tiradas depois de cada deslocamento com o mapa-base HiRISE de Gale. [Popular Science, entrevista com Fred Calef](https://www.popsci.com/keeper-maps-mars/)
+- O mapa-base usado para localizar o Curiosity é a ortofoto HiRISE de 25 cm de Calef & Parker, a mesma que o protótipo carrega no zoom. [USGS Astrogeology](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_orthophoto_mosaic_25cm)
+- Desde fevereiro de 2026 o Perseverance se localiza sozinho: compara panoramas das câmeras de navegação com mapas orbitais guardados a bordo, em cerca de dois minutos, com erro de cerca de 25 cm; antes disso a odometria visual acumulava até 35 m de erro em percursos longos. [JPL, 18/02/2026](https://www.jpl.nasa.gov/news/nasas-perseverance-now-autonomously-pinpoints-its-location-on-mars/)
+- Na Apollo, o jipe lunar navegava com um giroscópio direcional, odômetros nas quatro rodas e um dispositivo de sombra do Sol para alinhar o rumo, e mostrava o tempo todo o rumo e a distância de volta ao módulo lunar. [NASA TN D-7469](https://www.nasa.gov/wp-content/uploads/static/history/alsj/19740003321_1974003321.pdf)
+- No protótipo, a posição do astronauta no visor é simulada: ele anda sobre a rota. A localização real não foi implementada.
+
+---
+
+## E. Cansaço e descanso durante a saída
+
+### 15. Apollo 14: a subida à cratera Cone (fevereiro de 1971)
+
+- Durante a subida, sensores no peito mostravam o coração de Shepard a 150 batimentos por minuto e o de Mitchell a 128. O controle da missão (Haise, na comunicação) passou o recado dos médicos: eles queriam que os dois parassem de novo ali. [NASA, Apollo 14: Science at Fra Mauro](https://ntrs.nasa.gov/api/citations/19710012245/downloads/19710012245.pdf)
+- O mesmo texto explica que o corpo gasta mais oxigênio e gera mais calor quando a atividade sobe, que a mochila de suporte de vida tem capacidade limitada, e que os médicos não querem que o astronauta se esforce demais, mesmo com o resfriamento do traje em nível baixo. [NASA, Apollo 14: Science at Fra Mauro](https://ntrs.nasa.gov/api/citations/19710012245/downloads/19710012245.pdf)
+- Pouco depois, Shepard pediu que Houston ficasse de olho no tempo. O controle da missão respondeu que a saída podia ganhar 30 minutos além das 4 h 15 min planejadas. Em outro momento, os médicos viram 108 batimentos por minuto em Shepard e 86 em Mitchell, e o texto atribui a diferença ao trabalho mais pesado de Shepard com pá e pinça. [NASA, Apollo 14: Science at Fra Mauro](https://ntrs.nasa.gov/api/citations/19710012245/downloads/19710012245.pdf)
+- Resumo da NASA sobre a saída: depois de 2 h 10 min eles estavam 50 min atrasados, por dificuldade de achar a cratera, e a tarefa foi abandonada porque os astronautas estavam seriamente fatigados, com batimentos elevados (150 e 128). [Paul, NASA, Energy Expenditure During EVA Through Apollo](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+- No relato da NASA sobre a missão, a dupla parou algumas vezes, rapidamente, para descansar. Ao chegar ao que achavam ser a borda, viram uma cratera menor, bem antes da Cone. Mitchell queria seguir, mas a tripulação concordou que bastava e voltou ao módulo lunar. [NASA SP-350, cap. 12](https://www.nasa.gov/wp-content/uploads/static/history/SP-350/ch-12-6.html)
+- Depois da Apollo 14: na Apollo 15 os médicos viram batimentos irregulares em astronautas na superfície, de causa incerta (potássio e carga de trabalho eram suspeitos). Na Apollo 16 as escalas de trabalho e descanso foram melhoradas e não houve batimento irregular. [Paul, NASA](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+
+### 16. Taxa metabólica em atividade leve ou sentado no veículo
+
+- Apollo 16, estudo de tempo e movimento: andando de jipe lunar (a atividade que o relatório chama de "sedentary mode"), a taxa metabólica média foi de 529 BTU/h (comandante 532, piloto do módulo lunar 525). Por saída, a média caiu de 633 para 520 e depois 442 BTU/h. [Apollo 16 Time and Motion Study, NASA M72-6](https://ntrs.nasa.gov/api/citations/19730008098/downloads/19730008098.pdf)
+- Menor taxa média registrada em toda a Apollo: 414 kJ/h (392,4 Btu/h), no jipe lunar. Também houve taxas baixas durante fotografia e nas pausas para observar e descrever. O texto não dá número para essas pausas. [Paul, NASA](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+- Na superfície lunar o batimento cardíaco ficou acima do previsto, inclusive em períodos de descanso. Por isso a NASA concluiu que só o batimento não deve ser usado para estimar o gasto de energia. [Paul, NASA](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+- Desde a Gemini, tarefas de saída gastaram mais energia que o previsto, o resfriamento e o controle de umidade do traje foram excedidos e isso causou fadiga nos astronautas. [Paul, NASA](https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf)
+- Taxa metabólica de astronauta parado de pé ou sentado no chão, sem veículo, dentro do traje na superfície: não encontrado em fonte primária.
+
+### 17. Saída em dupla, resgate e volta a pé nos documentos atuais da NASA
+
+- Nas missões sustentadas (Artemis fase 2), os astronautas fazem as saídas em dupla, para aproveitar o tempo na superfície e por segurança. [NASA EVA-EXP-0042 Rev. B, 19/10/2020](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
+- Cada astronauta da saída deve ser capaz de resgatar o outro, e é responsável por isso, se ele ficar incapacitado por qualquer motivo. O traje terá um tanque secundário com uma hora de gás de emergência. [NASA EVA-EXP-0042 Rev. B, 19/10/2020](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
+- Para a gravidade parcial, o documento diz que algum dispositivo de apoio ao resgate ainda será desenvolvido e que a missão vai precisar de equipamento para levar o astronauta incapacitado até o abrigo e para dentro dele. [NASA EVA-EXP-0042 Rev. B, 19/10/2020](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
+- Volta a pé: sem rover, o alcance a pé considerado é de cerca de 2 km do módulo, a 2 km/h em terreno plano, sem contar declive e obstáculos. Com rover não pressurizado, o limite é menos de 5 h de caminhada (cerca de 10 km). Com rover pressurizado, supõe-se tempo para descansar e recarregar o traje antes da volta, com no máximo 8 h de caminhada, o que seria acima de 16 km a 2 km/h, e o texto sugere um valor mais conservador. O documento avisa que as saídas em Marte ainda estão em definição. [NASA EVA-EXP-0042 Rev. B, 19/10/2020](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
+
+### 18. Duração das saídas e fadiga
+
+- Em missões lunares de 42 dias, as saídas serão de 3 a 4 dias por semana, com 2 a 8 h cada, uma ou duas por dia, e podem passar 1 h em emergência. Em dia com duas saídas, o total fica dentro de uma saída de 8 h, e o intervalo entre elas conta como pausa. Nas missões curtas de 7 a 14 dias, são saídas diárias de 8 h, com possível dia de descanso depois de três ou quatro dias de saída. [NASA EVA-EXP-0042 Rev. B, 19/10/2020](https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf)
+- Mãos: em 196 incidentes com luvas de astronautas americanos (106 em saída, 90 em treino), que somaram 277 lesões, fadiga, abrasão e formigamento foram os tipos mais comuns nos voos, com 44% das lesões em voo. A NASA aponta que reduzir o esforço e o uso repetitivo das mãos, com ferramentas e procedimentos melhores e exposições mais curtas, pode ajudar. [NASA, High Performance EVA Glove Collaboration](https://ntrs.nasa.gov/citations/20140014058)
+
+---
+
+## F. Por que mandar gente aonde o rover já foi
+
+### 19. Astronauta contra rover: comparações publicadas
+
+- Distância: os astronautas da Apollo 17 percorreram 35,7 km em três dias (dezembro de 1972). O rover Opportunity percorreu 34,4 km em oito anos (janeiro de 2004 a dezembro de 2011). [Crawford 2012, Astronomy & Geophysics](https://arxiv.org/pdf/1203.6250)
+- Amostras: a Apollo trouxe 382 kg, de mais de 2000 pontos. As missões robóticas russas Luna 16, 20 e 24 trouxeram 0,32 kg, de três pontos, e nenhuma missão robótica a Marte tinha trazido amostra até a data do artigo. [Crawford 2012](https://arxiv.org/pdf/1203.6250)
+- Steve Squyres, chefe científico dos rovers Spirit e Opportunity, escreveu que quase tudo que os rovers fazem em um sol perfeito um explorador humano faria em menos de um minuto. Crawford chama isso de estimativa qualitativa, que implicaria uma razão de cerca de 1500. [Crawford 2012](https://arxiv.org/pdf/1203.6250)
+- Estudo de campo citado por Crawford (Snook e outros, 2007): humanos podem ser de uma a duas ordens de grandeza mais produtivos por unidade de tempo que robôs futuros controlados da Terra. Por publicações científicas por dia de trabalho de campo, a Apollo foi mais de três ordens de grandeza mais eficiente que os rovers Spirit e Opportunity. Crawford defende a presença humana; é uma posição, não consenso. [Crawford 2012](https://arxiv.org/pdf/1203.6250)
+- Entre as vantagens que Crawford lista para humanos: decisão na hora, flexibilidade e mais chance de descobertas inesperadas. [Crawford 2012](https://arxiv.org/pdf/1203.6250)
+
+### 20. Quanto o Curiosity anda
+
+- Velocidade máxima em terreno duro e plano: 4 cm por segundo, e a média deve ser cerca da metade disso. [NASA, Learn About Me: Curiosity](https://mars.nasa.gov/multimedia/interactives/learncuriosity/index-2.html)
+- Em julho de 2013 (sol 340), o maior percurso em um só dia foi de 100,3 m, o dobro do recorde anterior (49 m, no sol 50). O total até então era de 1,23 km. [JPL, 2013](https://www.jpl.nasa.gov/news/curiosity-makes-its-longest-one-day-drive-on-mars/)
+- Total: até 11/10/2026, o Curiosity somava mais de 38,07 km (23,65 milhas) desde o pouso em Gale, em 2012, e continua em operação. [NASA, 12/10/2026](https://science.nasa.gov/blogs/perseverance-mars-rover/2026/10/12/nasas-perseverance-sets-off-world-record-for-total-distance-driven/)
+
+### 21. O que o Curiosity não conseguiu ou não pode fazer
+
+- Pedimento Greenheugh: em 18/03/2022 a equipe quis cruzar cerca de 1,5 km para fotografar a crista de Gediz Vallis, mas viu o terreno cheio de ventifactos de arenito, a rocha mais dura que o rover encontrou e mais do que já tinha visto. Não era intransponível, mas seria lento, as rodas já estavam danificadas por essas rochas e não daria para seguir as boas práticas de condução. A equipe deu meia-volta. [JPL, 07/04/2022](https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/)
+- Crista de Gediz Vallis: o rover chegou em 14/08/2023, depois de três anos de tentativas. O cientista do projeto disse que foi possível tocar rochas trazidas de pontos altos do Monte Sharp e que o rover nunca chegará a esses pontos. [JPL, 18/09/2023](https://www.jpl.nasa.gov/news/nasas-curiosity-reaches-mars-ridge-where-water-left-debris-pileup/)
+- Perfurações que falharam ou ficaram incompletas na região: ver os itens 6 e 7.
+- Amostra de volta à Terra: até 2012, nenhuma missão robótica a Marte tinha trazido amostra. Não encontrei na NASA uma frase atual sobre o Curiosity nesse ponto. [Crawford 2012](https://arxiv.org/pdf/1203.6250)
+
+### 22. Descoberta de campo: o solo laranja da Apollo 17
+
+- Na Apollo 17, o geólogo Harrison Schmitt, na borda da cratera Shorty, percebeu solo laranja (145:26:27). Ele foi cauteloso porque já tinha se enganado com reflexos antes, na estação do Scarp. [ALSJ, Apollo 17, Station 4](https://apollojournals.org/alsj/a17/a17.sta4.html)
+- A análise depois da missão mostrou esferas minúsculas de vidro, ricas em titânio e pobres em sílica. Schmitt descreve vidro vulcânico de erupções em fonte de fogo, de cerca de 3,5 bilhões de anos, coberto rápido por lava, o que o protegeu de mistura por meteoritos. [ALSJ, Apollo 17, Station 4](https://apollojournals.org/alsj/a17/a17.sta4.html)
+- A NASA registra que Schmitt é o geólogo que achou o solo laranja perto desse ponto. [NASA APOD, 24/11/2017](https://science.nasa.gov/image-article/apod-2017-november-24-apollo-17-at-shorty-crater/)
+
 ---
 
 ## O que isso muda no protótipo

@@ -111,12 +111,26 @@ const FRAGMENT_HEAD = /* glsl */ `
 varying vec2 vTerrainXZ;
 uniform float uDetailEnabled;
 uniform float uDetailBaseLod;
+uniform float uGrain;
 uniform sampler2D uDetailMap0;
 uniform vec4 uDetailRect0;
 uniform vec2 uDetailParams0;
 uniform sampler2D uDetailMap1;
 uniform vec4 uDetailRect1;
 uniform vec2 uDetailParams1;
+
+// Ruído suave para o grão do chão. O módulo mantém os números pequenos longe da origem do mapa.
+float grainHash(vec2 cell) {
+  vec2 p = fract(mod(cell, 512.0) * vec2(0.1031, 0.1030));
+  p += dot(p, p.yx + 33.33);
+  return fract((p.x + p.y) * p.y);
+}
+float grain(vec2 at) {
+  vec2 cell = floor(at);
+  vec2 f = fract(at);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(grainHash(cell), grainHash(cell + vec2(1.0, 0.0)), u.x), mix(grainHash(cell + vec2(0.0, 1.0)), grainHash(cell + vec2(1.0, 1.0)), u.x), u.y);
+}
 
 // x: quanto o nível vale neste ponto (0 a 1, some nas bordas da janela e onde não há dado).
 // y: brilho da imagem fina dividido pelo dela mesma borrada.
@@ -139,6 +153,16 @@ const FRAGMENT_BODY = /* glsl */ `
   diffuseColor.rgb = mix(diffuseColor.rgb, softColor * ratio, max(wide.x, close.x) * uDetailEnabled);
 }
 #endif
+// Grão do chão visto de perto, só no visor. É aparência, não dado: a 2 m dos olhos cada pixel da
+// foto de 25 cm vira um borrão, e o grão devolve a noção de escala sem mudar a cor média.
+if (uGrain > 0.0) {
+  float eyeM = length(vViewPosition);
+  float fine = grain(vTerrainXZ * 9.0) * 0.55 + grain(vTerrainXZ * 33.0) * 0.45;
+  float coarse = grain(vTerrainXZ * 1.6) * 0.6 + grain(vTerrainXZ * 0.37) * 0.4;
+  float nearby = 1.0 - smoothstep(4.0, 60.0, eyeM);
+  float around = 1.0 - smoothstep(25.0, 180.0, eyeM);
+  diffuseColor.rgb *= 1.0 + ((fine - 0.5) * 0.8 * nearby + (coarse - 0.5) * 0.4 * around) * uGrain;
+}
 `;
 
 /**
@@ -150,6 +174,7 @@ export function createDetailImagery({ onStatus }) {
   const uniforms = {
     uDetailEnabled: { value: 1 },
     uDetailBaseLod: { value: Math.log2(BLEND_SCALE_M / MOSAIC_METERS_PER_PX) },
+    uGrain: { value: 0 },
   };
   levels.forEach((level, i) => {
     uniforms[`uDetailMap${i}`] = { value: level.texture };
@@ -168,6 +193,10 @@ export function createDetailImagery({ onStatus }) {
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>\n${FRAGMENT_HEAD}`)
         .replace('#include <map_fragment>', `#include <map_fragment>\n${FRAGMENT_BODY}`);
+    },
+    /** Liga o grão do chão de perto (só no visor). */
+    setGrain(isOn) {
+      uniforms.uGrain.value = isOn ? 1 : 0;
     },
     setEnabled(isEnabled) {
       uniforms.uDetailEnabled.value = isEnabled ? 1 : 0;

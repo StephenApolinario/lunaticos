@@ -28,5 +28,31 @@ export const RAD = Object.freeze({
 export const REMS = Object.freeze({
   air: Object.freeze({ minC: -75, maxC: -2 }),
   ground: Object.freeze({ minC: -91, maxC: 3 }),
+  // O ar mais frio medido em dois anos marcianos: noite de inverno.
+  recordAirMinC: -100,
+  recordSource: Object.freeze({ label: 'JPL, 2016 · REMS/Curiosity, dois anos marcianos', url: 'https://www.jpl.nasa.gov/news/second-cycle-of-martian-seasons-completing-for-curiosity-rover/' }),
+  // Pressão de reserva para quando o feed não carrega: meio da faixa medida (679 a 925 Pa).
+  fallbackPressurePa: 800,
   source: Object.freeze({ label: 'JPL, 21/08/2012 · REMS/Curiosity', url: 'https://www.jpl.nasa.gov/news/nasas-curiosity-studies-mars-surroundings-nears-drive/' }),
 });
+
+// Vento e poeira: o que há publicado. O sensor de vento do REMS parou no sol 1491, então não existe
+// medição de vento para o dia de hoje.
+export const WIND = Object.freeze({
+  // Os ventos das tempestades mais fortes de Marte chegam a cerca de 60 milhas por hora (27 m/s).
+  strongestMps: 27,
+  source: Object.freeze({ label: 'NASA · fato e ficção sobre as tempestades de poeira de Marte', url: 'https://www.nasa.gov/content/the-fact-and-fiction-of-martian-dust-storms' }),
+});
+export const DUST = Object.freeze({
+  // No pico da tempestade global de 2018, a visibilidade em Gale caiu para menos de 3 km.
+  stormVisibilityM: 3000,
+  source: Object.freeze({ label: 'Smith, Moores et al. 2019, GRL · visibilidade na tempestade de 2018', url: 'https://arxiv.org/pdf/1910.00986' }),
+});
+
+// Posição mais recente do rover Curiosity publicada pela NASA, para quando não há rede.
+// Lida em 15/11/2026 do mapa "Where is Curiosity?" (mesmo arquivo que src/nasa.js lê ao vivo).
+export const CURIOSITY = Object.freeze({
+  lat: -4.82602331, lon: 137.388886, elevM: -3472, sol: 5073, totalKm: 38.64, readOn: '15/11/2026', live: false,
+  source: Object.freeze({ label: 'NASA/JPL · Where is Curiosity? (posição atual do rover)', url: 'https://science.nasa.gov/mission/msl-curiosity/location-map/' }),
+});
+

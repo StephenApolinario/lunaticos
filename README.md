@@ -58,6 +58,34 @@ Depois abrir http://localhost:5183. Para conferir a matemática de projeção, r
 node prototipo/src/check.mjs
 ```
 
+A IA de bordo roda na nuvem, pelo [OpenRouter](https://openrouter.ai), com o modelo `openai/gpt-6-luna`. Ela precisa de internet e de uma chave com crédito no arquivo `.env` da raiz do repositório, que não entra no git:
+
+```bash
+cp .env.example .env
+```
+
+Depois preencha `OPENROUTER_API_KEY` no `.env` e reinicie o servidor. A chave fica no servidor do protótipo e nunca vai para a página.
+
+Sem chave, a IA usa o [Ollama](https://ollama.com) aberto neste computador, sem internet, com o modelo baixado uma vez (9,3 GB; ocupa cerca de 10 GB de memória enquanto está carregado):
+
+```bash
+ollama pull qwen3:14b
+```
+
+A voz neural e a escuta por voz são opcionais. O comando abaixo instala o que falta (cerca de 1,1 GB dentro de `prototipo/tools/voz/`, contando o modelo de escuta que o servidor baixa na primeira vez) e sobe o servidor de voz em http://127.0.0.1:5184:
+
+```bash
+prototipo/tools/voz/servir-voz.sh
+```
+
+Para testar a IA com perguntas reais sobre uma saída montada com o relevo e as medições de verdade:
+
+```bash
+node prototipo/tools/testar-ia.mjs --nuvem
+```
+
+Com `--nuvem` o teste usa o modelo da nuvem pelo servidor do protótipo, que precisa estar no ar; sem a opção, usa o modelo local.
+
 O que ele faz hoje:
 
 - **Tablet:** mapa 3D com relevo e imagem reais, camadas (declive, volta a pé, rádio, radiação, térmico), a travessia do Monte Sharp com as paradas científicas e o painel "Segurança da saída".
@@ -67,17 +95,24 @@ O que ele faz hoje:
 - **Medições do Curiosity:** temperatura e pressão do REMS na estação atual, dose de radiação do RAD nos últimos 30 dias e fotos da Navcam em cada parada, lidas dos serviços públicos da NASA quando o protótipo abre.
 - **Segurança:** até onde o oxigênio cobre a volta a pé, onde a rota perde o rádio direto com o habitat, o abrigo no ponto mais afastado e o protocolo de cada cenário de perigo.
 - **Onde a coleta do rover deu trabalho:** sete perfurações do Curiosity na região que falharam ou ficaram incompletas na primeira tentativa (em quatro delas a missão conseguiu amostra depois, ali perto), cada uma com a fonte e um botão que acrescenta o local à rota.
-- **Visor do capacete:** um visor único com alertas por gravidade, protocolos de emergência conduzidos passo a passo, abrigo mais próximo, minimapa, perfil do terreno à frente, guia no chão, assistente por texto e voz, ciência nas paradas, diário de amostras e relato de perigos. Ele nasceu da junção de três variantes, que continuam em `prototipo/visores/` (ver `prototipo/visores/LEIA-ME.md`).
+- **Visor do capacete:** um visor único com alertas por gravidade, protocolos de emergência conduzidos passo a passo, abrigo mais próximo, minimapa, perfil do terreno à frente, guia no chão, ciência nas paradas, diário de amostras e relato de perigos. Abrir o tablet e voltar retoma a saída de onde parou (posição, relógio, diário e conversa); mudar o plano no tablet começa uma saída nova. Ele nasceu da junção de três variantes, que continuam em `prototipo/visores/` (ver `prototipo/visores/LEIA-ME.md`).
+- **IA de bordo:** no visor e no tablet, a conversa é com um modelo de linguagem que faz o papel do computador de bordo. Na tela ele aparece só como "IA de bordo"; como o modelo é servido está nas instruções acima. A cada pergunta ele recebe os dados da saída daquele instante e pode chamar ferramentas (plano, paradas, protocolos, busca nas fontes, calculadora) e ações (registrar amostra, relatar perigo, conduzir protocolo; no tablet, mudar hora, modo, pontos da rota e camada). Só pode citar número que veio dos dados: a resposta é conferida antes de aparecer. Recusa assunto fora da missão. Os alertas e os protocolos não dependem dela.
+- **Perguntas do tipo "e se":** a IA simula o mesmo plano a pé ou de veículo, com as paradas de coleta (distância, duração, oxigênio, trechos em que o veículo não passa), diz quanto tempo dá para ficar parado sem perder a volta e aponta o ponto mais próximo da rota que serve para descansar (chão plano, rádio com o habitat, fora das rochas cortantes). Ela entende palavra trocada pelo reconhecimento de voz ("hover" por rover, "jipe" por veículo).
+- **Rover Curiosity no mapa:** um pino R marca onde o rover está, pela posição que a NASA publica (lida quando o protótipo abre). A IA diz a distância até ele e monta uma rota até lá a pedido.
+- **Veículo no visor:** escolhendo "Veículo" no tablet, o visor mostra a saída de dentro de um buggy aberto de dois lugares (modelo ilustrativo, na linha do jipe lunar). Nas paradas de coleta o astronauta desce e o veículo fica estacionado ao lado.
+- **Voz e escuta:** o assistente fala com uma voz neural local (Kokoro-82M, português do Brasil) quando o servidor de voz está ligado; sem ele, usa a voz do sistema, que soa robótica. O botão Falar grava a pergunta e o mesmo servidor a transcreve neste computador (Whisper), em qualquer navegador. Apertar Falar corta o que a IA estiver dizendo, e com o microfone aberto ela só fala alerta de perigo, emergência e passo de protocolo.
+- **Visor comandado pela IA:** pedidos como "me mostra meu oxigênio", "coloca na tela a velocidade média" ou "tira o mapa" fixam ou tiram leituras do visor e ligam ou desligam painéis. Alertas e protocolos não saem da tela. A pedido, ela também pinta sobre o terreno do visor uma camada do mapa (térmico noturno, declive, rádio, radiação, volta a pé ou areia).
+- **Areia fofa:** a camada Areia marca a areia escura estimada pela cor da imagem HiRISE e pelo declive (não é mapa da NASA). As rotas livres preferem outro caminho, o painel de segurança diz quantos metros da rota passam por ela e a IA avisa quando há areia à frente. A travessia pronta ainda cruza 2,2 km dessa areia.
 
 A pesquisa que sustenta os protocolos e as lições de missões passadas está em [docs/pesquisa.md](docs/pesquisa.md), com link em cada fato.
 
 De onde vem cada informação está em [docs/fontes.md](docs/fontes.md), item por item, com o tipo (dado de sonda ou rover, cálculo sobre dado real, estimativa, hipótese da equipe, simulado ou ilustrativo) e o link. A mesma lista aparece no fim do painel do tablet e numa página com filtro por tipo de dado, [Fontes do Martian Map](https://claude.ai/artifact/F5u8sQ8ddFkvBahT6FrXXn) (artifact privado: só abre para quem recebeu acesso). Em resumo:
 
 - **Dado de sonda ou rover:** relevo (DEM do USGS), imagens HiRISE (2,5 m, 64 cm e 25 cm), imagem térmica THEMIS, unidade geológica (USGS), trajeto do Curiosity, temperatura e pressão (REMS), radiação (RAD) e fotos da Navcam.
-- **Cálculo ou estimativa sobre esses dados:** posição do Sol e sombras, declive, rotas, volta a pé, rádio, abrigo de relevo, temperatura por hora e o efeito do relevo na radiação.
-- **Fato publicado:** os textos científicos das paradas e os casos de coleta, relatados em páginas da NASA ou em artigos científicos e conferidos em 14/11/2026, cada um com a fonte no cartão.
-- **Hipótese da equipe:** velocidade a pé e de veículo, limites de declive, alturas das antenas, limites dos alertas, a zona de 250 m em volta das rochas cortantes, os protocolos de emergência e as perguntas e tarefas das paradas.
-- **Simulado:** a telemetria do traje (não existe traje real), o vento, os cenários de emergência e o assistente, que é um motor de regras.
+- **Fato publicado:** a ciência das paradas, os casos de coleta, a velocidade a pé de planejamento da NASA (2 km/h), o tanque e a pressão do traje, e os números dos cenários de treino (vento mais forte, visibilidade na tempestade de 2018, frio recorde, evento solar de 2017).
+- **Cálculo ou estimativa sobre esses dados:** posição do Sol e sombras, declive, rotas, volta a pé, rádio, abrigo de relevo, temperatura por hora, o efeito do relevo na radiação, o consumo e a reserva de oxigênio do traje.
+- **Hipótese da equipe:** velocidade do veículo, tempo de parada, limites de declive, alturas das antenas, limites dos alertas, bateria do traje, a zona de 250 m em volta das rochas cortantes, os protocolos de emergência e as perguntas e tarefas das paradas.
+- **Simulado:** a posição do astronauta no visor (ele anda sobre a rota; não há localização real) e as falhas de traje, rádio e veículo dos cenários de treino.
 
 As rotas livres usam a função de caminhada de Tobler sobre a grade de 8 m; blocos menores que isso não aparecem, então elas servem para planejar e não substituem a leitura do terreno.
 
@@ -88,6 +123,7 @@ Os dados ficam em `prototipo/assets/` (cerca de 10 MB):
 | Relevo (`elevation/`, grade de 8 m) | [MSL Gale Merged DEM 1 m v3](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_dem_1m), Calef & Parker, USGS Astrogeology / JPL-Caltech / NASA |
 | Imagem (`hirise/`) | HiRISE colorida (MRO), mosaico da equipe MSL, NASA/JPL-Caltech/UArizona |
 | Declive (`slope.png`) | Classes de declive calculadas sobre o mesmo DEM |
+| Areia escura (`areia/`) | Estimativa da equipe sobre a imagem HiRISE e o DEM, feita por `prototipo/tools/gerar-areia.mjs` |
 
 Lidos da rede, sem copiar para o repositório:
 
@@ -97,12 +133,19 @@ Lidos da rede, sem copiar para o repositório:
 | Imagem de 25 cm | [MSL Gale Merged Orthophoto Mosaic 25 cm v3](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_orthophoto_mosaic_25cm), USGS, lida por pedaços do arquivo de 24 GB |
 | Temperatura e pressão | REMS (Curiosity), [feed público da NASA](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json) |
 | Radiação | RAD (Curiosity), série [msl_rad_dosimetry](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry) do NASA CCMC |
+| Posição atual do rover | [Where is Curiosity?](https://science.nasa.gov/mission/msl-curiosity/location-map/), arquivo de posição do mapa da NASA |
 | Fotos nas paradas | Navcam do Curiosity, [imagens brutas da missão](https://mars.nasa.gov/msl/multimedia/raw-images/) |
 
 O relevo é um recorte do DEM de 3,6 GB do USGS, lido direto do servidor. Para refazer o recorte (leva alguns minutos):
 
 ```bash
 cd prototipo/tools && npm install && npm run extrair-dem
+```
+
+Para refazer a estimativa de areia escura (alguns segundos):
+
+```bash
+cd prototipo/tools && npm install && node gerar-areia.mjs
 ```
 
 Se o arquivo de relevo faltar, o protótipo abre com um relevo aproximado e avisa no selo do mapa.

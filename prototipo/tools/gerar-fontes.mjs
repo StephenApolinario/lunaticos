@@ -16,7 +16,7 @@ const text = [
   '',
   'Gerado por `node prototipo/tools/gerar-fontes.mjs` a partir de `prototipo/data/fontes.js`. Para corrigir, edite aquele arquivo e gere de novo.',
   '',
-  'Cada item diz o tipo: dado de sonda ou rover, cálculo sobre dado real, estimativa a partir de medição, hipótese da equipe, simulado ou ilustrativo.',
+  `Cada item diz o tipo: ${Object.values(KINDS).map((label) => label.toLowerCase()).join(', ')}.`,
   '',
   `Resumo: ${Object.keys(KINDS).map((kind) => `${count(kind)} ${KINDS[kind].toLowerCase()}`).join(' · ')}.`,
   '',

@@ -3,6 +3,7 @@
 // Real: posição, distâncias, altitude, inclinação e declive (relevo USGS) e a geometria do rádio.
 // Simulado: traje, radiação, temperatura e ritmo. Cada bloco do HUD diz qual é qual.
 
+import { O2_RESERVE_PCT } from '../../data/traje.js';
 import { estimatedAirTempC } from '../../src/clima.js';
 import { STOP_HOURS } from '../../data/travessia.js';
 import { SIM, localClockOf } from '../../src/simulation.js';
@@ -21,7 +22,7 @@ export const NAV = Object.freeze({
   radioWarnMin: 4,
   radioMarginalM: 3,
   radioMinGapM: 40,
-  o2ReservePct: 10,
+  o2ReservePct: O2_RESERVE_PCT,
   paceOnPlanMin: 3,
   paceLateMin: 15,
   batteryLowPct: 20,

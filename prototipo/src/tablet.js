@@ -9,12 +9,13 @@ import { sunAt, daylightHours, localSolarHour, compassName, EARTH_HOURS_PER_MARS
 import { estimatedAirTempC, estimatedGroundTempC } from './clima.js';
 import { REMS, RAD } from '../data/medicoes.js';
 import { loadSurfaceImages } from './nasa.js';
+import { TABLET_EXAMPLES } from './ia/ferramentas-tablet.js';
 import { MAX_WAYPOINTS } from './planner.js';
 import { ASSUMPTIONS } from './safety.js';
 import { PROTOCOLS, SHELTER_KINDS } from '../data/protocolos.js';
 import { OPPORTUNITIES, trackPositionAtSol } from '../data/oportunidades.js';
 import { LAYERS, SLOPE_CLASSES } from './config.js';
-import { h, svg } from './dom.js';
+import { emphasized, h, svg } from './dom.js';
 import { KINDS, SOURCE_GROUPS, CHALLENGE_RESOURCES } from '../data/fontes.js';
 
 const LAYER_OPTIONS = Object.freeze([
@@ -24,6 +25,7 @@ const LAYER_OPTIONS = Object.freeze([
   { id: 'comms', label: 'Rádio' },
   { id: 'radiation', label: 'Radiação' },
   { id: 'thermal', label: 'Térmico' },
+  { id: 'sand', label: 'Areia' },
 ]);
 const SLOPE_LIMIT_DEG = Object.freeze({ walk: 20, car: 15 });
 const PROFILE = Object.freeze({ width: 380, height: 150, left: 40, right: 10, top: 12, bottom: 22, gridStepM: 100 });
@@ -48,6 +50,53 @@ function buildHeader(handlers, options) {
       ),
     ),
   );
+}
+
+// IA de planejamento: conversa com o modelo de linguagem local, que lê o plano da tela e o altera a pedido.
+const MAX_ASSISTANT_MESSAGES = 14;
+function buildAssistant(handlers) {
+  const note = h('small', { class: 'meta' }, 'verificando…');
+  const log = h('ol', { class: 'ia-log', tabIndex: 0, 'aria-label': 'Conversa com a IA de planejamento' });
+  const busy = h('p', { class: 'ia-busy', role: 'status', hidden: true });
+  const input = h('input', { type: 'text', id: 'ia-pedido', maxLength: 240, autocomplete: 'off', placeholder: 'Pergunte sobre o plano ou peça uma mudança…' });
+  const send = h('button', { type: 'submit' }, 'Enviar');
+
+  function add(from, text) {
+    log.append(h('li', { dataset: { from } }, ...(from === 'assistant' ? emphasized(text) : [text])));
+    while (log.childElementCount > MAX_ASSISTANT_MESSAGES) log.firstElementChild.remove();
+    log.scrollTop = log.scrollHeight;
+  }
+  // Uma pergunta por vez: enquanto a IA responde, o campo e os exemplos ficam travados.
+  async function ask(question) {
+    if (send.disabled) return;
+    add('user', question);
+    send.disabled = true;
+    try {
+      add('assistant', await handlers.onAskAssistant(question));
+    } finally {
+      send.disabled = false;
+    }
+  }
+  const node = h('section', { class: 'ia' },
+    h('h2', {}, 'IA de planejamento ', note),
+    h('p', { class: 'note' }, 'Responde só com os dados do plano e das fontes, e muda o plano quando você pede.'),
+    log,
+    busy,
+    h('div', { class: 'ia-chips', role: 'group', 'aria-label': 'Pedidos de exemplo' },
+      TABLET_EXAMPLES.map(([label, request]) => h('button', { class: 'ghost', type: 'button', onclick: () => ask(request) }, label))),
+    h('form', { class: 'ia-form', onsubmit: (event) => {
+      event.preventDefault();
+      const question = input.value.trim();
+      if (!question) return;
+      input.value = '';
+      ask(question);
+    } }, h('label', { class: 'visually-hidden', for: 'ia-pedido' }, 'Pedido para a IA de planejamento'), input, send),
+  );
+  return {
+    node,
+    setNote: (text) => { note.textContent = text; },
+    setBusy: (text) => { busy.hidden = !text; busy.textContent = text ?? ''; },
+  };
 }
 
 function buildModeControls(handlers) {
@@ -344,7 +393,7 @@ function buildMeasurements() {
 
 function safetyItems(plan) {
   const { safety, mode, path } = plan;
-  const { noReturn, commsGaps, commsLostM, farthest, shelter } = safety;
+  const { noReturn, commsGaps, commsLostM, farthest, shelter, sandM = 0 } = safety;
   const afterIt = mode === 'car'
     ? 'Se o veículo quebrar depois desse ponto, a tripulação não volta sozinha.'
     : 'Depois desse ponto, a única saída é terminar a rota.';
@@ -354,12 +403,19 @@ function safetyItems(plan) {
   const slack = safety.minMarginH === null ? '' : ` Menor folga: ${fmtDuration(safety.minMarginH)}.`;
   const walkBack = noReturn
     ? { level: 'danger', text: `A partir de ${fmtKm(noReturn.distM / 1000)} de rota, ${noReturnCause}. ${afterIt}` }
-    : { level: 'ok', text: `O oxigênio cobre a volta a pé de qualquer ponto da rota, com ${ASSUMPTIONS.o2ReservePct}% de reserva.${slack}` };
+    : { level: 'ok', text: `O oxigênio cobre a volta a pé de qualquer ponto da rota, com ${fmtNumber(ASSUMPTIONS.o2ReservePct, 1)}% de reserva.${slack}` };
   const lostShare = path.totalM > 0 ? Math.round((commsLostM / path.totalM) * 100) : 0;
   const radio = commsLostM > 0
     ? { level: lostShare > 50 ? 'danger' : 'warn', text: `${fmtKm(commsLostM / 1000)} da rota (${lostShare}%) sem linha de visada com o habitat, em ${commsGaps.length} ${commsGaps.length === 1 ? 'trecho' : 'trechos'}. Sem repetidor, não há rádio direto ali.` }
     : { level: 'ok', text: 'Toda a rota tem linha de visada com o habitat.' };
   const items = [{ label: 'Volta a pé', ...walkBack }, { label: 'Rádio', ...radio }];
+  if (sandM > 0) {
+    items.push({
+      label: 'Areia fofa',
+      level: 'warn',
+      text: `${fmtDistance(sandM)} da rota passam por areia escura (estimada pela cor da imagem; veja a camada Areia). A pé cansa mais; de veículo há risco de atolar.`,
+    });
+  }
   if (farthest && shelter) {
     const terrain = shelter.terrain
       ? ` Proteção de relevo a ${fmtDistance(shelter.terrain.distM)}: a encosta tapa ${Math.round(shelter.terrain.skyBlocked * 100)}% do céu (estimativa geométrica).`
@@ -413,7 +469,7 @@ function buildSafety() {
   const node = h('section', {},
     h('h2', {}, 'Segurança da saída'),
     list,
-    h('p', { class: 'note' }, `Calculado sobre o relevo real. São hipóteses da equipe: consumo de oxigênio do traje, reserva de ${ASSUMPTIONS.o2ReservePct}% e antenas de ${ASSUMPTIONS.habitatMastM} m no habitat e ${ASSUMPTIONS.suitAntennaM} m no traje.`),
+    h('p', { class: 'note' }, `Calculado sobre o relevo real. O consumo de oxigênio é calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA; a reserva de ${fmtNumber(ASSUMPTIONS.o2ReservePct, 1)}% é 1 hora de contingência. São hipóteses da equipe as antenas de ${ASSUMPTIONS.habitatMastM} m no habitat e ${ASSUMPTIONS.suitAntennaM} m no traje.`),
     h('p', { class: 'evidence' }, 'A regra da volta a pé vem das Apollo: o jipe lunar podia rodar 92 km, mas ninguém passou de 7,6 km do módulo. ', sourceLink({ label: 'NASA OCHMO-TB-023', url: 'https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-023-extraterrestrial-surface-transport-vehicles-rovers.pdf' })),
     h('h2', { style: 'margin-top:14px' }, 'O que fazer em cada cenário'),
     h('div', { class: 'protocols' }, PROTOCOLS.map(protocolCard)),
@@ -519,6 +575,7 @@ function buildSources(realRelief) {
  * @param {HTMLElement} root
  * @param {{
  *   onModeChange: (mode: 'walk'|'car') => void,
+ *   onAskAssistant: (question: string) => Promise<string>,
  *   onHourChange: (hourH: number) => void,
  *   onExtensionChange: (include: boolean) => void,
  *   onLayerChange: (layer: string) => void,
@@ -534,6 +591,7 @@ function buildSources(realRelief) {
  */
 export function createTabletPanel(root, handlers, options) {
   const mode = buildModeControls(handlers);
+  const assistant = buildAssistant(handlers);
   const destination = buildDestination(handlers);
   const daylight = buildDaylight(handlers, options);
   const measurements = buildMeasurements();
@@ -544,7 +602,7 @@ export function createTabletPanel(root, handlers, options) {
   const stops = buildStops(handlers);
   const profile = buildProfile();
   root.replaceChildren(
-    buildHeader(handlers, options), mode.node, destination.node, daylight.node, measurements.node, layers.node, stats.node, safety.node, legs.node,
+    buildHeader(handlers, options), assistant.node, mode.node, destination.node, daylight.node, measurements.node, layers.node, stats.node, safety.node, legs.node,
     stops.node, buildOpportunities(handlers), profile.node, buildLegend(), buildSources(options.realRelief),
   );
 
@@ -557,5 +615,5 @@ export function createTabletPanel(root, handlers, options) {
     measurements.render(plan, state);
   }
 
-  return Object.freeze({ update });
+  return Object.freeze({ update, setAssistantNote: assistant.setNote, setAssistantBusy: assistant.setBusy });
 }

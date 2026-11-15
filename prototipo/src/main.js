@@ -14,8 +14,13 @@ import { loadElevation } from './elevation.js';
 import { buildPlan } from './route.js';
 import { toLocal, toGeo, ORIGIN } from './geo.js';
 import { sunAt, solarLongitudeDeg, julianDateTT } from './luz.js';
-import { loadSeasonWeather, loadRecentDose, loadNightThermal } from './nasa.js';
+import { loadSeasonWeather, loadRecentDose, loadNightThermal, loadRoverPosition } from './nasa.js';
+import { CURIOSITY } from '../data/medicoes.js';
+import { createVehicle } from './veiculo3d.js';
+import { decodeSand, loadSandBits } from './areia.js';
 import { useMeasuredRanges } from './clima.js';
+import { createAgent, engineLabel, offlineMessage } from './ia/agente.js';
+import { createTabletTools, TABLET_PROMPT } from './ia/ferramentas-tablet.js';
 import { mosaicCoverage } from './tiles.js';
 import { createRouter } from './pathfind.js';
 import { createSafety, ASSUMPTIONS } from './safety.js';
@@ -48,7 +53,7 @@ function badgeText({ imagery, relief, detail }) {
   return `Imagem HiRISE indisponível · ${reliefText}`;
 }
 
-function boot(elevation, visor) {
+function boot(elevation, visor, sandBits) {
   const app = byId('app');
   app.dataset.visor = visor.id;
   const stageElement = byId('stage');
@@ -75,12 +80,17 @@ function boot(elevation, visor) {
   if (new URLSearchParams(window.location.search).has('debug')) window.lunaticos = { camera: stage.camera, controls };
 
   // Rotas e segurança calculadas sobre o mesmo campo de altitude do terreno.
-  const router = createRouter(terrain.field);
+  // A areia escura estimada só vale sobre o relevo real, que é a grade em que ela foi calculada.
+  const sand = terrain.isReal ? decodeSand(sandBits, terrain.field.heights.length) : null;
+  const router = createRouter(terrain.field, { sand });
+  // Camada pintada no terreno dentro do visor: a IA de bordo liga uma a pedido do astronauta.
+  let visorLayer = 'none';
   const safety = createSafety(terrain.field, router);
   const planner = createPlanner(terrain.field, router, safety);
   terrain.setLayerSource('walkback', (x, z) => safety.walkBackAt(x, z));
   terrain.setLayerSource('comms', (x, z) => safety.commsCoverageAt(x, z));
   terrain.setLayerSource('radiation', (x, z) => safety.radiationAt(x, z));
+  terrain.setLayerSource('sand', (x, z) => (router.sandAt(x, z) ? 1 : NaN));
   // O plano leva a avaliação de segurança e a hora solar local em que a saída começa.
   const withSafety = (base, hourH) => Object.freeze({ ...base, safety: safety.assessPlan(base), startClockH: hourH });
 
@@ -89,6 +99,15 @@ function boot(elevation, visor) {
     if (next.waypoints.length === 0) return { plan: withSafety(buildPlan(next.mode, next.includeExtension), next.hourH), reason: null };
     const result = planner.planThrough(next.waypoints, next.mode);
     return result.plan ? { plan: withSafety(result.plan, next.hourH), reason: null } : { plan: null, reason: result.reason };
+  }
+
+  // Ida e volta do habitat a um ponto, sem tocar no plano da tela: para a IA dizer se dá para ir até o rover.
+  function tripTo(point, mode) {
+    const profile = planner.profileFor(mode);
+    const out = router.findPath(safety.habitat, point, profile);
+    if (!out.reachable) return null;
+    const back = router.findPath(out.points[out.points.length - 1], safety.habitat, profile);
+    return back.reachable ? { km: (out.lengthM + back.lengthM) / 1000, travelH: out.hours + back.hours } : null;
   }
 
   let state = Object.freeze({
@@ -137,6 +156,9 @@ function boot(elevation, visor) {
   }
 
   const overlays = createOverlays(stage.scene, terrain, { onStopClick: focusOn });
+  // Rover Curiosity: começa na última posição guardada e troca pela publicada pela NASA quando a rede responde.
+  let rover = CURIOSITY;
+  overlays.setRover(rover);
   const activeVisor = visor.create({
     mount: byId('visor-mount'),
     stageElement,
@@ -146,10 +168,24 @@ function boot(elevation, visor) {
     onExit: () => setState({ view: 'tablet' }),
     // O visor informa a hora local do relógio da saída, e a luz acompanha.
     onLocalHour: (hourH) => applySun(hourH),
+    // Medições do Curiosity lidas da NASA (ou null sem rede) e a estação de hoje, para a IA de bordo.
+    live: () => ({ weather: state.weather ?? null, dose: state.dose ?? null, lsDeg, rover }),
+    // A IA de bordo pinta uma camada do mapa sobre o terreno do visor (térmico, declive, rádio, areia…).
+    onLayer: (layer) => {
+      visorLayer = layer;
+      if (state.view === 'visor') terrain.paint({ layer, dimOutsideData: false });
+    },
+    // Modelo 3D do veículo, que o visor move junto com o astronauta nas saídas de veículo.
+    vehicle: createVehicle(stage.scene, terrain),
+    // O mesmo plano em outro modo (a pé ou de veículo), para a IA simular sem mudar nada.
+    planIn: (mode) => planFor({ ...state, mode }).plan,
+      tripTo,
     // Segurança calculada sobre o relevo real, para as variantes de visor consumirem.
     safety: Object.freeze({
       walkBackAt: safety.walkBackAt,
       commsAt: safety.commsAt,
+      radiationAt: safety.radiationAt,
+      sandAt: safety.sandAt,
       nearestShelter: safety.nearestShelter,
       assessPlan: safety.assessPlan,
       assumptions: ASSUMPTIONS,
@@ -160,6 +196,7 @@ function boot(elevation, visor) {
   });
   const panel = createTabletPanel(byId('panel'), {
     onModeChange: (mode) => setState({ mode }),
+    onAskAssistant: (question) => askPlanner(question),
     onHourChange: (hourH) => setState({ hourH }),
     onExtensionChange: (includeExtension) => setState({ includeExtension }),
     onLayerChange: (layer) => setState({ layer }),
@@ -235,7 +272,8 @@ function boot(elevation, visor) {
     }
     if (state.layer !== previous.layer || state.view !== previous.view) {
       const isTablet = state.view === 'tablet';
-      terrain.paint({ layer: isTablet ? state.layer : 'none', dimOutsideData: isTablet });
+      // A camada do visor é dele: uma saída nova a zera (onLayer), uma saída retomada a mantém.
+      terrain.paint({ layer: isTablet ? state.layer : visorLayer, dimOutsideData: isTablet });
     }
     if (state.view !== previous.view) {
       applyView();
@@ -294,6 +332,8 @@ function boot(elevation, visor) {
   let focusAgeS = Infinity;
   function updateDetail(dtS) {
     if (!detail) return;
+    // O grão do chão de perto só faz sentido na altura dos olhos.
+    detail.setGrain(state.view === 'visor');
     const eye = stage.camera.position;
     if (state.view === 'visor') {
       detail.update(eye, 0, dtS);
@@ -350,6 +390,47 @@ function boot(elevation, visor) {
       setState({ imagery: 'failed' });
     });
 
+  // IA de planejamento do tablet (modelo de linguagem, na nuvem ou local). As ações dela passam pelas mesmas
+  // funções dos botões do painel, então valem as mesmas regras (limite de pontos, área com dados).
+  const planningAgent = createAgent({
+    ...createTabletTools({
+      getState: () => state,
+      getPlan: () => plan,
+      safety,
+      terrain,
+      lsDeg,
+      isInsideData: insideData,
+      rover: () => rover,
+      planIn: (mode) => planFor({ ...state, mode }).plan,
+      tripTo,
+      actions: {
+        setHour: (hourH) => setState({ hourH }),
+        setMode: (mode) => setState({ mode }),
+        addWaypoint,
+        removeWaypoint: (index) => setState({ waypoints: Object.freeze(state.waypoints.filter((_, i) => i !== index)) }),
+        clearRoute: () => setState({ waypoints: Object.freeze([]) }),
+        setLayer: (layer) => setState({ layer }),
+        focusStop: focusOn,
+      },
+    }),
+    systemPrompt: TABLET_PROMPT,
+    onStatus: (text) => panel.setAssistantBusy(text),
+  });
+  const showPlannerHealth = (health) => panel.setAssistantNote(health.ok ? engineLabel(health) : 'fora do ar');
+  async function askPlanner(question) {
+    try {
+      const reply = await planningAgent.ask(question);
+      showPlannerHealth({ ok: true, where: planningAgent.where, model: planningAgent.model });
+      return reply.text;
+    } catch (error) {
+      console.warn(error);
+      const health = await planningAgent.health();
+      showPlannerHealth({ ...health, ok: false });
+      return offlineMessage();
+    }
+  }
+  planningAgent.health().then(showPlannerHealth);
+
   // Medições do Curiosity lidas dos serviços da NASA. O painel é refeito quando cada uma chega;
   // sem rede, ele mostra o valor de reserva e avisa.
   const setLive = (changes) => {
@@ -360,6 +441,8 @@ function boot(elevation, visor) {
   const orNull = (key) => (error) => { console.warn(error); setLive({ [key]: null }); };
   loadSeasonWeather(lsDeg).then((weather) => { useMeasuredRanges(weather); setLive({ weather }); }, orNull('weather'));
   loadRecentDose().then((dose) => setLive({ dose }), orNull('dose'));
+  // Sem rede, o rover fica na última posição guardada no repositório.
+  loadRoverPosition().then((position) => { rover = position; overlays.setRover(rover); }, (error) => console.warn(error));
   loadNightThermal()
     .then((valueAt) => {
       terrain.setLayerSource('thermal', valueAt);
@@ -416,7 +499,9 @@ async function start() {
       console.warn(error);
       return null;
     });
-    boot(elevation, await resolveVisor());
+    // Sem o arquivo da areia, o protótipo segue sem essa camada e sem esse desvio.
+    const sandBits = await loadSandBits().catch((error) => { console.warn(error); return null; });
+    boot(elevation, await resolveVisor(), sandBits);
     loading.hidden = true;
   } catch (error) {
     showFatal(loading, error);

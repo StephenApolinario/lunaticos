@@ -7,6 +7,7 @@
     "extrair-dem": "node extrair-dem.mjs"
   },
   "dependencies": {
-    "geotiff": "2.1.3"
+    "geotiff": "2.1.3",
+    "pngjs": "^7.0.0"
   }
 }

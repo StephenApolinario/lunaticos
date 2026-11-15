@@ -30,9 +30,12 @@ const NEIGHBORS = Int8Array.of(1, 0, -1, 0, 0, 1, 0, -1, 1, 1, 1, -1, -1, 1, -1,
 
 // Limites de declive do artifact original: 20° a pé, 15° de veículo.
 // Nas rochas cortantes, quem vai a pé anda devagar; o veículo não entra.
+// Na areia escura (estimada, ver areia.js) a rota custa mais caro: a pé cansa, e de veículo há risco de
+// atolar, como aconteceu com o Spirit. Os fatores são hipótese da equipe; não é proibido cruzar, porque
+// um destino pode ficar do outro lado.
 export const TRAVEL = Object.freeze({
-  walk: Object.freeze({ speedKmh: SPEED_KMH.walk, maxSlopeDeg: 20, hazardFactor: 3 }),
-  car: Object.freeze({ speedKmh: SPEED_KMH.car, maxSlopeDeg: 15, hazardFactor: Infinity }),
+  walk: Object.freeze({ speedKmh: SPEED_KMH.walk, maxSlopeDeg: 20, hazardFactor: 3, sandFactor: 2.5 }),
+  car: Object.freeze({ speedKmh: SPEED_KMH.car, maxSlopeDeg: 15, hazardFactor: Infinity, sandFactor: 8 }),
 });
 
 // Fila de prioridade mínima sobre vetores tipados (cresce quando enche).
@@ -101,7 +104,11 @@ function polylineStats(points) {
 /**
  * @param {object} field Campo de altitude de heightfield.js.
  */
-export function createRouter(field) {
+/**
+ * @param {object} field Campo de altitude do relevo.
+ * @param {{ sand?: Uint8Array | null }} [options] `sand`: 1 nas células com areia escura estimada.
+ */
+export function createRouter(field, { sand = null } = {}) {
   const { cols, rows, stride, cellM, heights, gradX, gradZ, halfWidth, halfDepth } = field;
   const count = heights.length;
   const slopeDeg = Float32Array.from(gradX, (gx, i) => Math.atan(Math.hypot(gx, gradZ[i])) * RAD_TO_DEG);
@@ -136,6 +143,7 @@ export function createRouter(field) {
       if (slope > profile.maxSlopeDeg) { penalty[i] = Infinity; continue; }
       let value = 1 + slopeWeight * (slope / profile.maxSlopeDeg) ** 2;
       if (inHazard[i]) value *= profile.hazardFactor;
+      if (sand?.[i]) value *= profile.sandFactor ?? 1;
       if (profile.extraCost) value *= profile.extraCost[i];
       penalty[i] = value;
     }
@@ -292,5 +300,8 @@ export function createRouter(field) {
     return { cost, hours, step, at };
   }
 
-  return Object.freeze({ findPath, costField, nodeAt, xzOf, slopeDeg, count });
+  /** Há areia escura estimada neste ponto? */
+  const sandAt = (x, z) => Boolean(sand?.[nodeAt(x, z)]);
+
+  return Object.freeze({ findPath, costField, nodeAt, xzOf, slopeDeg, count, sandAt, hasSand: Boolean(sand) });
 }
