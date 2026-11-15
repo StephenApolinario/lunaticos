@@ -1,6 +1,6 @@
 // Confere a ponte da IA publicada na Vercel, sem rede.   node prototipo/api/_check.mjs
 import assert from 'node:assert/strict';
-import { chat, health } from './_ponte.mjs';
+import { allowCall, chat, health } from './_ponte.mjs';
 
 const SITE = 'https://mapa.exemplo.app';
 const env = { OPENROUTER_API_KEY: 'chave-de-teste' };
@@ -55,4 +55,15 @@ assert.equal((await chat(post(body), env, busy.fetchImpl)).status, 429);
 const down = await chat(post(body), env, async () => { throw new Error('rede fora'); });
 assert.equal(down.status, 502);
 
-console.log('ok: ponte da IA na Vercel (quem pode chamar, limites e repasse)');
+// Limite por visitante: enche a janela, recusa, não afeta outro visitante e volta quando a janela passa.
+for (let call = 0; call < 60; call++) assert.equal(allowCall('1.1.1.1', 1000), true);
+assert.equal(allowCall('1.1.1.1', 2000), false);
+assert.equal(allowCall('2.2.2.2', 2000), true);
+assert.equal(allowCall('1.1.1.1', 1000 + 300_001), true);
+// Dentro do pedido: o visitante que estourou recebe 429 e o OpenRouter nem é chamado.
+for (let call = 0; call < 60; call++) allowCall('3.3.3.3');
+const blocked = upstream();
+assert.equal((await chat(post(body, { 'x-real-ip': '3.3.3.3' }), env, blocked.fetchImpl)).status, 429);
+assert.equal(blocked.calls.length, 0);
+
+console.log('ok: ponte da IA na Vercel (quem pode chamar, limites, uso por visitante e repasse)');

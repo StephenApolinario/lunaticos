@@ -91,7 +91,7 @@ Com `--nuvem` o teste usa o modelo da nuvem pelo servidor do protótipo, que pre
 O site publicado é a pasta `prototipo/` (arquivos estáticos, sem etapa de build) mais duas funções em `prototipo/api/`, que fazem na Vercel o papel do `servir.py`: `/ia/saude` e `/ia/chat`. No projeto da Vercel, a pasta raiz (Root Directory) é `prototipo`; o `vercel.json` de lá liga os endereços `/ia/...` às funções.
 
 - A chave da IA fica em Settings → Environment Variables do projeto, como `OPENROUTER_API_KEY`. Depois de criar ou trocar a variável é preciso publicar de novo. Sem ela o mapa e o visor funcionam e a IA aparece fora do ar.
-- A IA só aceita pedidos vindos da própria página. O limite de chamadas por visitante não está no código: na Vercel ele é uma regra do firewall do projeto. O teto em dinheiro fica na própria chave, no OpenRouter.
+- A IA só aceita pedidos vindos da própria página, com no máximo 60 chamadas por visitante a cada 5 minutos (valor escolhido pela equipe). Essa contagem fica na memória da função, então é aproximada; para um limite exato dá para criar uma regra de rate limit no firewall do projeto, no painel da Vercel. O teto em dinheiro fica na própria chave, no OpenRouter.
 - A voz neural e a escuta locais não existem no site publicado: a página usa a voz e a escuta do navegador e não procura nada no computador de quem visita.
 
 Para conferir a ponte da IA sem rede:
