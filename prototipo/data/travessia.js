@@ -1,4 +1,6 @@
 // Dados da travessia do Monte Sharp, extraídos do artifact "Travessia Monte Sharp".
+
+import { WALK_SPEED_KMH } from './traje.js';
 // Gerado automaticamente: não editar à mão.
 
 // Posições reais do Curiosity: [lat, lon, altitude_m, sol, dist_km] (mapa oficial MMGIS, NASA/JPL).
@@ -54,5 +56,6 @@ export const STOPS = [
 export const HAZARD = { lat: -4.74867, lon: 137.39095, radiusKm: 0.25, name: "Rochas cortantes (gator-back): ponto onde o Curiosity deu meia-volta em 2022. Zona de exclusão de 250 m definida pela equipe",
   source: { label: "JPL, 2022 · desvio das rochas gator-back", url: "https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/" } };
 
-export const SPEED_KMH = { walk: 2.5, car: 4.5 };
+// A pé: valor de planejamento da NASA para a volta a pé de traje (data/traje.js). Veículo: hipótese da equipe.
+export const SPEED_KMH = { walk: WALK_SPEED_KMH, car: 4.5 };
 export const STOP_HOURS = 0.75;

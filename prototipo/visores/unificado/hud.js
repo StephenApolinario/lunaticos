@@ -6,7 +6,7 @@
 import { SIM } from '../../src/simulation.js';
 import { angleDeltaDeg, clamp } from '../../src/geo.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock, fmtSigned } from '../../src/format.js';
-import { h, setText } from '../../src/dom.js';
+import { h, setRichText, setText } from '../../src/dom.js';
 import { RULES, FAULTS, SCENARIOS, SHELTER_NAMES } from '../guardiao/catalog.js';
 import { fmtWalk } from '../guardiao/rules.js';
 import {
@@ -53,10 +53,10 @@ function row(text, { short = null, sim = false, trend = false } = {}) {
   return { value, arrow, node: h('div', { class: 'guardiao-linha' }, caption(text, short, sim), h('span', { class: 'guardiao-valor' }, value, arrow)) };
 }
 
-function meter(text, short = null) {
+function meter(text, short = null, note = true) {
   const value = h('b');
   const arrow = trendArrow();
-  const node = h('div', { class: 'guardiao-medidor' }, caption(text, short, true), h('i', { class: 'guardiao-barra' }), h('span', { class: 'guardiao-valor' }, value, arrow));
+  const node = h('div', { class: 'guardiao-medidor' }, caption(text, short, note), h('i', { class: 'guardiao-barra' }), h('span', { class: 'guardiao-valor' }, value, arrow));
   return { node, value, arrow };
 }
 function setMeter(target, value, level, trend) {
@@ -113,14 +113,14 @@ function buildElements(on) {
     tape: h('div', { class: 'guardiao-fita' }), targetMarker: h('i', { class: 'guardiao-alvo' }), heading: h('b', { class: 'guardiao-rumo' }),
     nextLabel: label('Próxima parada'), nextName: h('b', { class: 'guardiao-grande' }), nextInfo: h('span', { class: 'guardiao-sub' }),
     statusIcon: levelIcon(), statusWord: h('b'), statusText: h('span'),
-    o2: meter('O₂'), o2Info: h('span', { class: 'guardiao-sub' }), battery: meter('Bateria', 'Bat.'),
-    pressure: row('Pressão', { short: 'Press.', sim: true, trend: true }), integrity: row('Integridade', { short: 'Integr.', sim: true }),
-    o2End: row('O₂ ao fim do plano', { short: 'O₂ fim', sim: true }),
+    o2: meter('O₂', null, 'calc.'), o2Info: h('span', { class: 'guardiao-sub' }), battery: meter('Bateria', 'Bat.', 'hip.'),
+    pressure: row('Pressão', { short: 'Press.', sim: 'EMU', trend: true }), integrity: row('Integridade', { short: 'Integr.', sim: 'treino' }),
+    o2End: row('O₂ ao fim do plano', { short: 'O₂ fim', sim: 'calc.' }),
     radiation: row('Radiação', { short: 'Rad.', sim: 'RAD', trend: true }), dose: row('Dose da saída', { short: 'Dose', sim: 'est.' }),
-    temperature: row('Temp. do ar', { short: 'Temp.', sim: 'est.', trend: true }), wind: row('Vento', { sim: true }),
+    temperature: row('Temp. do ar', { short: 'Temp.', sim: 'est.', trend: true }), wind: row('Vento'),
     slope: row('Declive · à frente', { short: 'Decl./frente' }), altitude: row('Altitude', { short: 'Alt.', trend: true }),
     radio: row('Rádio', { sim: 'calc.' }), radioAhead: h('span', { class: 'guardiao-sub unificado-radio-adiante' }), habitat: row('Habitat'),
-    retLabel: label('Volto a pé ao habitat?', 'caminho no relevo real · O₂ simulado'), retVerdict: h('b', { class: 'guardiao-veredito' }), retOxygen: h('span', { class: 'guardiao-sub' }),
+    retLabel: label('Volto a pé ao habitat?', 'caminho no relevo real · O₂ calculado'), retVerdict: h('b', { class: 'guardiao-veredito' }), retOxygen: h('span', { class: 'guardiao-sub' }),
     strip: h('div', { class: 'guardiao-faixa', role: 'img' }), stripDone: h('i', { class: 'guardiao-faixa-feito' }),
     stripHere: h('i', { class: 'guardiao-faixa-aqui' }), stripPnr: h('i', { class: 'guardiao-faixa-pnr' }), pnrText: h('span', { class: 'guardiao-sub guardiao-pnr-texto' }),
     profile: h('canvas', { class: 'navegador-perfil-tela', role: 'img', 'aria-label': 'Perfil de altitude da rota à frente' }),
@@ -134,6 +134,7 @@ function buildElements(on) {
     // A célula livre do centro da grade, por onde se vê a rota à frente. Só serve para medir essa área.
     area: h('i', { class: 'unificado-area', 'aria-hidden': 'true' }),
     assistant: h('span', { class: 'guardiao-fala', role: 'status', 'aria-live': 'polite' }),
+    assistantNote: h('small', {}, 'IA de bordo · verificando…'),
     talk: button('Conversar ', { class: 'unificado-botao', title: 'Abrir a conversa (tecla /)', onclick: on.talk }),
     mic: button('Falar', { class: 'unificado-botao', 'aria-pressed': 'false', hidden: true, onclick: on.mic }),
     announcer: h('p', { class: 'visually-hidden', role: 'alert' }), dust: h('div', { class: 'guardiao-poeira', 'aria-hidden': 'true' }),
@@ -146,7 +147,7 @@ function buildElements(on) {
     hazardButton: button(wide('Relatar perigo', 'Perigo'), { title: 'Marcar um perigo onde você está', 'aria-expanded': 'false' }),
     mapButton: button('Mapa', { title: 'Mostrar ou esconder o minimapa e o perfil', onclick: on.map }),
     readingsButton: button('Leituras', { title: 'Mostrar ou esconder traje e ambiente', onclick: on.readings }),
-    scenarioButton: button('Cenários', { class: 'unificado-so-estreito', title: 'Cenários de emergência simulados', 'aria-expanded': 'false' }),
+    scenarioButton: button('Cenários', { class: 'unificado-so-estreito', title: 'Cenários de emergência para treino', 'aria-expanded': 'false' }),
     sound: button('Som', { title: 'Som dos alertas (tecla M)', onclick: on.sound }),
     voice: button('Voz', { title: 'Voz do assistente (tecla V)', onclick: on.voice }),
     history: button(wide('Histórico', 'Hist.'), { title: 'Histórico de alertas (tecla H)', 'aria-expanded': 'false', onclick: on.history }),
@@ -183,7 +184,7 @@ export function createHud(mount, on) {
       els.pause, h('label', {}, 'Velocidade ', els.speed), els.scrub,
       els.drawerButton, els.hazardButton, els.mapButton, els.readingsButton, els.scenarioButton, els.sound, els.voice, els.history, els.exit),
     h('div', { class: 'guardiao-cenarios', role: 'toolbar', 'aria-label': 'Cenários de emergência para demonstração' },
-      label('Cenários', 'simulados'), scenarioButtons.map((entry) => entry.node),
+      label('Cenários', 'de treino'), scenarioButtons.map((entry) => entry.node),
       button([h('kbd', {}, '0'), ' Limpar'], { class: 'guardiao-limpar', onclick: () => { setScenariosOpen(false); on.clear(); } })));
 
   const root = h('div', { class: 'guardiao unificado', dataset: { level: 'seguro', gaveta: 'fechada', mapa: 'on', leituras: 'on', cenarios: 'fechado' } },
@@ -202,16 +203,16 @@ export function createHud(mount, on) {
       // grade; no telefone ele é a área livre, e minimapa e leituras abrem por cima dela.
       h('div', { class: 'unificado-livre' },
         h('i', { class: 'guardiao-mira', 'aria-hidden': 'true' }),
-        h('section', { class: 'guardiao-bloco unificado-leituras', 'aria-label': 'Traje e ambiente' }, label('Traje e ambiente', 'sim. = simulado · est. = estimado'),
+        h('section', { class: 'guardiao-bloco unificado-leituras', 'aria-label': 'Traje e ambiente' }, label('Traje e ambiente', 'calc. = calculado · est. = estimado · hip. = hipótese'),
           els.o2.node, els.o2Info, els.battery.node,
           h('div', { class: 'unificado-grade' }, els.pressure.node, els.integrity.node, els.o2End.node, els.radiation.node, els.dose.node,
             els.temperature.node, els.wind.node, els.slope.node, els.altitude.node),
           els.radio.node, els.radioAhead,
-          h('span', { class: 'guardiao-fonte' }, 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos medidos pelo REMS. Traje e vento: simulados.')),
+          h('span', { class: 'guardiao-fonte' }, 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos medidos pelo REMS. Oxigênio: calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA (não há traje real). Bateria: hipótese da equipe. Pressão: a do traje EMU. Vento: sem medição desde o sol 1491; o cenário usa o mais forte publicado.')),
         h('section', { class: 'unificado-mapa', 'aria-label': 'Minimapa' }, els.minimap,
           h('div', { class: 'unificado-zoom' }, els.zoomOut, els.zoomLabel, els.zoomIn))),
       h('div', { class: 'guardiao-assistente unificado-fala', dataset: { kind: 'guia' } },
-        label('Assistente', 'IA simulada · motor de regras'), els.assistant, h('span', { class: 'unificado-fala-acoes' }, els.talk, els.mic)),
+        h('span', { class: 'guardiao-rotulo' }, 'Assistente ', els.assistantNote), els.assistant, h('span', { class: 'unificado-fala-acoes' }, els.talk, els.mic)),
       h('section', { class: 'guardiao-bloco guardiao-retorno unificado-rota', 'aria-label': 'Retorno a pé e perfil à frente' },
         els.retLabel, h('div', { class: 'unificado-veredito' }, els.retVerdict, els.retOxygen), els.strip, els.pnrText,
         h('div', { class: 'unificado-perfil' }, els.profile,
@@ -285,7 +286,7 @@ export function createHud(mount, on) {
     setRow(els.radiation, `${fmtNumber(r.radiationRate)} µSv/h`, r.fx.radFactor > 1 ? 'danger' : 'ok');
     setRow(els.dose, `${fmtNumber(r.doseUsv)}/${fmtNumber(RULES.doseLimitUsv)} µSv`, above(r.doseUsv / RULES.doseLimitUsv, RULES.doseCautionFrac, 1));
     setRow(els.temperature, `${fmtNumber(r.airTempC)} °C`, r.airTempC < RULES.suitMinTempC ? 'danger' : 'ok');
-    setRow(els.wind, `${fmtNumber(r.windMps)} m/s`, above(r.windMps, RULES.windCautionMps, RULES.windDangerMps));
+    setRow(els.wind, r.windMps === null ? 'sem medição' : `${fmtNumber(r.windMps)} m/s`, above(r.windMps ?? 0, RULES.windCautionMps, RULES.windDangerMps));
     setRow(els.slope, `${fmtSigned(r.slopeDeg)}° · ${fmtNumber(r.slopeAheadDeg)}°`, above(r.slopeAheadDeg, RULES.slopeCautionDeg, RULES.slopeDangerDeg));
     setRow(els.altitude, `${fmtNumber(r.altitudeM)} m`);
     const lost = r.radio.state === 'lost';
@@ -366,7 +367,7 @@ export function createHud(mount, on) {
     renderSuit(r);
     renderEnvironment(r, trends, radio);
     renderReturn(r);
-    setText(els.assistant, line.text);
+    setRichText(els.assistant, line.text);
     setData(fala, 'kind', line.kind);
 
     let haze = 0;
@@ -388,7 +389,10 @@ export function createHud(mount, on) {
    *   drawerOpen: boolean, mapOn: boolean, readingsOn: boolean, zoom: { text: string, canIn: boolean, canOut: boolean },
    *   mic: { canListen: boolean, listening: boolean } }} controls
    */
-  function syncControls({ state, mode, soundOn, voiceOn, hasVoice, historyOpen, drawerOpen, mapOn, readingsOn, zoom, mic }) {
+  function syncControls({ state, mode, soundOn, voiceOn, hasVoice, historyOpen, drawerOpen, mapOn, readingsOn, zoom, mic, assistantNote, voiceInfo }) {
+    setText(els.assistantNote, assistantNote);
+    // O botão de voz diz qual voz está em uso (a neural local ou a do sistema).
+    if (voiceInfo && els.voice.title !== voiceInfo) els.voice.title = voiceInfo;
     // O rótulo já diz o estado; aria-pressed junto com rótulo que muda seria contraditório.
     setText(els.pause, state.paused ? 'Continuar' : 'Pausar');
     setData(els.pause, 'active', state.paused);

@@ -9,6 +9,7 @@ const MAX_QUESTION_CHARS = 240;
 const MIC_ERRORS = Object.freeze({
   'not-allowed': 'O navegador bloqueou o microfone. Libere o acesso ou use o teclado.',
   'no-speech': 'Não ouvi nada. Tente de novo ou use o teclado.',
+  'sem-escuta': 'A escuta por voz não está ligada neste computador. Use o teclado.',
 });
 const MIC_FALLBACK = 'Não consegui usar o microfone. Use o teclado.';
 
@@ -70,7 +71,8 @@ export function createConversation({ getContext, onMessage, onAction, voice = nu
     listening = target;
     const started = voice.listen({
       onText,
-      onError: (reason) => { if (reason !== 'aborted') say(MIC_ERRORS[reason] ?? MIC_FALLBACK, 'alert'); },
+      // A escuta acabou antes do aviso: quem cala a voz enquanto o microfone está aberto pode dizê-lo.
+      onError: (reason) => { listening = null; if (reason !== 'aborted') say(MIC_ERRORS[reason] ?? MIC_FALLBACK, 'alert'); },
       onEnd: () => { listening = null; onVoiceChange(voiceState()); },
     });
     if (!started) listening = null;

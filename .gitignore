@@ -2,3 +2,6 @@ node_modules/
 .DS_Store
 prototipo/tools/.cache/
 .playwright-mcp/
+prototipo/tools/voz/.venv/
+prototipo/tools/voz/modelos/
+.env

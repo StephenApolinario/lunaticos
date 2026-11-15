@@ -2,6 +2,7 @@
 // consequência, ação), na linha de estado e na fala do assistente.
 // É um conjunto fixo de regras, não um modelo de linguagem: a interface o rotula como simulado.
 
+import { earthEquivalentWindKmh } from '../../src/clima.js';
 import { SIM } from '../../src/simulation.js';
 import { fmtDistance, fmtDuration, fmtNumber } from '../../src/format.js';
 import { RULES, FAULTS, LEVELS, PROTOCOLS, SHELTER_PHRASES, levelOrder } from './catalog.js';
@@ -39,7 +40,7 @@ const walkBackText = (r) => (Number.isFinite(r.ret.timeH) ? `${fmtDuration(r.ret
 // Alertas que só aparecem quando alguém dispara um cenário de emergência na barra do visor.
 // O texto deles avisa que é cenário simulado, para o número não passar por leitura real.
 const SCENARIO_ALERTS = new Set(['solar', 'poeira', 'vento', 'radio', 'veiculo', 'traje']);
-const SCENARIO_NOTE = 'Cenário simulado.';
+const SCENARIO_NOTE = 'Cenário de treino.';
 
 export function detect(r) {
   const out = [];
@@ -60,8 +61,8 @@ export function detect(r) {
   if (r.fx.dust) {
     const { etaH, arrived } = r.fx.dust;
     add('poeira', level(arrived ? 'emergencia' : 'perigo', ['habitat', 'vehicle'], ['terrain']), 'Tempestade de poeira',
-      arrived ? `A frente de poeira chegou. Visibilidade de ${FAULTS.dustVisibilityM} m.` : `Frente de poeira prevista para daqui a ${minutes(etaH)}.`,
-      'Sem visão do terreno, menos carga solar e rádio com ruído.',
+      arrived ? `A frente de poeira chegou. Visibilidade abaixo de ${fmtNumber(FAULTS.dustVisibilityM / 1000)} km, como medido na tempestade de 2018.` : `Frente de poeira prevista para daqui a ${minutes(etaH)}.`,
+      'O horizonte e os pontos de referência somem, e a luz do Sol cai mais de 90%: os painéis quase não carregam.',
       r.sheltered ? 'Fique abrigado até a frente passar.' : `${arrived ? 'Abrigue-se já.' : 'Chegue ao abrigo antes da frente.'} ${shelterLine(r.picks.poeira)}`);
   }
 
@@ -70,7 +71,7 @@ export function detect(r) {
     if (r.batteryEndPct < RULES.batteryDangerPct) action = `Encurte a saída. ${shelterLine(r.picks.frio)}`;
     if (r.sheltered) action = 'Fique abrigado até a temperatura voltar à faixa.';
     add('frio', level('perigo', ['habitat', 'vehicle']), 'Frio abaixo da faixa do traje',
-      `Ar a ${fmtNumber(r.airTempC)} °C. O mínimo do traje é ${RULES.suitMinTempC} °C.`,
+      `Ar a ${fmtNumber(r.airTempC)} °C${r.fx.tempOffsetC < 0 ? ', o mais frio já medido pelo REMS' : ''}. O mínimo do traje é ${RULES.suitMinTempC} °C.`,
       `Aquecimento no máximo: a bateria cai ${fmtNumber(r.batteryRatePctH)} %/h.`, action);
   }
 
@@ -80,7 +81,8 @@ export function detect(r) {
     if (rough) action = `Não entre no trecho à frente. ${shelterLine(r.picks.vento)}`;
     if (r.sheltered) action = 'Fique abrigado até as rajadas baixarem.';
     add('vento', level(r.windMps >= RULES.windDangerMps ? 'perigo' : 'atencao', ['habitat', 'vehicle', 'terrain']), 'Vento forte',
-      `Rajadas de ${fmtNumber(r.windMps)} m/s.`, 'Poeira e areia no ar: pouca visão do chão e mais risco de queda em declive.', action);
+      `Rajadas de ${fmtNumber(r.windMps)} m/s, as mais fortes publicadas para Marte.`,
+      `No ar rarefeito, empurram como um vento de ${fmtNumber(earthEquivalentWindKmh(r.windMps))} km/h na Terra: não derrubam. O risco é a poeira levantada tirar a visão do chão.`, action);
   }
 
   if (r.radio.state === 'lost') {

@@ -145,6 +145,21 @@ export function createOverlays(scene, terrain, handlers) {
   let routeLines = [];
   let view = 'tablet';
   let waypointMarkers = [];
+  let roverPin = null;
+
+  /** Marca no mapa onde o rover Curiosity está, pela posição publicada pela NASA. */
+  function setRover({ lat, lon, sol }) {
+    const { x, z } = toLocal(lat, lon);
+    if (!roverPin) {
+      const element = h('div', { class: 'pin', role: 'img', dataset: { kind: 'rover' } }, h('span', { class: 'pin-id' }, 'R'), h('span', { class: 'pin-label' }, 'Curiosity'));
+      roverPin = new CSS2DObject(element);
+      group.add(roverPin);
+    }
+    const title = `Rover Curiosity · posição publicada pela NASA (sol ${sol})`;
+    roverPin.element.title = title;
+    roverPin.element.setAttribute('aria-label', title);
+    roverPin.position.set(x, terrain.heightAt(x, z), z);
+  }
 
   // Cada ponto da rota livre (A, B, C…) ganha um pino próprio, refeito a cada mudança da rota.
   function syncWaypointMarkers(plan) {
@@ -209,5 +224,5 @@ export function createOverlays(scene, terrain, handlers) {
     }
   }
 
-  return Object.freeze({ setPlan, setView, setNextStop });
+  return Object.freeze({ setPlan, setView, setNextStop, setRover });
 }

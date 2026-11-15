@@ -95,3 +95,16 @@ Abrir `http://localhost:5183/?visor=<id>` e clicar em "Entrar no visor do capace
 - `plan.startClockH` é a hora solar local escolhida no tablet para o início da saída. Use `localClockOf(plan, horasDecorridas)` de `src/simulation.js` para a hora local: ela já converte horas da Terra em horas de Marte.
 - `terrain.probe(x, z).radiation` é a média medida pelo RAD do Curiosity (igual em todo ponto) e não há mais `groundTemp`. A temperatura do ar vem de `estimatedAirTempC(horaLocal)` em `src/clima.js`, uma curva entre os extremos medidos pelo REMS.
 - A origem de cada número está em `data/fontes.js` (que gera `docs/fontes.md`). Ao mudar um dado, atualize lá.
+
+## IA de bordo
+
+No visor único, a conversa é com um modelo de linguagem (`src/ia/agente.js`): na nuvem, pelo OpenRouter, quando o servidor do protótipo tem a chave (`tools/servir.py` repassa a conversa em `/ia/chat`; a chave fica no `.env` da raiz e nunca vai para a página), ou neste computador, pelo Ollama, quando não há chave. O visor recebe no contexto `live()`, que devolve as medições lidas da NASA (`weather`, `dose`) e a estação de hoje (`lsDeg`), e `safety.radiationAt`.
+
+- `src/ia/ferramentas-visor.js` monta os dados de agora (situação, traje, volta e abrigos, ambiente, alertas), que entram em toda pergunta, e as ferramentas que o modelo pode chamar. `src/ia/ferramentas-tablet.js` faz o mesmo para o tablet.
+- Os dados de agora trazem também quanto tempo dá para ficar parado (`parar_aqui`), o ponto mais próximo da rota que serve para descansar (`pontos_para_parar`) e onde está o rover Curiosity (`rover_curiosity`, posição publicada pela NASA). A ferramenta `simular_deslocamento` refaz o plano inteiro a pé ou de veículo, com as paradas, sem mudar nada; o visor recebe `planIn(modo)` para isso.
+- `src/ia/ferramentas-comuns.js` busca nas fontes (`data/pesquisa.js`, gerado de `docs/pesquisa.md` por `tools/gerar-fatos.mjs`) os fatos sobre a pergunta, que também entram junto.
+- `src/ia/conferencia.js` barra resposta com número que não esteja nesses dados. Não é prova de verdade: confere se o valor aparece nos dados, não se ele foi usado no sentido certo.
+- Ferramenta de ação (`action: true`) só roda com ordem direta (`isOrder`) e uma vez por pergunta.
+- `visores/unificado/ia.js` liga tudo ao motor da conversa. Ordem direta que as regras reconhecem (confirmar passo, abortar, pausar) é executada sem esperar o modelo.
+- Para testar com o modelo de verdade: `node prototipo/tools/testar-ia.mjs` (opções `--nuvem`, `--tablet`, `--so=trecho da pergunta`, `--ver`). Sem `--nuvem` o teste usa o modelo local.
+

@@ -2,6 +2,8 @@
 // pelos cenários de demonstração e os protocolos de emergência.
 // Limites, panes e protocolos são REGRAS DE PROTÓTIPO (simuladas), não norma da NASA.
 
+import { SUIT } from '../../data/traje.js';
+import { WIND, DUST } from '../../data/medicoes.js';
 import { SIM } from '../../src/simulation.js';
 import { ASSUMPTIONS } from '../../src/safety.js';
 import { fmtDuration, fmtNumber } from '../../src/format.js';
@@ -21,7 +23,7 @@ export const RULES = Object.freeze({
   batteryDangerPct: 15,
   doseLimitUsv: 1000, // limite de dose de uma saída
   doseCautionFrac: 0.6,
-  suitMinTempC: -60,
+  suitMinTempC: SUIT.minTempC, // hipótese da equipe (data/traje.js)
   windCautionMps: 15,
   windDangerMps: 25,
   slopeCautionDeg: SIM.slopeWarnDeg,
@@ -32,7 +34,7 @@ export const RULES = Object.freeze({
   pnrAdviseM: 1500,
   hazardAdviseM: 400,
   commsAdviseM: 400,
-  pressureNominalKpa: 29.6, // 4,3 psi, pressão de operação do traje EMU da NASA
+  pressureNominalKpa: SUIT.pressureKpa, // 4,3 psi, pressão de operação do traje EMU da NASA (data/traje.js)
   leakEmergencyPctH: 10,
   solarShelterBudgetH: 1,
   windShelterBudgetH: 0.5,
@@ -42,11 +44,11 @@ export const RULES = Object.freeze({
 export const FAULTS = Object.freeze({
   solarFactor: SIM.solarEventFactor,
   dustEtaH: 40 / 60,
-  dustVisibilityM: 30,
-  coldOffsetC: -45, // leva o ar abaixo do mínimo do traje em qualquer hora do dia
+  dustVisibilityM: DUST.stormVisibilityM, // medido no pico da tempestade global de 2018 (data/medicoes.js)
+  coldOffsetC: -1, // só marca o cenário de frio: o ar vai ao mínimo já medido pelo REMS (readout.js)
   coldBatteryExtraPctH: 8,
-  windNominalMps: 5,
-  windStormMps: 28,
+  windNominalMps: null, // sem medição: o sensor de vento do REMS parou no sol 1491
+  windStormMps: WIND.strongestMps, // os ventos mais fortes publicados para Marte (data/medicoes.js)
   fallIntegrityPct: 78,
   patchIntegrityPct: 93,
   leakPctHPerPoint: 0.9, // O₂ perdido por hora a cada ponto de integridade a menos

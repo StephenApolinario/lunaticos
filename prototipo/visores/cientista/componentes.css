@@ -72,6 +72,7 @@
   display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin;
 }
 .cientista-msg { max-width: 94%; padding: 7px 11px 8px; border-left: 2px solid var(--cientista-voice); border-radius: 0 10px 10px 0; background: var(--cientista-voice-wash); }
+.cientista-busy { margin: 0; padding: 2px 4px; font-size: 12px; font-style: italic; opacity: 0.8; }
 .cientista-msg p, .cientista-entries p, .cientista-hazards p { margin: 0; overflow-wrap: anywhere; }
 .cientista-msg[data-from="user"] { align-self: flex-end; border-left: 0; border-right: 2px solid var(--route); border-radius: 10px 0 0 10px; background: rgba(22, 194, 213, 0.12); }
 .cientista-msg[data-from="alert"] { border-left-color: var(--hazard); background: rgba(239, 74, 79, 0.12); }
@@ -146,3 +147,11 @@ li.cientista-empty { display: block; border-left-color: var(--line); color: var(
   .cientista-input, .cientista-note { font-size: 16px; }
   .cientista-quick { flex-wrap: nowrap; overflow-x: auto; max-height: none; scrollbar-width: none; }
 }
+
+/* Leituras que a IA fixa no visor a pedido do astronauta. */
+.ia-pinos { position: absolute; top: 214px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 44%; pointer-events: none; z-index: 3; }
+.ia-pinos[hidden] { display: none; }
+.ia-pino { display: grid; gap: 2px; min-width: 96px; padding: 6px 12px; border: 1px solid rgba(96, 165, 250, 0.55); border-left-width: 3px; border-radius: 4px; background: rgba(10, 14, 20, 0.72); color: #fafafa; }
+.ia-pino small { font: 500 10px/1.2 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #a1a1aa; }
+.ia-pino strong { font: 600 17px/1.2 Archivo, system-ui, sans-serif; white-space: nowrap; }
+

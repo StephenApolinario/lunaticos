@@ -219,7 +219,7 @@ await conversation.ask('   ');
 assert.deepEqual(shown.map((message) => message.from), ['user', 'assistant', 'user']);
 assert.equal(shown[0].text, 'Quanto falta?');
 assert.match(shown[1].text, /^Faltam 460 m/);
-assert.equal(shown[1].stamp, '0h10');
+assert.equal(shown[1].stamp, '0h12');
 assert.deepEqual(actions, [{ type: 'report-hazard', hazardType: 'areia', note: '' }]);
 assert.equal(spoken.length, 1, 'só a resposta do assistente é falada');
 

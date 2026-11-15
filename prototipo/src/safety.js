@@ -11,11 +11,13 @@ import { heightAt } from './heightfield.js';
 import { TRAVEL } from './pathfind.js';
 import { SIM } from './simulation.js';
 import { RAD } from '../data/medicoes.js';
+import { O2_RESERVE_PCT } from '../data/traje.js';
 
 export const ASSUMPTIONS = Object.freeze({
   habitatMastM: 10,
   suitAntennaM: 2,
-  o2ReservePct: 10,
+  // Contingência de 1 hora de oxigênio (conceito de operações da NASA), andando a pé. Ver data/traje.js.
+  o2ReservePct: O2_RESERVE_PCT,
 });
 
 const WALK_BACK_STEP = 2;
@@ -213,7 +215,13 @@ export function createSafety(field, router) {
       if (!farthest || walkH > farthest.walkH) farthest = { distM: point.distM, x: point.x, z: point.z, walkH };
     }
     const commsGaps = findCommsGaps(plan.path);
+    // Metros da rota sobre areia escura estimada (cada ponto responde pelo passo até ele).
+    let sandM = 0;
+    plan.path.points.forEach((point, index, points) => {
+      if (index > 0 && router.sandAt?.(point.x, point.z)) sandM += point.distM - points[index - 1].distM;
+    });
     return Object.freeze({
+      sandM,
       noReturn,
       // Nenhum ponto com volta a pé conhecida: não há folga para informar.
       minMarginH: Number.isFinite(minMarginPct) ? minMarginPct / SIM.o2PctPerHour.foot : null,
@@ -224,5 +232,7 @@ export function createSafety(field, router) {
     });
   }
 
-  return Object.freeze({ walkBackAt, commsAt, commsCoverageAt, radiationAt, nearestShelter, assessPlan, habitat });
+  const sandAt = (x, z) => router.sandAt?.(x, z) ?? false;
+
+  return Object.freeze({ walkBackAt, commsAt, commsCoverageAt, radiationAt, nearestShelter, assessPlan, habitat, sandAt });
 }

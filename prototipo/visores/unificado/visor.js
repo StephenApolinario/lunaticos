@@ -23,7 +23,9 @@ import { createField } from './campo.js';
 import { withReportedHazard, isReportedHazard, targetLabel } from './guia.js';
 
 const DEG = Math.PI / 180;
-const EYE_HEIGHT_M = Object.freeze({ walk: 1.7, car: 2.4 });
+// De veículo, a altura é a dos olhos de quem vai sentado no banco do motorista (src/veiculo3d.js).
+const EYE_HEIGHT_M = Object.freeze({ walk: 1.7, car: 1.85 });
+const CAMERA_SNAP_M = 3;
 const MIN_CLEARANCE_M = 1;
 const CAMERA = Object.freeze({ basePitchDeg: -5, slopePitchFactor: 0.5, baseTurnRate: 2, turnRatePerMps: 0.125, heightRate: 6 });
 const LOOK = Object.freeze({ degPerPx: 0.18, maxYawDeg: 120, maxPitchDeg: 45, returnDelayS: 1.5, returnRate: 2.2 });
@@ -50,10 +52,11 @@ const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
  *   overlays: { setNextStop: (id: string|null, label: string) => void },
  *   onExit: () => void,
  *   onLocalHour?: (hourH: number) => void,
+ *   live?: () => { weather?: object | null, dose?: object | null, lsDeg: number },
  *   safety: { walkBackAt: Function, commsAt: Function, nearestShelter: Function, protocolFor: Function, assumptions: object },
  * }} context
  */
-export function createVisor({ mount, stageElement, camera, terrain, overlays, onExit, safety, onLocalHour }) {
+export function createVisor({ mount, stageElement, camera, terrain, overlays, onExit, safety, onLocalHour, live, planIn, tripTo, vehicle = null, onLayer = null }) {
   if (!safety) throw new Error('O visor único precisa de context.safety (ver visores/LEIA-ME.md).');
   const audio = createAudio();
   const analyzer = createAnalyzer(safety, terrain.isReal);
@@ -77,6 +80,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     hud.syncControls({
       state: session.state, mode: session.plan.mode, soundOn: audio.soundOn, voiceOn: audio.voiceOn, hasVoice: audio.hasVoice, historyOpen,
       drawerOpen: field.isOpen(), mapOn, readingsOn, zoom: nav.zoomState(), mic: { canListen: voice.canListen, listening: voice.listening === 'chat' },
+      assistantNote: field.assistantNote(), voiceInfo: audio.voiceInfo,
     });
   }
 
@@ -130,19 +134,32 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   });
   const field = createField({
     drawer: hud.drawer, markersLayer: hud.markers, camera, terrain, safety, audio,
+    // Medições lidas da NASA (REMS, RAD) e a estação de hoje em Marte, para a IA de bordo.
+    live: live ?? (() => ({ weather: null, dose: null, lsDeg: 0 })),
+    // O mesmo plano em outro modo (a pé ou de veículo), para a IA simular.
+    planIn: planIn ?? null,
+    tripTo: tripTo ?? null,
     host: {
       session: () => session,
       confirm: () => apply(confirmCurrentStep),
       decide: (choice) => apply(decideCurrent, choice),
       pause: (paused) => apply(setPaused, paused),
       endScenario: (id) => apply(toggleScenario, id),
+      // A IA pinta uma camada do mapa sobre o terreno e liga ou desliga painéis a pedido do astronauta.
+      setLayer: (layer) => onLayer?.(layer),
+      setPanel: (panel, on) => {
+        if (panel === 'mapa') toggleWidgets(on, readingsOn);
+        else if (panel === 'leituras') toggleWidgets(mapOn, on);
+        else if (panel === 'historico') { historyOpen = on; syncControls(); }
+      },
       // Chamado quando a gaveta abre ou fecha e quando a voz muda: a gaveta aberta fecha os menus.
       onChange: () => { if (field.isOpen()) hud.closePops(); syncControls(); },
       focusDrawerButton: hud.focusDrawerButton,
     },
   });
 
-  function start(plan) {
+  // Saída nova: posição no início da rota, diário, conversa e visor zerados.
+  function begin(plan) {
     session = createSession(plan);
     analyzer.invalidate();
     nav.setPlan(plan);
@@ -156,13 +173,22 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     smoothedHeading = headingAt(plan.path, 0);
     const origin = samplePath(plan.path, 0);
     cameraY = terrain.probe(origin.x, origin.z).y + EYE_HEIGHT_M[plan.mode];
+    hud.announce('');
+    onLayer?.('none');
+    field.start(plan);
+  }
+
+  function start(plan) {
+    // Abrir o tablet e voltar com o mesmo plano retoma a saída de onde parou (ela fica congelada
+    // enquanto o visor está fechado). Plano mudado no tablet, ou saída já encerrada, começa outra.
+    const isSameOuting = session?.plan === plan && !session.state.finished;
+    if (!isSameOuting) begin(plan);
+    look = Object.freeze({ ...look, dragging: false });
     active = true;
     mount.hidden = false;
     // Entrar no visor é um gesto do usuário: é quando o navegador libera o áudio.
     audio.unlock();
     hud.closePops();
-    hud.announce('');
-    field.start(plan);
     syncControls();
     hud.focus();
   }
@@ -171,6 +197,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     active = false;
     mount.hidden = true;
     field.stop();
+    vehicle?.hide();
     overlays.setNextStop(null, '');
   }
 
@@ -188,7 +215,11 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     smoothedHeading = normalizeDeg(smoothedHeading + angleDeltaDeg(smoothedHeading, r.heading) * (1 - Math.exp(-dtS * turnRate)));
 
     const eyeY = ground.y + EYE_HEIGHT_M[r.m.inCabin ? 'car' : 'walk'];
-    cameraY += (eyeY - cameraY) * (1 - Math.exp(-dtS * CAMERA.heightRate));
+    // Salto grande de altura só acontece ao arrastar a posição na rota: aí a câmera vai direto, sem atravessar o chão ou o veículo.
+    if (Math.abs(eyeY - cameraY) > CAMERA_SNAP_M) cameraY = eyeY;
+    // Com o tempo acelerado o chão sobe e desce mais rápido: a câmera acompanha na mesma proporção,
+    // senão fica para trás e afunda no relevo (e no veículo).
+    cameraY += (eyeY - cameraY) * (1 - Math.exp(-dtS * CAMERA.heightRate * Math.max(1, session.state.speed)));
     cameraY = Math.max(cameraY, ground.y + MIN_CLEARANCE_M);
 
     const pitchDeg = CAMERA.basePitchDeg + r.slopeDeg * CAMERA.slopePitchFactor + look.pitchDeg;
@@ -198,6 +229,15 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     // As matrizes precisam estar em dia para projetar a guia e as marcas neste mesmo quadro.
     camera.updateMatrixWorld();
     return normalizeDeg(smoothedHeading + look.yawDeg);
+  }
+
+  // O veículo aparece só nas saídas de veículo: sob o astronauta enquanto ele dirige e parado ao
+  // lado da rota, no ponto onde foi deixado, quando ele desce (parada de coleta ou trecho a pé).
+  function placeVehicle(r) {
+    if (!vehicle) return;
+    if (session.plan.mode !== 'car') { vehicle.hide(); return; }
+    if (r.m.inCabin) { vehicle.drive(session.pos, smoothedHeading, session.state.distM); return; }
+    vehicle.park(samplePath(session.plan.path, r.m.vehicleM), headingAt(session.plan.path, r.m.vehicleM), r.m.vehicleM);
   }
 
   // Posição na tela (fração do palco) de um ponto do terreno, ou null se estiver fora da vista.
@@ -259,6 +299,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     announce(session.events, dtS);
     settleLook(dtS);
     const viewHeading = applyCamera(r, session.pos, session.ground, dtS);
+    placeVehicle(r);
     const { guide, radio } = nav.update(dtS, session, { headingDeg: smoothedHeading, lookDeg: look.yawDeg }, hud.layout());
 
     const line = field.frame(dtS, {

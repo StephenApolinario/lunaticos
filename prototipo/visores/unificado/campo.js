@@ -5,6 +5,7 @@
 
 import { fmtDistance, fmtDuration, fmtKm } from '../../src/format.js';
 import { clamp } from '../../src/geo.js';
+import { plainText } from '../../src/dom.js';
 import { PROTOCOLS } from '../guardiao/catalog.js';
 import { protocolView } from '../guardiao/protocols.js';
 import { goStepText } from '../guardiao/rules.js';
@@ -16,7 +17,8 @@ import { describeStops, stopShortName } from '../cientista/contexto.js';
 import { bindProtocols } from '../cientista/protocolos.js';
 import { createJournal, journalToText, downloadText, fmtPosition, EXPORT_FILE } from '../cientista/diario.js';
 import { HAZARD_TYPES, createHazardStore, describeHazard, locateHazards, hazardWarning, newId } from '../cientista/perigos.js';
-import { assistantContext, answerUnified, unifiedQuickQuestions } from './contexto.js';
+import { assistantContext, unifiedQuickQuestions } from './contexto.js';
+import { createAssistantEngine } from './ia.js';
 import { voiceLine } from './guia.js';
 
 const MODE_TEXT = Object.freeze({ walk: 'a pé', car: 'de veículo' });
@@ -63,15 +65,41 @@ function scienceStatus(context) {
  *   terrain: { heightAt: (x: number, z: number) => number },
  *   safety: { protocolFor: (id: string) => object, assumptions: object },
  *   audio: ReturnType<typeof import('../guardiao/audio.js').createAudio>,
+ *   live: () => { weather?: object | null, dose?: object | null, lsDeg: number },
  *   host: { session: () => object, confirm: () => void, decide: (choice: 'abortar'|'seguir') => void,
  *     pause: (paused: boolean) => void, endScenario: (id: string) => void, onChange: () => void,
  *     focusDrawerButton: () => void },
  * }} deps `host` dá a sessão atual do Guardião e liga as ações da conversa a ela; `onChange` pede
  *   ao visor para atualizar os botões (gaveta aberta, voz, microfone).
  */
-export function createField({ drawer, markersLayer, camera, terrain, safety, audio, host }) {
+const PINS_REFRESH_S = 0.5;
+
+export function createField({ drawer, markersLayer, camera, terrain, safety, audio, host, live, planIn = null, tripTo = null }) {
   const store = createHazardStore();
   const markers = createSceneMarkers(markersLayer, camera, terrain);
+  // Leituras que a IA fixa no visor a pedido ("me mostra meu oxigênio"): cartões no alto da tela.
+  const pinsBox = document.createElement('div');
+  pinsBox.className = 'ia-pinos';
+  pinsBox.hidden = true;
+  markersLayer.parentElement.append(pinsBox);
+  let pinsKey = '';
+  let pinsWaitS = 0;
+  function renderPins(pins) {
+    const key = pins.map((pin) => `${pin.id}=${pin.valor}`).join('|');
+    if (key === pinsKey) return;
+    pinsKey = key;
+    pinsBox.hidden = pins.length === 0;
+    pinsBox.replaceChildren(...pins.map((pin) => {
+      const card = document.createElement('div');
+      const label = document.createElement('small');
+      const value = document.createElement('strong');
+      card.className = 'ia-pino';
+      label.textContent = pin.rotulo;
+      value.textContent = pin.valor;
+      card.append(label, value);
+      return card;
+    }));
+  }
   const protocols = bindProtocols(safety.protocolFor);
   const mic = createVoice();
   const acked = new Set();
@@ -92,21 +120,26 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
   let panelWaitS = 0;
   let lastRoutineS = -Infinity;
   let speechPriority = ANSWER_PRIORITY;
+  let isUrgentSpeech = false;
   let holding = false;
   let held = null;
 
   // Uma voz só: quem fala é o áudio do Guardião (com prioridade e a preferência guardada);
   // do módulo de voz do Cientista só se usa a escuta.
+  // Com o microfone aberto a IA se cala, para não falar por cima do astronauta nem entrar na
+  // gravação: só perigo, emergência e passo de protocolo ainda são ditos. O resto fica na tela.
+  const isMicOpen = () => conversation.voiceState().listening !== null;
   const voice = Object.freeze({
     canSpeak: audio.hasVoice,
     canListen: mic.canListen,
     isSpeaking: () => audio.voiceOn,
-    speak: (text) => audio.speak(text, speechPriority),
+    speak: (text) => { if (isUrgentSpeech || !isMicOpen()) audio.speak(text, speechPriority); },
     setSpeaking(on) {
       if (Boolean(on) !== audio.voiceOn) audio.toggleVoice();
       return audio.voiceOn;
     },
-    listen: mic.listen,
+    // Abrir o microfone corta a fala em curso (a voz neural e a do sistema).
+    listen: (handlers) => { audio.silence(); return mic.listen(handlers); },
     stopListening: mic.stopListening,
   });
 
@@ -121,13 +154,26 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     onDeleteHazard: deleteHazard,
     onClose: () => closeDrawer(true),
   });
+  // A conversa é com a IA de bordo; ela lê os dados da saída por estas funções e age pelo mesmo `runAction`.
+  const assistant = createAssistantEngine({
+    getContext,
+    getSession: host.session,
+    safety,
+    live,
+    planIn,
+    tripTo,
+    terrain,
+    runAction: (action) => runAction(action),
+    onStatus: (text) => panel.chat.setBusy(text),
+    onHealth: () => { panel.setEngineNote(assistant.note()); host.onChange(); },
+  });
   const conversation = createConversation({
     getContext,
     onMessage: showMessage,
     onAction: runAction,
     voice,
     onVoiceChange: syncVoice,
-    engine: answerUnified,
+    engine: assistant.engine,
   });
 
   // O contexto do assistente é montado sob demanda. A sessão e o protocolo em condução são os de
@@ -166,8 +212,10 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
   function announce(text, priority) {
     holding = false;
     speechPriority = priority;
-    conversation.say(text, priority >= ANSWER_PRIORITY ? 'alert' : 'assistant');
+    isUrgentSpeech = priority >= ANSWER_PRIORITY;
+    conversation.say(text, isUrgentSpeech ? 'alert' : 'assistant');
     speechPriority = ANSWER_PRIORITY;
+    isUrgentSpeech = false;
     holding = true;
   }
 
@@ -198,6 +246,8 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     'protocol-end': endProtocol,
     pause: () => { host.pause(true); say('Simulação pausada.'); },
     resume: () => { host.pause(false); say('Simulação retomada.'); },
+    'hud-panel': (action) => host.setPanel(action.panel, action.on),
+    'hud-layer': (action) => host.setLayer(action.layer),
   });
 
   // A ação vem do motor do assistente (amanhã, de um modelo): só roda se for conhecida.
@@ -279,7 +329,7 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     const key = `${protocol?.id ?? ''}|${protocol?.stepType ?? ''}|${current.atStop}|${current.target.kind}|${current.stopsReached}`;
     if (key !== quickKey) {
       quickKey = key;
-      panel.chat.setQuickQuestions(unifiedQuickQuestions(current));
+      panel.chat.setQuickQuestions(assistant.examples(unifiedQuickQuestions(current)));
     }
     panel.science.update({
       stop: current.focusStop,
@@ -309,6 +359,8 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     holding = true;
     lastRoutineS = -Infinity;
     acked.clear();
+    assistant.reset();
+    assistant.check();
     store.reload();
     markers.clear();
     panel.reset();
@@ -328,7 +380,7 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     const known = store.list().length;
     const reports = known ? ` Há ${known === 1 ? '1 perigo relatado' : `${known} perigos relatados`} guardados neste navegador: aviso quando você chegar perto.` : '';
     log('saida', `Início da saída: plano ${MODE_TEXT[plan.mode]}, ${planSize(plan)}.`);
-    announce(`Assistente pronto. Sou simulado por regras: respondo só com os dados desta saída e conduzo os protocolos de emergência. Plano ${MODE_TEXT[plan.mode]}: ${planSize(plan)}, ${fmtKm(plan.stats.totalKm)}, cerca de ${fmtDuration(plan.stats.hours)}. Primeira parada: ${stopShortName(first.stop)}, a ${fmtDistance(first.distM)}.${safetyBriefing(plan)}${reports}`, 0);
+    announce(`${assistant.intro()} Plano ${MODE_TEXT[plan.mode]}: ${planSize(plan)}, ${fmtKm(plan.stats.totalKm)}, cerca de ${fmtDuration(plan.stats.hours)}. Primeira parada: ${stopShortName(first.stop)}, a ${fmtDistance(first.distM)}.${safetyBriefing(plan)}${reports}`, 0);
   }
 
   /** Perigos relatados em volta da posição do quadro e o aviso de aproximação, se houver. */
@@ -379,8 +431,8 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     lineKey = line.key;
     if (line.logged && (isStep || due)) {
       saidAtS.set(message.key, clockS);
-      announce(line.text, line.priority);
-    } else if (!line.logged && clockS - lastRoutineS >= ROUTINE_SPEECH_GAP_S) {
+      announce(plainText(line.text), line.priority);
+    } else if (!line.logged && !isMicOpen() && clockS - lastRoutineS >= ROUTINE_SPEECH_GAP_S) {
       lastRoutineS = clockS;
       audio.speak(line.text, line.priority);
     }
@@ -394,6 +446,9 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
    * @returns {{ text: string, kind: 'guia'|'aviso'|'resposta' }} O que a linha do assistente mostra.
    */
   function frame(dtS, { before, session, proto, alerts, message, instruction, radio, arrivedAt }) {
+    // Os cartões fixados pela IA se atualizam duas vezes por segundo.
+    pinsWaitS -= dtS;
+    if (pinsWaitS <= 0) { pinsWaitS = PINS_REFRESH_S; renderPins(assistant.pins()); }
     clockS += dtS;
     // O contexto do assistente é montado sob demanda a partir deste retrato do quadro.
     const guidance = { text: (instruction ?? message).text, radio: session.r.finished ? null : radio.ahead };
@@ -439,5 +494,7 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     toggleVoice: () => conversation.toggleSpeaking(),
     listen: () => listenTo('chat'),
     voiceState: () => conversation.voiceState(),
+    /** Texto do rótulo do assistente: qual IA está respondendo, ou que ela está fora do ar. */
+    assistantNote: () => assistant.note(),
   });
 }

@@ -8,7 +8,8 @@
 // - calculado: conta feita pela equipe sobre um dado medido;
 // - estimado: curva ou proporção nossa apoiada em uma medição;
 // - hipotese: escolha da equipe, sem medição por trás;
-// - simulado: valor inventado para demonstrar a interface;
+// - simulado: situação ou valor inventado para demonstrar a interface;
+// - sistema: não é dado, é como o protótipo funciona (IA, voz, regras);
 // - ilustrativo: só aparência.
 
 export const KINDS = Object.freeze({
@@ -18,6 +19,7 @@ export const KINDS = Object.freeze({
   estimado: 'Estimativa a partir de medição',
   hipotese: 'Hipótese da equipe',
   simulado: 'Simulado',
+  sistema: 'Como o sistema funciona',
   ilustrativo: 'Ilustrativo',
 });
 
@@ -35,6 +37,7 @@ export const SOURCE_GROUPS = Object.freeze([
       entry('Térmico (noite)', 'medido', 'Infravermelho térmico noturno do THEMIS (sonda Mars Odyssey), mosaico de 100 m servido pelo NASA Mars Trek. É brilho relativo da imagem, não temperatura em graus.', 'https://trek.nasa.gov/mars/'),
       entry('Unidade geológica', 'medido', 'Mapa geológico global de Marte, USGS SIM 3292 (Tanaka et al. 2014), 1:20.000.000: a área inteira é a unidade Htu. Consultado em 14/11/2026.', 'https://doi.org/10.3133/sim3292'),
       entry('Trajeto do Curiosity', 'medido', 'Mapa oficial da missão (MMGIS, NASA/JPL), sols 2300 a 4893. Os pontos vieram do artifact original; a data da cópia não foi registrada.', 'https://mars.nasa.gov/maps/location/?mission=MSL'),
+      entry('Posição atual do rover Curiosity', 'medido', 'Marcada com um R no mapa. Vem do arquivo que alimenta o mapa "Where is Curiosity?" da NASA, lido quando o protótipo abre; sem rede, vale a posição guardada em 15/11/2026 (sol 5073). O rover segue em operação: tratá-lo como parado no fim da missão dele é o cenário da equipe.', 'https://science.nasa.gov/mission/msl-curiosity/location-map/'),
       entry('Sombras do relevo', 'calculado', 'Sombra projetada pelo relevo do DEM para a posição calculada do Sol.'),
     ]),
   }),
@@ -48,23 +51,34 @@ export const SOURCE_GROUPS = Object.freeze([
       entry('Radiação agora', 'medido', 'RAD (Curiosity): dose absorvida, média dos últimos 30 dias, lida da série msl_rad_dosimetry do NASA CCMC iSWA.', 'https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry'),
       entry('Taxa de radiação do visor e do mapa', 'medido', 'RAD (Curiosity): 0,67 mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013 (cerca de 27,9 µSv/h).', 'https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/'),
       entry('Radiação menor onde o relevo protege', 'estimado', 'Céu tapado pelo relevo (calculado no DEM) na proporção medida pelo RAD em Murray Buttes: 4% a menos com 19% do céu tapado (Ehresmann et al. 2021). Acima de 19% é extrapolação em linha reta.', 'https://doi.org/10.1029/2021JE006851'),
-      entry('Evento solar (cenário)', 'simulado', 'O disparo é um botão de cenário. No evento de 11/09/2017 o RAD mediu mais que o dobro de qualquer valor anterior; aplicar 2 vezes sobre a média é simplificação da equipe.', 'https://www.jpl.nasa.gov/news/large-solar-storm-sparks-global-aurora-and-doubles-radiation-levels-on-the-martian-surface/'),
-      entry('Vento', 'simulado', '5 m/s no normal e 28 m/s no cenário, sem fonte. O sensor de vento do REMS parou no sol 1491.'),
-      entry('Tempestade de poeira e frio extremo (cenários)', 'simulado', 'Frente de poeira em 40 min, visibilidade de 30 m e 45 °C a menos: valores sem fonte, só para exercitar os protocolos.'),
+      entry('Evento solar (cenário de treino)', 'publicado', 'O disparo é um botão de treino. No evento de 11/09/2017 o RAD mediu mais que o dobro de qualquer valor anterior; aplicar 2 vezes sobre a média é simplificação da equipe.', 'https://www.jpl.nasa.gov/news/large-solar-storm-sparks-global-aurora-and-doubles-radiation-levels-on-the-martian-surface/'),
+      entry('Vento', 'publicado', 'Não há medição de vento para hoje: o sensor do REMS parou no sol 1491, e o visor mostra “sem medição”. O cenário de vento usa 27 m/s, os ventos mais fortes publicados para Marte, e calcula a força equivalente na Terra pela densidade do ar (pressão e temperatura do REMS).', 'https://www.nasa.gov/content/the-fact-and-fiction-of-martian-dust-storms'),
+      entry('Tempestade de poeira (cenário de treino)', 'publicado', 'A visibilidade do cenário (menos de 3 km) é a medida em Gale no pico da tempestade global de 2018. O aviso de frente chegando em 40 min é parâmetro do treino.', 'https://arxiv.org/pdf/1910.00986'),
+      entry('Frio extremo (cenário de treino)', 'publicado', 'O ar do cenário vai a −100 °C, o mais frio medido pelo REMS em dois anos marcianos.', 'https://www.jpl.nasa.gov/news/second-cycle-of-martian-seasons-completing-for-curiosity-rover/'),
     ]),
   }),
   Object.freeze({
     title: 'Rotas e segurança',
     entries: Object.freeze([
       entry('Distância, subida e declive das rotas', 'calculado', 'Caminho de menor custo sobre o DEM do USGS. A travessia do Monte Sharp veio pré-calculada do artifact original (DEM reamostrado a 2 m; o programa não está no repositório). A rota livre é calculada na hora, na grade de 8 m.'),
-      entry('Velocidade e tempo', 'hipotese', '2,5 km/h a pé e 4,5 km/h de veículo em terreno plano, 45 min por parada. Na rota livre, o efeito do declive usa a função de caminhada de Tobler (1993), feita para a Terra.'),
+      entry('Velocidade a pé', 'publicado', '2 km/h: valor de planejamento da NASA para a volta a pé de traje (cerca de 10 km em 5 horas). Na rota livre, o efeito do declive usa a função de caminhada de Tobler (1993), feita para a Terra.', 'https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf'),
+      entry('Velocidade do veículo e tempo de parada', 'hipotese', '4,5 km/h de veículo em terreno plano e 45 min por parada.'),
       entry('Limite de declive', 'hipotese', '20° a pé e 15° de veículo.'),
-      entry('Volta a pé até o habitat', 'calculado', 'Tempo de caminhada sobre o DEM, com a velocidade de hipótese.'),
+      entry('Volta a pé até o habitat', 'calculado', 'Tempo de caminhada sobre o DEM, com a velocidade a pé de planejamento da NASA.'),
       entry('Rádio', 'calculado', 'Linha de visada até o habitat sobre o DEM, com a curvatura de Marte. As alturas das antenas (10 m e 2 m) são hipótese.'),
       entry('Abrigo de relevo', 'calculado', 'Fração do céu tapada pelo relevo em volta, estimada sobre o DEM.'),
+      entry('Simulação do plano a pé ou de veículo', 'calculado', 'A IA refaz o mesmo plano no outro modo, com as paradas de coleta: rota sobre o relevo real, velocidade reduzida pelo declive e oxigênio pelo consumo do traje. A velocidade do veículo, o declive máximo e o tempo de parada continuam sendo hipóteses da equipe.'),
+      entry('Tempo que dá para ficar parado', 'calculado', 'Oxigênio de agora menos a reserva e o gasto do caminho, e a luz até o pôr do Sol. Usa o consumo de quem caminha: parado o gasto é menor, então é o mínimo garantido. Não achamos taxa metabólica publicada de astronauta parado de pé; só sentado no jipe lunar.'),
+      entry('Pontos seguros para parar', 'calculado', 'Ponto mais próximo na rota, à frente e atrás, com chão de até 5° de declive, rádio direto com o habitat e fora da zona de rochas cortantes. O relevo e o rádio são calculados sobre o DEM; o critério é da equipe.'),
       entry('Zona de rochas cortantes', 'hipotese', 'O ponto é a posição oficial do Curiosity no sol 3420, onde a missão viu as rochas “gator-back” à frente e deu meia-volta. É a borda do terreno, não o centro, e não há contorno publicado: o círculo de 250 m é da equipe e cobre, a leste, chão por onde o rover passou sem problema.', 'https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/'),
-      entry('Oxigênio, bateria, pressão e integridade do traje', 'simulado', 'Não existe traje real: consumo de 12,5% por hora a pé e 4% na cabine, bateria de 9% e 5% por hora, reserva de 10%.'),
-      entry('Limites dos alertas', 'hipotese', 'Dose de 1.000 µSv por saída, traje até −60 °C, vento de 15 e 25 m/s, 10 min sem rádio.'),
+      entry('Areia escura (fofa)', 'estimado', 'Camada Areia e desvio das rotas. Uma célula de 8 m conta como areia quando a imagem HiRISE ali é escura e mais azul que vermelha e o declive é menor que 12°; manchas com menos de 60 células são descartadas (2,48 km² no total). É classificação da equipe pela cor realçada da imagem, não mapa de areia da NASA, e pode marcar rocha escura como areia. Nas rotas livres a areia custa 2,5 vezes mais a pé e 8 vezes mais de veículo (hipótese da equipe). A travessia pronta veio do artifact original e não foi refeita: ela cruza 2,2 km dessa areia, e o painel avisa.'),
+      entry('Oxigênio do traje', 'calculado', 'Não existe traje real, então não é medição. O consumo sai de uma conta: taxa metabólica medida nas saídas lunares da Apollo (1267 kJ por hora a pé, 414 no veículo), 20,9 kJ por litro de oxigênio e o tanque de 1,8 lb do traje avançado da NASA. Dá cerca de 10,6% por hora a pé e 3,5% no veículo.', 'https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf'),
+      entry('Tanque de oxigênio e pressão do traje', 'publicado', 'Tanque primário de cerca de 1,8 lb utilizável a 3000 psia (traje avançado da NASA, Campbell 2012) e pressão de operação de 4,3 psi (traje EMU da estação espacial).', 'https://ntrs.nasa.gov/api/citations/20120009158/downloads/20120009158.pdf'),
+      entry('Reserva de oxigênio', 'calculado', '1 hora de contingência além da saída planejada, como no conceito de operações de saída da NASA (EVA-EXP-0042); a pé, isso dá 10,6% do tanque.', 'https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf'),
+      entry('Bateria do traje', 'hipotese', 'Consumo de 9% por hora a pé e 5% no veículo. Não achamos a capacidade publicada em fonte primária.'),
+      entry('Falhas do traje, do rádio e do veículo (cenários de treino)', 'simulado', 'Queda com vazamento, falha de tanque, rádio mudo e pane do veículo são situações hipotéticas, disparadas por botão para treinar os protocolos.'),
+      entry('Posição do astronauta no visor', 'simulado', 'O protótipo move o astronauta ao longo da rota. Não há localização real: em Marte não existe GPS, e os rovers se localizam casando imagens com o mapa orbital.'),
+      entry('Limites dos alertas', 'hipotese', 'Dose de 1.000 µSv por saída, traje até −60 °C, vento de 15 e 25 m/s, 10 min sem rádio, e a proteção de cada abrigo contra radiação.'),
       entry('Protocolos de emergência', 'hipotese', 'Proposta da equipe. Cada protocolo cita a evidência de missões reais reunida em docs/pesquisa.md.'),
     ]),
   }),
@@ -77,8 +91,13 @@ export const SOURCE_GROUPS = Object.freeze([
       entry('Fotos nas paradas', 'medido', 'Navcam do Curiosity no sol da parada, do acervo de imagens brutas da missão (NASA/JPL-Caltech).', 'https://mars.nasa.gov/msl/multimedia/raw-images/'),
       entry('Coletas que deram trabalho ao rover', 'publicado', 'Relatos da missão Curiosity, conferidos em 14/11/2026; o link de cada caso está no cartão. Em quatro dos sete casos a missão conseguiu amostra depois, ali perto.'),
       entry('Objetivo da missão e local do habitat', 'hipotese', 'Proposta da equipe. O objetivo científico e o local seguem como decisões em aberto no README.'),
-      entry('Assistente do visor', 'simulado', 'Motor de regras local. Não é IA e não consulta nenhum dado externo.'),
+      entry('IA de bordo (visor e tablet)', 'sistema', 'Modelo de linguagem que faz o papel do computador de bordo. Não gera dado: recebe os valores desta lista a cada pergunta, consulta ferramentas e só pode citar número que veio delas (a resposta é conferida antes de aparecer). Recusa assunto fora da missão. Como o modelo é servido no protótipo está no README.'),
+      entry('Alertas e protocolos do visor', 'sistema', 'Regras fixas sobre as leituras da saída. Não dependem da IA.'),
+      entry('Voz do assistente', 'sistema', 'Fala: Kokoro-82M, modelo de voz neural rodando neste computador (voz pf_dora, português do Brasil); sem o servidor de voz, usa a voz do sistema. Escuta: Whisper (modelo small) no mesmo servidor, que transcreve o que é dito no botão Falar sem mandar o áudio para a internet; sem o servidor, usa o reconhecimento do navegador, se houver.', 'https://github.com/thewh1teagle/kokoro-onnx'),
+      entry('Leituras fixadas no visor pela IA', 'sistema', 'A pedido do astronauta (“me mostra meu oxigênio”, “coloca na tela a velocidade média”, “tira o mapa”), a IA fixa ou tira leituras do visor e liga ou desliga o mapa, as leituras e o histórico. Os valores são os mesmos desta lista, lidos de novo duas vezes por segundo. Também pinta sobre o terreno do visor uma camada do mapa do tablet (térmico noturno, declive, rádio, radiação, volta a pé ou areia). Alertas, protocolo e a volta a pé não saem da tela.'),
       entry('Céu, chão além da área com dados e modelo do habitat', 'ilustrativo', 'Só aparência. Rochas soltas e montanhas desenhadas foram retiradas.'),
+      entry('Modelo 3D do veículo', 'ilustrativo', 'Buggy aberto de dois lugares desenhado pela equipe com formas simples, na linha do jipe lunar da Apollo: o astronauta vai de traje, que é o que o protótipo assume para o consumo de oxigênio. Não vem de dado. O acervo de modelos 3D da NASA só tem o veículo pressurizado SEV, que não combina com essa hipótese.', 'https://github.com/nasa/NASA-3D-Resources'),
+      entry('Grão do chão no visor', 'ilustrativo', 'Textura fina aplicada ao chão a até cerca de 40 m dos olhos, só no visor. A foto mais fina tem 25 cm por pixel e de perto vira um borrão; o grão devolve a noção de escala sem mudar a cor média. Não representa pedras reais.'),
     ]),
   }),
 ]);

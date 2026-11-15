@@ -12,11 +12,11 @@ const WARMEST_H = Object.freeze({ ground: 13, air: 15 });
 
 // Extremos em uso. Começam nos de reserva (sol típico de 2012) e passam para as médias da estação
 // quando o feed do REMS carrega (ver nasa.js). É o único estado deste módulo.
-let ranges = Object.freeze({ air: REMS.air, ground: REMS.ground });
+let ranges = Object.freeze({ air: REMS.air, ground: REMS.ground, pressurePa: REMS.fallbackPressurePa });
 
 /** Troca os extremos pelos medidos na estação atual. */
-export function useMeasuredRanges({ air, ground }) {
-  ranges = Object.freeze({ air, ground });
+export function useMeasuredRanges({ air, ground, pressurePa }) {
+  ranges = Object.freeze({ air, ground, pressurePa: pressurePa ?? REMS.fallbackPressurePa });
 }
 
 function diurnal({ minC, maxC }, warmestH, hourH) {
@@ -30,3 +30,21 @@ function diurnal({ minC, maxC }, warmestH, hourH) {
 export const estimatedAirTempC = (hourH) => diurnal(ranges.air, WARMEST_H.air, hourH);
 /** Temperatura do solo (°C) estimada para uma hora solar local. */
 export const estimatedGroundTempC = (hourH) => diurnal(ranges.ground, WARMEST_H.ground, hourH);
+
+// Constante do gás para o CO2 (J/kg/K) e densidade do ar ao nível do mar na Terra (kg/m³).
+const CO2_GAS_CONSTANT = 188.92;
+const EARTH_AIR_DENSITY = 1.225;
+const KELVIN = 273.15;
+
+/** Densidade do ar em Gale (kg/m³), pela lei dos gases, com a pressão e a temperatura medidas pelo REMS. */
+export function airDensity() {
+  const meanAirK = (ranges.air.minC + ranges.air.maxC) / 2 + KELVIN;
+  return ranges.pressurePa / (CO2_GAS_CONSTANT * meanAirK);
+}
+
+/**
+ * Vento na Terra que empurraria com a mesma força: a força vai com a densidade do ar vezes a
+ * velocidade ao quadrado, e o ar de Marte é cerca de cem vezes mais rarefeito.
+ */
+export const earthEquivalentWindKmh = (windMps) => windMps * Math.sqrt(airDensity() / EARTH_AIR_DENSITY) * 3.6;
+

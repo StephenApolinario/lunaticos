@@ -64,4 +64,15 @@ export const LAYERS = Object.freeze({
     simulated: false,
     note: 'Linha de visada com o mastro do habitat, calculada sobre o relevo real. Alturas de antena (10 m no habitat, 2 m no traje) são hipótese da equipe.',
   },
+  sand: {
+    label: 'Areia fofa',
+    unit: '',
+    min: 0,
+    max: 1,
+    minLabel: 'chão firme (sem cor)',
+    maxLabel: 'areia escura',
+    ramp: ['#8b5cf6', '#e879f9'],
+    simulated: false,
+    note: 'Areia escura estimada pela equipe: onde a imagem HiRISE é escura e azulada e o chão é pouco inclinado. Não é mapa de areia da NASA. A rota prefere outro caminho, porque a areia fofa cansa quem anda e pode atolar o veículo.',
+  },
 });

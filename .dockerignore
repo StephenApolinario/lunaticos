@@ -1,0 +1,9 @@
+# Só entra na imagem o que o Dockerfile copia de prototipo/. O resto fica fora do contexto.
+.git
+.env
+.claude
+docs
+**/node_modules
+**/__pycache__
+prototipo/tools/voz
+prototipo/tools/.cache

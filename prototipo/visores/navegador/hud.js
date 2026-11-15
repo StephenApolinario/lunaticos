@@ -91,13 +91,13 @@ const TEMPLATE = `
     </section>
 
     <section class="navegador-bloco navegador-traje" aria-label="Traje e ambiente">
-      <span class="navegador-rotulo">Traje<span class="navegador-longo"> e ambiente</span> <small>simulado</small></span>
+      <span class="navegador-rotulo">Traje <small>simulado</small><span class="navegador-longo"> · ambiente <small>medido e estimado</small></span></span>
       <div class="navegador-medidor" data-el="o2Meter"><span>O₂</span><i></i><b data-el="o2">100%</b></div>
       <div class="navegador-medidor" data-el="batteryMeter"><span>Bateria</span><i></i><b data-el="battery">100%</b></div>
       <div class="navegador-linha"><span>Margem de O₂<span class="navegador-longo"> no fim</span></span><b data-el="margin">–</b></div>
-      <div class="navegador-linha"><span>Radiação</span><b data-el="radiation">–</b></div>
-      <div class="navegador-linha"><span>Dose na saída</span><b data-el="dose">–</b></div>
-      <div class="navegador-linha"><span>Temp. do ar</span><b data-el="temperature">–</b></div>
+      <div class="navegador-linha"><span>Radiação <small>RAD</small></span><b data-el="radiation">–</b></div>
+      <div class="navegador-linha"><span>Dose na saída <small>est.</small></span><b data-el="dose">–</b></div>
+      <div class="navegador-linha"><span>Temp. do ar <small>est.</small></span><b data-el="temperature">–</b></div>
     </section>
 
     <section class="navegador-guia" aria-label="Assistente de navegação">

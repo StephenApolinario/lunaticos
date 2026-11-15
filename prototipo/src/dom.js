@@ -49,3 +49,32 @@ export function byId(id) {
 export function setText(node, text) {
   if (node.textContent !== text) node.textContent = text;
 }
+
+// Destaque: a IA marca o trecho mais importante com **dois asteriscos**. Na tela ele vira negrito e
+// qualquer outro asterisco solto some. Monta nós do DOM; o texto nunca é interpretado como HTML.
+const EMPHASIS = /\*\*([^*]+)\*\*/g;
+
+/** O mesmo texto sem as marcas de destaque: para a fala, o diário e a comparação de textos. */
+export const plainText = (text) => String(text).replace(/\*+/g, '');
+
+/** @returns {Array<string | HTMLElement>} O texto em pedaços, com os destaques em `<strong>`. */
+export function emphasized(text) {
+  const source = String(text);
+  const nodes = [];
+  let last = 0;
+  for (const match of source.matchAll(EMPHASIS)) {
+    if (match.index > last) nodes.push(plainText(source.slice(last, match.index)));
+    nodes.push(h('strong', {}, match[1]));
+    last = match.index + match[0].length;
+  }
+  if (last < source.length) nodes.push(plainText(source.slice(last)));
+  return nodes;
+}
+
+/** Como `setText`, mas com os destaques em negrito. Só mexe no DOM quando o texto muda. */
+export function setRichText(node, text) {
+  if (node.dataset.raw === text) return;
+  node.dataset.raw = text;
+  node.replaceChildren(...emphasized(text));
+}
+

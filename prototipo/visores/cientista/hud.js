@@ -59,9 +59,9 @@ const HUD_TEMPLATE = `
       <span class="cientista-label">Ambiente</span>
       <div class="cientista-row"><span>Declive <small class="cientista-real">DEM USGS</small></span><b id="cientista-slope">–</b></div>
       <div class="cientista-row"><span>Altitude <small class="cientista-real">DEM USGS</small></span><b id="cientista-altitude">–</b></div>
-      <div class="cientista-row"><span>Radiação <small>sim.</small></span><b id="cientista-radiation">–</b></div>
-      <div class="cientista-row"><span>Dose na saída <small>sim.</small></span><b id="cientista-dose">–</b></div>
-      <div class="cientista-row"><span>Temp. do ar <small>sim.</small></span><b id="cientista-temperature">–</b></div>
+      <div class="cientista-row"><span>Radiação <small>RAD</small></span><b id="cientista-radiation">–</b></div>
+      <div class="cientista-row"><span>Dose na saída <small>est.</small></span><b id="cientista-dose">–</b></div>
+      <div class="cientista-row"><span>Temp. do ar <small>est.</small></span><b id="cientista-temperature">–</b></div>
       <div class="cientista-row"><span>Visibilidade <small>sim.</small></span><b id="cientista-visibility">–</b></div>
       <div class="cientista-row"><span>Relato</span><b id="cientista-nearest">–</b></div>
     </section>
