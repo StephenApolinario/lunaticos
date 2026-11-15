@@ -2,12 +2,13 @@
 // desliga. A preferência fica guardada no navegador. A voz vem do servidor local
 // (prototipo/tools/voz, Kokoro) quando ele responde; senão, do speechSynthesis do navegador.
 
+import { IS_LOCAL_PAGE } from '../../src/local.js';
 import { toSpeech, VOICE_SERVER } from '../cientista/voz.js';
 
 const STORAGE = Object.freeze({ sound: 'guardiao:som', voice: 'guardiao:voz' });
 const VOLUME = 0.09;
 const ATTACK_S = 0.012;
-const PROBE_TIMEOUT_MS = 1500;
+const PROBE_TIMEOUT_MS = 4000; // folga para a função do site publicado acordar
 const PROBE_RETRY_MS = 10000;
 const SYNTH_RATE = 1.1;
 // Vozes do sistema, da mais natural para a menos: Premium/Enhanced/Natural, depois Google.
@@ -207,7 +208,7 @@ export function createAudio() {
     silence,
     get hasVoice() { return remote !== null || synth !== null; },
     get voiceInfo() {
-      if (remote) return `voz neural local · ${remote.modelo.replace(/-\d+M$/, '')} (${remote.voz})`;
+      if (remote) return `voz neural${IS_LOCAL_PAGE ? ' local' : ''} · ${remote.modelo.replace(/-\d+M$/, '')} (${remote.voz})`;
       const voice = synth ? bestSystemVoice(synth) : null;
       return voice ? `voz do sistema · ${voice.name}` : 'voz do sistema';
     },

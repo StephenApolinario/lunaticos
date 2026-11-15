@@ -42,14 +42,16 @@ export const toSpeech = (text) => SPEECH_FIXES
   .replace(/\s+,/g, ',')
   .replace(/\s{2,}/g, ' ');
 
-// Servidor de voz deste computador (tools/voz/servidor.py): fala neural e escuta. Com a página
-// publicada ele não existe (ver src/local.js), e valem a voz e a escuta do navegador.
-export const VOICE_SERVER = IS_LOCAL_PAGE ? 'http://127.0.0.1:5184' : null;
+// Servidor de voz: fala neural e escuta, com as rotas /saude, /falar e /ouvir. Neste computador é o
+// tools/voz/servidor.py; no site publicado são as funções em /voz (api/_voz.mjs). Onde ele não
+// responde, valem a voz e a escuta do navegador.
+export const VOICE_SERVER = IS_LOCAL_PAGE ? 'http://127.0.0.1:5184' : '/voz';
 
 // Escuta local: o microfone é gravado aqui e transcrito pelo servidor de voz deste computador
 // (tools/voz/servidor.py, Whisper). O áudio não vai para a internet e funciona em qualquer navegador.
 const LOCAL_LISTEN = Object.freeze({
-  healthTimeoutMs: 1500,
+  // Folga para a função do site publicado acordar; neste computador a resposta é imediata.
+  healthTimeoutMs: 4000,
   // A gravação para sozinha depois de um silêncio, ou no tempo máximo.
   maxMs: 14000, silenceMs: 1300, checkMs: 100, speechLevel: 0.02,
 });
@@ -140,6 +142,7 @@ export function createVoice() {
         if (!heard) { onError('no-speech'); return; }
         const audio = new Blob(chunks, { type: recorder.mimeType });
         const response = await fetch(`${VOICE_SERVER}/ouvir`, { method: 'POST', headers: { 'Content-Type': audio.type.split(';')[0] || 'audio/webm' }, body: audio });
+        if (!response.ok) throw new Error(`servidor de voz: ${response.status}`);
         const { texto } = await response.json();
         if (texto) onText(texto);
         else onError('no-speech');
