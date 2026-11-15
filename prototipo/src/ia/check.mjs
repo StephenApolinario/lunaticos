@@ -15,6 +15,8 @@ for (const bad of ['1/0', 'alert(1)', '2 +', '', '(1 + 2']) assert.throws(() => 
 {
   const { isOrder } = await import('./ferramentas-comuns.js');
   for (const order of ['Pausa a caminhada.', 'registra uma amostra de arenito', 'abortar', 'muda a hora para as 8h']) assert.ok(isOrder(order), `ordem: "${order}"`);
+  for (const order of ['Pause the walk.', 'log a basalt sample', 'abort', 'set departure to 8h', 'Can you pause the walk', 'could you show the radio layer']) assert.ok(isOrder(order), `order: "${order}"`);
+  for (const question of ['Should I pause the walk', 'can we go back', 'how do I log a sample', 'is it safe to continue']) assert.ok(!isOrder(question), `question: "${question}"`);
   for (const question of ['Devo pausar a caminhada?', 'devo abortar', 'posso pausar a caminhada', 'será que dá para voltar', 'como registro uma amostra', 'é pra abortar']) assert.ok(!isOrder(question), `pergunta: "${question}"`);
 }
 
@@ -28,6 +30,11 @@ assert.deepEqual(ungroundedNumbers('O₂ em 5%.', data), ['5'], 'latitude não v
 assert.deepEqual(ungroundedNumbers('Faltam 3 paradas e o passo 2 de 4.', data), [], 'contagens pequenas passam');
 assert.deepEqual(ungroundedNumbers('A temperatura é de -63 °C.', data), ['63']);
 assert.deepEqual(ungroundedNumbers('São 300 metros.', ['a 300 m']), []);
+// Resposta em inglês: ponto decimal, vírgula de milhar e unidades por extenso.
+assert.deepEqual(ungroundedNumbers('Walk-back takes 1h24 over 2.9 km; you arrive with 52% O₂. Dose is 1,080 µSv.', data), []);
+assert.deepEqual(ungroundedNumbers('It is 300 meters away.', ['a 300 m']), []);
+assert.deepEqual(ungroundedNumbers('The air is at -63 degrees.', data), ['63']);
+assert.deepEqual(ungroundedNumbers('Radiation is 5 microsieverts per hour.', data), ['5'], 'unidade por extenso em inglês também é conferida');
 assert.deepEqual(ungroundedNumbers('Em 2024 o RAD mediu 8.100 microgray.', ['evento de 20/05/2024: 8.100 microgray']), []);
 
 // Busca nas fontes: acha o fato certo, com o link, e não inventa quando não há nada.

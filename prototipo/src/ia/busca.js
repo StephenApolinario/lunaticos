@@ -3,17 +3,26 @@
 // coletas do rover, os protocolos e a lista "de onde vem cada informação". Puro.
 
 import { RESEARCH_FACTS } from '../../data/pesquisa.js';
+import { RESEARCH_FACTS_EN } from '../../data/pesquisa-en.js';
 import { STOPS, HAZARD } from '../../data/travessia.js';
 import { OPPORTUNITIES } from '../../data/oportunidades.js';
 import { PROTOCOLS } from '../../data/protocolos.js';
 import { KINDS, SOURCE_GROUPS, CHALLENGE_RESOURCES } from '../../data/fontes.js';
+import { IS_ENGLISH, t } from '../i18n.js';
+
+// O acervo acompanha o idioma da interface: a pergunta em inglês casa com o texto em inglês.
+const FACTS = IS_ENGLISH ? RESEARCH_FACTS_EN : RESEARCH_FACTS;
 
 const MAX_RESULTS = 5;
 const STEM_CHARS = 6;
 const MIN_SCORE = 1.2;
-const STOPWORDS = new Set(('a o e de da do das dos em no na nos nas um uma uns umas para por com sem que qual quais como onde quando quanto quanta'
+const STOPWORDS_PT = 'a o e de da do das dos em no na nos nas um uma uns umas para por com sem que qual quais como onde quando quanto quanta'
   + ' se ser esta este isso essa esse aqui ali la ja nao sim mais menos muito pouco sobre entre ate tem ter foi sao era meu minha seu sua eu voce'
-  + ' vem vai fazer faz fala diz dizer the of and me te lhe pra pro ao aos as os').split(' '));
+  + ' vem vai fazer faz fala diz dizer the of and me te lhe pra pro ao aos as os';
+const STOPWORDS_EN = 'a an the of and or to in on at for with without is are was were be been it its this that these those what which how where when who why'
+  + ' do does did can could should would will my your our their me you we they he she there here from by as about into than then so not no yes more less very'
+  + ' much many any some have has had if but tell say says know';
+const STOPWORDS = new Set((IS_ENGLISH ? STOPWORDS_EN : STOPWORDS_PT).split(' '));
 
 const normalize = (text) => String(text ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 // Radical simples: sem plural e cortado em seis letras ("abrigos", "abrigar" e "abrigo" se encontram).
@@ -22,33 +31,41 @@ const wordsOf = (text) => normalize(text).split(/[^a-z0-9]+/).filter((word) => w
 const termsOf = (text) => wordsOf(text).map(stem);
 
 // Palavras do astronauta que nas fontes aparecem com outro nome.
-const SYNONYMS = Object.freeze({
+const SYNONYMS_PT = Object.freeze({
   saida: ['eva'], traje: ['xemu', 'axemu', 'emu'], volta: ['walkback', 'retorno'], poeira: ['tau', 'opacidade', 'tempestade'],
   radiacao: ['rad', 'dose'], frio: ['temperatura'], calor: ['temperatura'], clima: ['rems', 'temperatura'], jipe: ['lrv', 'veiculo'],
   rover: ['curiosity'], furo: ['perfuracao', 'broca'], amostra: ['coleta'], duracao: ['horas'], abrigo: ['protecao', 'paredao'],
 });
-const expand = (words) => words.flatMap((word) => [word, ...(SYNONYMS[word] ?? [])]);
+const SYNONYMS_EN = Object.freeze({
+  spacewalk: ['eva'], marswalk: ['eva'], outing: ['eva'], suit: ['xemu', 'axemu', 'emu'], dust: ['tau', 'opacity', 'storm'],
+  radiation: ['rad', 'dose'], cold: ['temperature'], heat: ['temperature'], weather: ['rems', 'temperature'], jeep: ['lrv', 'vehicle'],
+  rover: ['curiosity'], hole: ['drilling', 'drill'], sample: ['sampling'], duration: ['hours'], shelter: ['protection', 'cliff'],
+});
+const SYNONYMS = IS_ENGLISH ? SYNONYMS_EN : SYNONYMS_PT;
+// Em inglês o plural simples acha o mesmo sinônimo ("suits", "holes").
+const synonymsOf = (word) => SYNONYMS[word] ?? (IS_ENGLISH ? SYNONYMS[word.replace(/s$/, '')] : undefined) ?? [];
+const expand = (words) => words.flatMap((word) => [word, ...synonymsOf(word)]);
 
 const entry = (tema, texto, tipo, fontes = []) => ({ tema, texto, tipo, fontes: fontes.filter((source) => source?.url) });
 
 function buildCorpus() {
-  const published = 'fato publicado';
-  const team = 'proposta da equipe';
+  const published = t('fato publicado');
+  const team = t('proposta da equipe');
   return [
-    ...RESEARCH_FACTS.map((fact) => entry(fact.tema, fact.texto, fact.daEquipe ? team : published, fact.fontes)),
+    ...FACTS.map((fact) => entry(fact.tema, fact.texto, fact.daEquipe ? team : published, fact.fontes)),
     ...STOPS.flatMap((stop) => [
-      entry(`Parada ${stop.id}: ${stop.name}`, `${stop.sci} ${stop.imp} ${stop.int}`, published, stop.sources ?? []),
-      entry(`Parada ${stop.id}: ${stop.name} (roteiro)`, `Pergunta científica: ${stop.q} Tarefa: ${stop.task}${stop.risk ? ` Risco do local: ${stop.risk}.` : ''}`, team),
+      entry(t`Parada ${stop.id}: ${stop.name}`, `${stop.sci} ${stop.imp} ${stop.int}`, published, stop.sources ?? []),
+      entry(t`Parada ${stop.id}: ${stop.name} (roteiro)`, t`Pergunta científica: ${stop.q} Tarefa: ${stop.task}${stop.risk ? t` Risco do local: ${stop.risk}.` : ''}`, team),
     ]),
-    entry('Zona de rochas cortantes', HAZARD.name, team, [HAZARD.source]),
-    ...OPPORTUNITIES.map((item) => entry(`Coleta do Curiosity em ${item.name} (sol ${item.sol})`, item.what, published, [item.source])),
+    entry(t('Zona de rochas cortantes'), HAZARD.name, team, [HAZARD.source]),
+    ...OPPORTUNITIES.map((item) => entry(t`Coleta do Curiosity em ${item.name} (sol ${item.sol})`, item.what, published, [item.source])),
     ...PROTOCOLS.flatMap((protocol) => [
-      entry(`Protocolo: ${protocol.title}`, `Quando: ${protocol.trigger} Passos: ${protocol.steps.join(' ')}`, team),
-      ...protocol.evidence.map((fact) => entry(`Base do protocolo: ${protocol.title}`, fact.text, published, [{ label: fact.label, url: fact.url }])),
+      entry(t`Protocolo: ${protocol.title}`, t`Quando: ${protocol.trigger} Passos: ${protocol.steps.join(' ')}`, team),
+      ...protocol.evidence.map((fact) => entry(t`Base do protocolo: ${protocol.title}`, fact.text, published, [{ label: fact.label, url: fact.url }])),
     ]),
     ...SOURCE_GROUPS.flatMap((group) => group.entries.map((item) =>
-      entry(`De onde vem: ${item.item}`, `${item.item}: ${KINDS[item.kind]}. ${item.source}`, KINDS[item.kind].toLowerCase(), [{ label: 'fonte', url: item.url }]))),
-    ...CHALLENGE_RESOURCES.map((resource) => entry(`Recurso do desafio: ${resource.name}`, resource.use, 'recurso da NASA', [{ label: resource.name, url: resource.url }])),
+      entry(t`De onde vem: ${item.item}`, `${item.item}: ${KINDS[item.kind]}. ${item.source}`, KINDS[item.kind].toLowerCase(), [{ label: t('fonte'), url: item.url }]))),
+    ...CHALLENGE_RESOURCES.map((resource) => entry(t`Recurso do desafio: ${resource.name}`, resource.use, t('recurso da NASA'), [{ label: resource.name, url: resource.url }])),
   ];
 }
 

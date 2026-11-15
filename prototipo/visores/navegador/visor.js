@@ -8,6 +8,7 @@ import { samplePath, headingAt } from '../../src/route.js';
 import { fmtDistance, fmtNumber, fmtSigned } from '../../src/format.js';
 import { COLORS } from '../../src/config.js';
 import { h, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { analyzePlan, nextManeuver, HABITAT } from './analise.js';
 import { createNavState, patchState, advance, jumpTo, setFree, FREE } from './sim.js';
 import { deriveReadout, NAV } from './leitura.js';
@@ -40,7 +41,7 @@ const MOVE_KEYS = Object.freeze({
 });
 
 const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
-const zoomLabel = (radiusM) => `raio ${radiusM >= 1000 ? `${fmtNumber(radiusM / 1000, radiusM % 1000 === 0 ? 0 : 1)} km` : `${radiusM} m`}`;
+const zoomLabel = (radiusM) => t`raio ${radiusM >= 1000 ? `${fmtNumber(radiusM / 1000, radiusM % 1000 === 0 ? 0 : 1)} km` : `${radiusM} m`}`;
 
 /**
  * @param {{
@@ -74,7 +75,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   els.scrub.max = String(SCRUB_MAX);
   if (!speaker.supported) {
     els.voice.disabled = true;
-    els.voice.title = 'Voz indisponível neste navegador';
+    els.voice.title = t`Voz indisponível neste navegador`;
   }
 
   let plan = null;
@@ -114,7 +115,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
 
   function syncControls() {
     // O rótulo já diz o estado; aria-pressed junto com rótulo que muda seria contraditório.
-    setText(els.pause, state.paused ? 'Continuar' : 'Pausar');
+    setText(els.pause, state.paused ? t`Continuar` : t`Pausar`);
     els.pause.dataset.active = String(state.paused);
     els.solar.setAttribute('aria-pressed', String(state.solarEvent));
     els.free.setAttribute('aria-pressed', String(Boolean(state.free)));
@@ -260,7 +261,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
       cssWidth: layout.width,
       cssHeight: layout.height,
     });
-    const label = rejoin ? `Retomar a rota · ${fmtDistance(rejoin.distM)}` : `${target.name} · ${fmtDistance(target.distM)}`;
+    const label = rejoin ? t`Retomar a rota · ${fmtDistance(rejoin.distM)}` : `${target.name} · ${fmtDistance(target.distM)}`;
     const edgeTarget = dwelling || state.finished ? null : { x: guide.x, y: terrain.heightAt(guide.x, guide.z) + GUIDE_LIFT_M, z: guide.z, label };
     world.pointTo(edgeTarget, layout.free);
   }
@@ -282,14 +283,14 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
       radio: radioNow,
     });
     const ahead = profile.draw(state.distM);
-    setText(els.profileCaption, `Perfil à frente · ${fmtDistance(ahead.aheadM)} · ${fmtSigned(ahead.gainM)} m · máx. ${fmtSigned(ahead.peakDeg)}° · faixa de baixo: rádio`);
+    setText(els.profileCaption, t`Perfil à frente · ${fmtDistance(ahead.aheadM)} · ${fmtSigned(ahead.gainM)} m · máx. ${fmtSigned(ahead.peakDeg)}° · faixa de baixo: rádio`);
   }
 
   function speak(readout, guidance) {
     if (!voiceOn) return;
     const { primary } = guidance;
     const lossSoon = readout.radio.lossSoon;
-    const text = lossSoon ? `${primary.text} Atenção: o rádio cai em ${fmtDistance(readout.radio.lossInM)}.` : primary.text;
+    const text = lossSoon ? `${primary.text} ${t`Atenção: o rádio cai em ${fmtDistance(readout.radio.lossInM)}.`}` : primary.text;
     speaker.say(lossSoon ? `${primary.key}|radio` : primary.key, text, primary.level === 'danger');
   }
 

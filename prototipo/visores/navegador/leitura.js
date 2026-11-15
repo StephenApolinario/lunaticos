@@ -10,6 +10,7 @@ import { SIM, localClockOf } from '../../src/simulation.js';
 import { toLocal, headingDeg, yToElev, clamp } from '../../src/geo.js';
 import { samplePath, shortName, findStop } from '../../src/route.js';
 import { fmtDistance, fmtDuration, fmtNumber } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 import { routeAt, slopeAhead, radioAhead, HABITAT } from './analise.js';
 import { elapsedH } from './sim.js';
 import { hazardStatus, slopeLevel, limitFor } from './terreno.js';
@@ -39,19 +40,19 @@ export const fmtMinutes = (minutes) => (minutes < 60 ? `${minutes} min` : fmtDur
 function nextTarget(plan, state, here) {
   if (state.dwellRemainingH > 0) {
     const { stop } = plan.stops[state.stopsReached - 1];
-    return { kind: 'dwell', stop, label: `Em coleta · parada ${stop.id}`, name: shortName(stop.id), distM: 0, etaH: state.dwellRemainingH, gainM: 0, position: toLocal(stop.lat, stop.lon) };
+    return { kind: 'dwell', stop, label: t`Em coleta · parada ${stop.id}`, name: shortName(stop.id), distM: 0, etaH: state.dwellRemainingH, gainM: 0, position: toLocal(stop.lat, stop.lon) };
   }
   const next = plan.stops[state.stopsReached];
   if (next) {
     const at = samplePath(plan.path, next.distM);
     return {
-      kind: 'stop', stop: next.stop, label: `Próxima parada · ${next.stop.id}`, name: shortName(next.stop.id),
+      kind: 'stop', stop: next.stop, label: t`Próxima parada · ${next.stop.id}`, name: shortName(next.stop.id),
       distM: next.distM - here.distM, etaH: at.travelH - here.travelH, gainM: next.stop.el - here.elev, position: at,
     };
   }
   const end = samplePath(plan.path, plan.path.totalM);
   return {
-    kind: 'return', stop: findStop('H'), label: 'Retorno', name: 'Habitat',
+    kind: 'return', stop: findStop('H'), label: t('Retorno'), name: 'Habitat',
     distM: plan.path.totalM - here.distM, etaH: plan.path.totalTravelH - here.travelH, gainM: end.elev - here.elev, position: end,
   };
 }
@@ -125,9 +126,9 @@ function bearingTo(pose, point) {
 
 function paceStatus(planH, elapsed) {
   const deltaMin = Math.round((planH - elapsed) * 60);
-  if (Math.abs(deltaMin) < NAV.paceOnPlanMin) return { deltaMin, text: 'no plano', level: 'ok' };
-  if (deltaMin > 0) return { deltaMin, text: `adiantado ${fmtMinutes(deltaMin)}`, level: 'ok' };
-  return { deltaMin, text: `atrasado ${fmtMinutes(-deltaMin)}`, level: -deltaMin >= NAV.paceLateMin ? 'warn' : 'ok' };
+  if (Math.abs(deltaMin) < NAV.paceOnPlanMin) return { deltaMin, text: t`no plano`, level: 'ok' };
+  if (deltaMin > 0) return { deltaMin, text: t`adiantado ${fmtMinutes(deltaMin)}`, level: 'ok' };
+  return { deltaMin, text: t`atrasado ${fmtMinutes(-deltaMin)}`, level: -deltaMin >= NAV.paceLateMin ? 'warn' : 'ok' };
 }
 
 function movingKmh(analysis, state, route, pose) {
@@ -175,13 +176,13 @@ export function radioReading(analysis, distM, radioNow, planSpeedKmh) {
 // O risco mais relevante por perto. O texto de risco das paradas vem dos dados da travessia.
 function nearbyRisk(r) {
   const { hazard, terrain, target, here, mode } = r;
-  if (hazard.inside) return { level: 'danger', text: 'rochas cortantes: dentro da zona' };
-  if (hazard.near) return { level: 'warn', text: `rochas cortantes a ${fmtDistance(hazard.edgeM)} ${hazard.side}` };
-  if (terrain.level === 'over' || terrain.aheadLevel === 'over') return { level: 'danger', text: 'declive acima do limite' };
-  if (terrain.aheadLevel === 'near') return { level: 'warn', text: 'declive perto do limite' };
+  if (hazard.inside) return { level: 'danger', text: t`rochas cortantes: dentro da zona` };
+  if (hazard.near) return { level: 'warn', text: t`rochas cortantes a ${fmtDistance(hazard.edgeM)} ${hazard.side}` };
+  if (terrain.level === 'over' || terrain.aheadLevel === 'over') return { level: 'danger', text: t`declive acima do limite` };
+  if (terrain.aheadLevel === 'near') return { level: 'warn', text: t`declive perto do limite` };
   if (target.kind !== 'return' && target.distM < NAV.stopRiskM && target.stop.risk) return { level: 'info', text: target.stop.risk.toLowerCase() };
-  if (mode === 'car' && here.onFoot) return { level: 'info', text: 'trecho bloqueado para veículo: a pé' };
-  return { level: 'ok', text: 'nenhum mapeado' };
+  if (mode === 'car' && here.onFoot) return { level: 'info', text: t`trecho bloqueado para veículo: a pé` };
+  return { level: 'ok', text: t`nenhum mapeado` };
 }
 
 function buildAlerts(state, r) {
@@ -190,30 +191,32 @@ function buildAlerts(state, r) {
   const { suit, hazard, terrain, radio, pace, pose, rejoin, walkBack } = r;
   const deg = (value) => `${fmtNumber(Math.abs(value))}°`;
 
-  if (state.solarEvent) add('solar', 'danger', `Evento solar · dose ${SIM.solarEventFactor}× acima do normal`);
-  if (suit.marginH < 0) add('o2-short', 'danger', `O₂ insuficiente para o plano · faltam ${fmtDuration(-suit.marginH)}`);
-  else if (suit.marginH < SIM.lowMarginH) add('o2-low', 'warn', `Margem de O₂ baixa · ${fmtDuration(suit.marginH)}`);
-  if (suit.batteryPct < NAV.batteryLowPct) add('battery', 'warn', `Bateria baixa · ${fmtNumber(suit.batteryPct)}%`);
+  if (state.solarEvent) add('solar', 'danger', t`Evento solar · dose ${SIM.solarEventFactor}× acima do normal`);
+  if (suit.marginH < 0) add('o2-short', 'danger', t`O₂ insuficiente para o plano · faltam ${fmtDuration(-suit.marginH)}`);
+  else if (suit.marginH < SIM.lowMarginH) add('o2-low', 'warn', t`Margem de O₂ baixa · ${fmtDuration(suit.marginH)}`);
+  if (suit.batteryPct < NAV.batteryLowPct) add('battery', 'warn', t`Bateria baixa · ${fmtNumber(suit.batteryPct)}%`);
 
-  if (hazard.inside) add('hazard-in', 'danger', `Dentro da zona de rochas cortantes · saia no rumo ${fmtBearing(hazard.exitBearingDeg)}`);
-  else if (hazard.near) add('hazard', 'warn', `Rochas cortantes a ${fmtDistance(hazard.edgeM)} ${hazard.side}`);
+  if (hazard.inside) add('hazard-in', 'danger', t`Dentro da zona de rochas cortantes · saia no rumo ${fmtBearing(hazard.exitBearingDeg)}`);
+  else if (hazard.near) add('hazard', 'warn', t`Rochas cortantes a ${fmtDistance(hazard.edgeM)} ${hazard.side}`);
   if (rejoin) {
     const far = pose.offM > r.offRouteLimitM * NAV.farOffRouteFactor;
-    add('off-route', far ? 'danger' : 'warn', `Fora da rota · ${fmtNumber(pose.offM)} m à ${pose.side} · retome no rumo ${fmtBearing(rejoin.bearingDeg)}`);
+    add('off-route', far ? 'danger' : 'warn', pose.side === 'direita'
+      ? t`Fora da rota · ${fmtNumber(pose.offM)} m à direita · retome no rumo ${fmtBearing(rejoin.bearingDeg)}`
+      : t`Fora da rota · ${fmtNumber(pose.offM)} m à esquerda · retome no rumo ${fmtBearing(rejoin.bearingDeg)}`);
   }
 
-  if (terrain.level === 'over') add('slope-here', 'danger', `Declive de ${deg(terrain.slopeDeg)} sob os pés · limite ${terrain.limitDeg}°`);
+  if (terrain.level === 'over') add('slope-here', 'danger', t`Declive de ${deg(terrain.slopeDeg)} sob os pés · limite ${terrain.limitDeg}°`);
   else if (terrain.rollLevel === 'near' || terrain.rollLevel === 'over') {
-    add('roll', 'warn', `Tombo lateral de ${deg(terrain.rollDeg)} à ${terrain.rollDeg >= 0 ? 'direita' : 'esquerda'}`);
+    add('roll', 'warn', terrain.rollDeg >= 0 ? t`Tombo lateral de ${deg(terrain.rollDeg)} à direita` : t`Tombo lateral de ${deg(terrain.rollDeg)} à esquerda`);
   }
-  if (terrain.aheadLevel === 'over') add('slope', 'danger', `Declive de ${deg(terrain.aheadDeg)} à frente · acima do limite de ${terrain.limitDeg}°`);
-  else if (terrain.aheadLevel === 'near') add('slope', 'warn', `Declive de ${deg(terrain.aheadDeg)} à frente · limite ${terrain.limitDeg}°`);
+  if (terrain.aheadLevel === 'over') add('slope', 'danger', t`Declive de ${deg(terrain.aheadDeg)} à frente · acima do limite de ${terrain.limitDeg}°`);
+  else if (terrain.aheadLevel === 'near') add('slope', 'warn', t`Declive de ${deg(terrain.aheadDeg)} à frente · limite ${terrain.limitDeg}°`);
 
-  if (radio.lossSoon) add('radio-loss', 'warn', `Rádio cai em ${fmtDistance(radio.lossInM)} · reporte a posição antes`);
-  else if (radio.status === 'blocked') add('radio-out', 'info', 'Sem visada de rádio ao habitat');
-  if (pace.level === 'warn') add('late', 'warn', `Atrasado ${fmtMinutes(-pace.deltaMin)} em relação ao plano`);
+  if (radio.lossSoon) add('radio-loss', 'warn', t`Rádio cai em ${fmtDistance(radio.lossInM)} · reporte a posição antes`);
+  else if (radio.status === 'blocked') add('radio-out', 'info', t`Sem visada de rádio ao habitat`);
+  if (pace.level === 'warn') add('late', 'warn', t`Atrasado ${fmtMinutes(-pace.deltaMin)} em relação ao plano`);
   if (r.stranded && !state.finished) {
-    add('no-return', 'info', walkBack?.noRoute ? 'Sem caminho a pé até o habitat a partir daqui' : 'O₂ não cobre a volta a pé com a reserva');
+    add('no-return', 'info', walkBack?.noRoute ? t`Sem caminho a pé até o habitat a partir daqui` : t`O₂ não cobre a volta a pé com a reserva`);
   }
 
   return alerts.map((alert, order) => ({ ...alert, order })).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || a.order - b.order);

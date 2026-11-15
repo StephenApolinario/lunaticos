@@ -3,6 +3,7 @@
 
 import { HAZARD } from '../../data/travessia.js';
 import { toLocal, headingDeg, angleDeltaDeg, clamp } from '../../src/geo.js';
+import { t } from '../../src/i18n.js';
 
 const DEG = Math.PI / 180;
 const AHEAD_CONE_DEG = 30;
@@ -91,9 +92,10 @@ export function hazardStatus(x, z, heading) {
   const edgeM = Math.hypot(dx, dz) - HAZARD_LOCAL.radiusM;
   const toCenter = headingDeg(dx, dz);
   const relative = angleDeltaDeg(heading, toCenter);
-  let side = relative > 0 ? 'à direita' : 'à esquerda';
-  if (Math.abs(relative) < AHEAD_CONE_DEG) side = 'à frente';
-  if (Math.abs(relative) > BEHIND_CONE_DEG) side = 'atrás';
+  // `side` é texto para a tela, já no idioma da interface.
+  let side = relative > 0 ? t('à direita') : t('à esquerda');
+  if (Math.abs(relative) < AHEAD_CONE_DEG) side = t('à frente');
+  if (Math.abs(relative) > BEHIND_CONE_DEG) side = t('atrás');
   return { edgeM, side, inside: edgeM < 0, near: edgeM < HAZARD_WARN_M, exitBearingDeg: (toCenter + 180) % 360 };
 }
 

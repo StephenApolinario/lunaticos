@@ -3,9 +3,10 @@
 // O estilo vai junto com o módulo, usando as cores da página quando elas existem.
 
 import { h } from './dom.js';
+import { t } from './i18n.js';
 
 const STYLE_ID = 'globe-marker-style';
-const CAPTION = 'Área mapeada';
+const CAPTION = t('Área mapeada');
 // Tamanho do ponto clicável no centro e do anel quando a área é menor que ele na tela.
 const SPOT_PX = 30;
 const STYLE = `
@@ -64,7 +65,7 @@ export function createMarker(container, { label, onActivate, onWheel }) {
   ensureStyle();
   const ring = h('span', { class: 'globe-marker-ring' });
   const button = h('button', {
-    class: 'globe-marker', type: 'button', hidden: true, 'aria-label': `Entrar na área mapeada: ${label}`,
+    class: 'globe-marker', type: 'button', hidden: true, 'aria-label': t`Entrar na área mapeada: ${label}`,
     onclick: onActivate,
     // O marcador fica por cima do canvas, justamente onde se mira para aproximar: a roda sobre ele
     // segue para o zoom do globo e não sobe para a página.

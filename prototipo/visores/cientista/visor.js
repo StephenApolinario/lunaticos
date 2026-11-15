@@ -13,6 +13,7 @@ import { createSimState, patchState, advance, jumpTo, deriveReadout } from '../.
 import { samplePath } from '../../src/route.js';
 import { fmtDistance, fmtDuration, fmtKm } from '../../src/format.js';
 import { h, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { createHud, renderHud, setData } from './hud.js';
 import { createSceneMarkers } from './marcadores.js';
 import { createCameraRig } from './camera.js';
@@ -29,7 +30,7 @@ import { HAZARD_TYPES, createHazardStore, describeHazard, newId } from './perigo
 
 const SCRUB_MAX = 1000;
 const TYPING_TAGS = new Set(['INPUT', 'SELECT', 'TEXTAREA']);
-const MODE_TEXT = Object.freeze({ walk: 'a pé', car: 'de veículo' });
+const MODE_TEXT = Object.freeze({ walk: t`a pé`, car: t`de veículo` });
 const NO_EMERGENCY = Object.freeze({ storm: false, radio: false, o2: false });
 // Um mesmo alerta só volta a ser comentado depois deste intervalo (segundos reais).
 const COMMENT_COOLDOWN_S = 25;
@@ -79,7 +80,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     onVoiceToggle: () => conversation.toggleSpeaking(),
     onRecordSample: recordSample,
     onContinue: () => setPaused(false),
-    onSuggest: () => { openPanel('chat'); conversation.ask('O que observar aqui?'); },
+    onSuggest: () => { openPanel('chat'); conversation.ask(t`O que observar aqui?`); },
     onExport: exportJournal,
     onDeleteHazard: deleteHazard,
     onClose: () => closePanel(true),
@@ -134,21 +135,21 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
 
   function buildPopovers() {
     els.popHazard.append(
-      h('p', { class: 'cientista-pop-title' }, 'Relatar perigo aqui'),
+      h('p', { class: 'cientista-pop-title' }, t`Relatar perigo aqui`),
       ...Object.entries(HAZARD_TYPES).map(([type, label]) => h('button', {
         type: 'button', dataset: { type }, onclick: () => { closePopovers(); els.hazardButton.focus(); reportHazard(type); },
       }, label)),
-      h('p', { class: 'cientista-fine' }, 'Fica guardado neste navegador e avisa nas próximas saídas.'),
+      h('p', { class: 'cientista-fine' }, t`Fica guardado neste navegador e avisa nas próximas saídas.`),
     );
     els.popEmergency.append(
-      h('p', { class: 'cientista-pop-title' }, 'Emergências ', h('small', {}, 'simuladas')),
+      h('p', { class: 'cientista-pop-title' }, `${t`Emergências`} `, h('small', {}, t`simuladas`)),
       ...Object.entries(EMERGENCIES).map(([id, emergency]) => {
         emergencyButtons[id] = h('button', {
           type: 'button', 'aria-pressed': 'false', onclick: () => { closePopovers(); els.emergencyButton.focus(); toggleEmergency(id); },
         }, emergency.label);
         return emergencyButtons[id];
       }),
-      h('p', { class: 'cientista-fine' }, 'Para a demonstração: liga a condição e o assistente conduz o protocolo.'),
+      h('p', { class: 'cientista-fine' }, t`Para a demonstração: liga a condição e o assistente conduz o protocolo.`),
     );
   }
 
@@ -156,7 +157,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
 
   function syncControls() {
     // O rótulo já diz o estado; aria-pressed junto com rótulo que muda seria contraditório.
-    setText(els.pause, state.paused ? 'Continuar' : 'Pausar');
+    setText(els.pause, state.paused ? t`Continuar` : t`Pausar`);
     setData(els.pause, 'active', String(state.paused));
     els.speed.value = String(state.speed);
     setData(els.emergencyButton, 'active', String(Object.keys(EMERGENCIES).some(emergencyOn)));
@@ -166,7 +167,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   function syncVoice(voiceState = conversation.voiceState()) {
     panel.setVoiceState(voiceState);
     els.stripMic.hidden = !voiceState.canListen;
-    setText(els.stripMic, voiceState.listening === 'chat' ? 'Ouvindo…' : 'Falar');
+    setText(els.stripMic, voiceState.listening === 'chat' ? t`Ouvindo…` : t`Falar`);
     els.stripMic.setAttribute('aria-pressed', String(voiceState.listening === 'chat'));
   }
 
@@ -195,8 +196,8 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     'record-sample': (action) => recordSample(action.note),
     'protocol-advance': () => advanceProtocol(),
     'protocol-end': () => endProtocol(),
-    pause: () => { setPaused(true); say('Simulação pausada.'); },
-    resume: () => { setPaused(false); say('Simulação retomada.'); },
+    pause: () => { setPaused(true); say(t`Simulação pausada.`); },
+    resume: () => { setPaused(false); say(t`Simulação retomada.`); },
   });
 
   // A ação vem do motor do assistente (amanhã, de um modelo): só roda se for conhecida.
@@ -222,8 +223,11 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     refreshJournal();
     refreshContext();
     updatePanel();
-    const where = stopId ? `na parada ${stopId}` : 'fora de parada';
-    say(`Amostra registrada no diário ${where}, com ${fmtDuration(context.elapsedH)} de saída.${note ? '' : ' Ficou sem observação: vale ditar uma antes de sair daqui.'}`);
+    const elapsed = fmtDuration(context.elapsedH);
+    const logged = stopId
+      ? t`Amostra registrada no diário na parada ${stopId}, com ${elapsed} de saída.`
+      : t`Amostra registrada no diário fora de parada, com ${elapsed} de saída.`;
+    say(note ? logged : `${logged} ${t`Ficou sem observação: vale ditar uma antes de sair daqui.`}`);
   }
 
   function reportHazard(type, rawNote = '') {
@@ -233,9 +237,12 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     logEntry('perigo', `${HAZARD_TYPES[type]}${hazard.note ? `: ${hazard.note}` : ''}`);
     refreshContext();
     const kept = saved
-      ? 'Fica guardado neste navegador e gera aviso nas próximas saídas.'
-      : 'Não consegui gravar no armazenamento local: o relato vale só para esta saída.';
-    say(`Relato registrado: ${HAZARD_TYPES[type].toLowerCase()}${hazard.note ? ` (“${hazard.note}”)` : ''} em ${fmtPosition(context.position)}. ${kept}`);
+      ? t`Fica guardado neste navegador e gera aviso nas próximas saídas.`
+      : t`Não consegui gravar no armazenamento local: o relato vale só para esta saída.`;
+    const what = HAZARD_TYPES[type].toLowerCase();
+    const where = fmtPosition(context.position);
+    const logged = hazard.note ? t`Relato registrado: ${what} (“${hazard.note}”) em ${where}.` : t`Relato registrado: ${what} em ${where}.`;
+    say(`${logged} ${kept}`);
   }
 
   function deleteHazard(id) {
@@ -245,12 +252,14 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   }
 
   const planSize = () => {
-    if (plan.isCustom) return 'rota livre com pontos escolhidos no mapa';
-    return plan.stopCount === 1 ? '1 parada' : `${plan.stopCount} paradas`;
+    if (plan.isCustom) return t`rota livre com pontos escolhidos no mapa`;
+    return plan.stopCount === 1 ? t`1 parada` : t`${plan.stopCount} paradas`;
   };
+  // "a pé, 3 paradas": o plano em poucas palavras, para o diário.
+  const planLabel = () => `${MODE_TEXT[plan.mode]}, ${planSize()}`;
 
   function exportJournal() {
-    const text = journalToText(`${MODE_TEXT[plan.mode]}, ${planSize()}`, journal.entries(), hazardStore.list().map(describeHazard));
+    const text = journalToText(planLabel(), journal.entries(), hazardStore.list().map(describeHazard));
     downloadText(EXPORT_FILE, text);
   }
 
@@ -263,10 +272,10 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     const on = !emergencyOn(id);
     if (id === 'solar') state = patchState(state, { solarEvent: on });
     else emergencies = Object.freeze({ ...emergencies, [id]: on });
-    logEntry('emergencia', `${on ? 'Início' : 'Fim'} da emergência simulada: ${emergencyName(id)}.`);
+    logEntry('emergencia', on ? t`Início da emergência simulada: ${emergencyName(id)}.` : t`Fim da emergência simulada: ${emergencyName(id)}.`);
     if (!on) {
       if (protocol?.id === id) protocol = null;
-      say(`Fim da simulação de ${emergencyName(id)}.`);
+      say(t`Fim da simulação de ${emergencyName(id)}.`);
     }
     refreshContext();
     syncControls();
@@ -286,13 +295,13 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     const last = protocol.step + 1 >= protocolStepCount(protocol, context);
     protocol = last ? null : Object.freeze({ ...protocol, step: protocol.step + 1 });
     refreshContext();
-    if (last) say(`Protocolo de ${emergencyName(id)} concluído. Base do protocolo: ${protocolEvidenceText(id, context)} Sigo acompanhando os alertas.`);
+    if (last) say(t`Protocolo de ${emergencyName(id)} concluído. Base do protocolo: ${protocolEvidenceText(id, context)} Sigo acompanhando os alertas.`);
     else say(protocolStepText(protocol, context), 'alert');
   }
 
   function endProtocol() {
     if (!protocol) {
-      say('Não há protocolo de emergência em andamento.');
+      say(t`Não há protocolo de emergência em andamento.`);
       return;
     }
     const { id } = protocol;
@@ -302,7 +311,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
       return;
     }
     refreshContext();
-    say(`Protocolo de ${emergencyName(id)} encerrado. A condição que o disparou continua nos alertas.`);
+    say(t`Protocolo de ${emergencyName(id)} encerrado. A condição que o disparou continua nos alertas.`);
   }
 
   // Comenta cada alerta quando ele aparece: o que é e o que fazer. Emergências falam pelo
@@ -314,7 +323,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
       if (activeAlertKeys.has(alert.key) || PROTOCOL_BY_ALERT[alert.kind]) continue;
       if (nowS - (commentedAtS.get(alert.key) ?? -Infinity) < COMMENT_COOLDOWN_S) continue;
       commentedAtS.set(alert.key, nowS);
-      say(`Alerta: ${alert.text}. ${alert.action}`, 'alert');
+      say(t`Alerta: ${alert.text}. ${alert.action}`, 'alert');
     }
     activeAlertKeys = new Set(context.alerts.map((alert) => alert.key));
 
@@ -325,7 +334,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     if (protocol && !kinds.has(EMERGENCIES[protocol.id].alert)) {
       const { id } = protocol;
       protocol = null;
-      say(`Protocolo de ${emergencyName(id)} interrompido: a condição saiu dos alertas.`);
+      say(t`Protocolo de ${emergencyName(id)} interrompido: a condição saiu dos alertas.`);
     }
     if (protocol) return;
     const waiting = context.alerts.find((alert) => PROTOCOL_BY_ALERT[alert.kind] && !conducted.has(PROTOCOL_BY_ALERT[alert.kind]));
@@ -335,18 +344,20 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   // ---------- Paradas ----------
 
   function announceArrival(stop) {
-    logEntry('chegada', `Chegada: ${stop.name}.`, stop.id);
-    say(`Chegamos à parada ${stop.id}, ${stopShortName(stop)}, capítulo “${stop.ch}”. Pergunta científica: ${stop.q} Tarefa: ${stop.task}${stop.risk ? ` Risco do local: ${stop.risk}.` : ''} Pausei a simulação para a coleta: a lista de verificação está na aba Ciência.`);
+    logEntry('chegada', t`Chegada: ${stop.name}.`, stop.id);
+    const arrival = t`Chegamos à parada ${stop.id}, ${stopShortName(stop)}, capítulo “${stop.ch}”. Pergunta científica: ${stop.q} Tarefa: ${stop.task}`;
+    const risk = stop.risk ? ` ${t`Risco do local: ${stop.risk}.`}` : '';
+    say(`${arrival}${risk} ${t`Pausei a simulação para a coleta: a lista de verificação está na aba Ciência.`}`);
     // Com um protocolo em curso, a conversa fica na frente: os passos não podem sumir da tela.
     openPanel(protocol ? 'chat' : 'science');
   }
 
   function scienceStatus() {
     const { target } = context;
-    if (context.finished) return 'Saída concluída · de volta ao habitat';
-    if (context.atStop) return context.paused ? 'Em coleta · simulação pausada para o registro' : `Em coleta · faltam ${fmtDuration(target.etaH)}`;
-    if (target.kind === 'return') return `Retorno · habitat a ${fmtDistance(target.distM)}`;
-    return `Próxima parada · ${fmtDistance(target.distM)} · chegada em ${fmtDuration(target.etaH)}`;
+    if (context.finished) return t`Saída concluída · de volta ao habitat`;
+    if (context.atStop) return context.paused ? t`Em coleta · simulação pausada para o registro` : t`Em coleta · faltam ${fmtDuration(target.etaH)}`;
+    if (target.kind === 'return') return t`Retorno · habitat a ${fmtDistance(target.distM)}`;
+    return t`Próxima parada · ${fmtDistance(target.distM)} · chegada em ${fmtDuration(target.etaH)}`;
   }
 
   // Só trabalha com o painel aberto; as perguntas rápidas só são refeitas quando o momento muda.
@@ -396,7 +407,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   function sceneMarkers() {
     const site = context.shelter.terrain;
     if (!context.emergencies.solar || !site || site.distM > SHELTER_MARKER_MAX_M) return context.hazards.list;
-    return [{ id: 'abrigo-relevo', type: 'abrigo', x: site.x, z: site.z, label: 'Proteção de relevo (estimativa)', distM: site.distM }, ...context.hazards.list];
+    return [{ id: 'abrigo-relevo', type: 'abrigo', x: site.x, z: site.z, label: t`Proteção de relevo (estimativa)`, distM: site.distM }, ...context.hazards.list];
   }
 
   // Resumo de segurança do plano, calculado sobre o relevo real (plan.safety).
@@ -404,13 +415,14 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     const assessed = plan.safety;
     if (!assessed) return '';
     const gaps = assessed.commsGaps.length;
-    const comms = gaps
-      ? `${fmtDistance(assessed.commsLostM)} da rota ficam sem linha de visada de rádio com o habitat, em ${gaps === 1 ? '1 trecho' : `${gaps} trechos`}`
-      : 'há linha de visada de rádio com o habitat em toda a rota';
+    const lostM = fmtDistance(assessed.commsLostM);
+    let comms = t`há linha de visada de rádio com o habitat em toda a rota`;
+    if (gaps === 1) comms = t`${lostM} da rota ficam sem linha de visada de rádio com o habitat, em 1 trecho`;
+    else if (gaps) comms = t`${lostM} da rota ficam sem linha de visada de rádio com o habitat, em ${gaps} trechos`;
     const noReturn = assessed.noReturn
-      ? `o ponto sem volta a pé fica a ${fmtDistance(assessed.noReturn.distM)} do início`
-      : 'não há ponto sem volta a pé';
-    return ` Segurança do plano, pelo relevo real (antenas e reserva de O₂ são hipóteses da equipe): ${comms}; ${noReturn}.`;
+      ? t`o ponto sem volta a pé fica a ${fmtDistance(assessed.noReturn.distM)} do início`
+      : t`não há ponto sem volta a pé`;
+    return ` ${t`Segurança do plano, pelo relevo real (antenas e reserva de O₂ são hipóteses da equipe): ${comms}; ${noReturn}.`}`;
   }
 
   function start(nextPlan) {
@@ -441,9 +453,18 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     syncVoice();
 
     const first = plan.stops[0];
-    const reports = known ? ` Há ${known === 1 ? '1 perigo relatado' : `${known} perigos relatados`} em saídas anteriores: aviso quando você chegar perto.` : '';
-    logEntry('saida', `Início da saída: plano ${MODE_TEXT[plan.mode]}, ${planSize()}.`);
-    say(`Assistente de campo pronto. Sou simulado por regras e respondo só com os dados desta saída. Plano ${MODE_TEXT[plan.mode]}: ${planSize()}, ${fmtKm(plan.stats.totalKm)}, cerca de ${fmtDuration(plan.stats.hours)}. Primeira parada: ${stopShortName(first.stop)}, a ${fmtDistance(first.distM)}.${safetyBriefing()}${reports}`);
+    let reports = '';
+    if (known === 1) reports = ` ${t`Há 1 perigo relatado em saídas anteriores: aviso quando você chegar perto.`}`;
+    else if (known) reports = ` ${t`Há ${known} perigos relatados em saídas anteriores: aviso quando você chegar perto.`}`;
+    logEntry('saida', t`Início da saída: plano ${planLabel()}.`);
+    const totalKm = fmtKm(plan.stats.totalKm);
+    const hours = fmtDuration(plan.stats.hours);
+    const ready = t`Assistente de campo pronto. Sou simulado por regras e respondo só com os dados desta saída.`;
+    const summary = plan.mode === 'walk'
+      ? t`Plano a pé: ${planSize()}, ${totalKm}, cerca de ${hours}.`
+      : t`Plano de veículo: ${planSize()}, ${totalKm}, cerca de ${hours}.`;
+    const firstStop = t`Primeira parada: ${stopShortName(first.stop)}, a ${fmtDistance(first.distM)}.`;
+    say(`${ready} ${summary} ${firstStop}${safetyBriefing()}${reports}`);
     // O painel do tablet some nesta tela: o foco vai para o primeiro controle do visor.
     els.pause.focus();
   }
@@ -484,10 +505,10 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
 
     if (arrived) announceArrival(plan.stops[state.stopsReached - 1].stop);
     if (leftStop && !context.journal.samplesByStop[leftStop.id]) {
-      say(`Saímos da parada ${leftStop.id} sem amostra registrada no diário. Se coletou algo, diga “registrar amostra” e a observação.`, 'alert');
+      say(t`Saímos da parada ${leftStop.id} sem amostra registrada no diário. Se coletou algo, diga “registrar amostra” e a observação.`, 'alert');
     }
     // O fim pode chegar andando ou pela barra de posição: nos dois casos é anunciado uma vez.
-    if (state.finished && !finishAnnounced) say('Travessia concluída: você está de volta ao habitat. O diário da saída está pronto para exportar.');
+    if (state.finished && !finishAnnounced) say(t`Travessia concluída: você está de volta ao habitat. O diário da saída está pronto para exportar.`);
     finishAnnounced = state.finished;
     reactToAlerts();
   }

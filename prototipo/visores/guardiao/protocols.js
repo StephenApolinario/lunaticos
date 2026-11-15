@@ -2,6 +2,7 @@
 // ponto de decisão (seguir ou abortar), a ida ao abrigo e o passo final. Funções puras.
 
 import { protocolFor } from '../../data/protocolos.js';
+import { t } from '../../src/i18n.js';
 import { PROTOCOLS, levelOrder } from './catalog.js';
 
 export const createProtocols = () => Object.freeze([]);
@@ -11,8 +12,8 @@ export function stepsOf(id) {
   const protocol = PROTOCOLS[id];
   return [
     ...protocol.before.map((text, index) => ({ type: 'ok', text, effect: protocol.effects?.[index] ?? null })),
-    { type: 'decision', text: 'Decidir: seguir a missão ou abortar.' },
-    { type: 'go', text: 'Ir para o abrigo indicado.' },
+    { type: 'decision', text: t`Decidir: seguir a missão ou abortar.` },
+    { type: 'go', text: t`Ir para o abrigo indicado.` },
     { type: 'ok', text: protocol.after, effect: protocol.afterEffect ?? null },
   ];
 }
@@ -22,9 +23,9 @@ const decisionIndex = (id) => PROTOCOLS[id].before.length;
 // Título e origem: o protocolo da equipe (data/protocolos.js) quando existe um equivalente.
 function origin(id) {
   const { shared, name } = PROTOCOLS[id];
-  if (!shared) return { title: name, source: 'Proposta desta variante' };
+  if (!shared) return { title: name, source: t`Proposta desta variante` };
   const team = protocolFor(shared);
-  return { title: team.title, source: `${team.source} · base: ${team.evidence[0].label}` };
+  return { title: team.title, source: t`${team.source} · base: ${team.evidence[0].label}` };
 }
 const pending = (list) => list.filter((instance) => !instance.done);
 

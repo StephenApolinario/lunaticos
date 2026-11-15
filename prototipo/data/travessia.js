@@ -1,6 +1,7 @@
 // Dados da travessia do Monte Sharp, extraídos do artifact "Travessia Monte Sharp".
 
 import { WALK_SPEED_KMH } from './traje.js';
+import { t } from '../src/i18n.js';
 // Gerado automaticamente: não editar à mão.
 
 // Posições reais do Curiosity: [lat, lon, altitude_m, sol, dist_km] (mapa oficial MMGIS, NASA/JPL).
@@ -13,48 +14,48 @@ export const ROUTES = {"grid":{"m_per_px":2.0,"shape":[2964,1423]},"walk":{"legs
 // Paradas científicas. Os textos de ciência foram conferidos em 14/11/2026 contra as fontes de cada parada
 // (`sources`); as perguntas e as tarefas são proposta da equipe.
 export const STOPS = [
-  {id:"H", name:"Habitat · unidade de argilas", sol:2449, lat:-4.7288545, lon:137.3836581, el:-4144, ch:"O lago",
-   sci:"Glen Torridon: rochas ricas em argila, formadas de lama de lagos e rios antigos. Terreno plano para base e pouso (avaliação da equipe).",
-   q:"Quanto tempo o lago durou e ele tinha condições para vida?", task:"Amostra de referência das argilas, o ponto de partida da linha do tempo.", risk:null,
-   imp:"Argila costuma se formar na água, aqui provavelmente pouco ácida. Vista da órbita, essa faixa tinha um sinal forte de argila e era um dos alvos da missão desde antes do lançamento. As amostras daqui deram o maior teor de argila já medido pelo Curiosity.",
-   int:"Argilas desse tipo podem preservar moléculas orgânicas, e as amostras de Glen Torridon têm a maior variedade de compostos orgânicos que o Curiosity já detectou. Orgânicos não provam vida, mas fazem daqui um dos melhores lugares para procurar vestígios.",
-   sources:[{label:"JPL, 2019 · argila em Glen Torridon", url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-finds-a-clay-cache/"}, {label:"Bennett et al. 2022, JGR Planets", url:"https://doi.org/10.1029/2022JE007185"}]},
-  {id:"1", name:"Borda do Greenheugh Pediment", sol:2702, lat:-4.73706071, lon:137.3807898, el:-4089, ch:"A pausa",
-   sci:"Arenito depositado bem depois, sobre as camadas já erodidas da montanha.",
-   q:"Quanto tempo se passou entre o lago e o arenito, e o clima já era seco?", task:"Fotografar e amostrar o contato entre o arenito e as camadas mais antigas logo abaixo.", risk:"Subida íngreme na borda",
-   imp:"O contato registra uma lacuna no tempo: a montanha se formou, foi erodida, e só depois o arenito se depositou, como dunas de areia levadas pelo vento. Marca a passagem de um ambiente de lagos e rios para um deserto de dunas.",
-   int:"Aqui dá para pôr a mão na fronteira entre duas épocas. No mesmo pedimento, a cerca de 900 m a sudeste, fica o terreno de rochas cortantes que fez o Curiosity dar meia-volta em 2022.",
-   sources:[{label:"Bennett et al. 2022, JGR Planets", url:"https://doi.org/10.1029/2022JE007185"}, {label:"JPL, 2020 · subida ao pedimento", url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-takes-a-new-selfie-before-record-climb/"}]},
-  {id:"2", name:"Sulfatos ao pé da crista de Gediz Vallis", sol:3974, lat:-4.77647482, lon:137.4045524, el:-3764, ch:"A água tardia",
-   sci:"Local do furo Sequoia do Curiosity (outubro de 2023), em rocha rica em sulfatos, a cerca de 300 m da crista de Gediz Vallis. A crista é feita de fluxos de detritos que desceram a montanha, entre os últimos episódios de água no Gale.",
-   q:"A água voltou depois que o lago secou? Quando e de onde?", task:"Amostrar o sulfato do local. Os blocos trazidos de camadas mais altas ficam na crista, a cerca de 300 m: coletá-los pede um ponto a mais na rota.", risk:"Campo de blocos e declividade perto da crista",
-   imp:"Os fluxos de água, lama e rochas aconteceram depois que a montanha já tinha boa parte da forma atual. Estão entre os episódios de água mais recentes do Gale: muito depois do lago, ainda havia água líquida em algum momento.",
-   int:"Os blocos da crista vieram das partes altas da montanha, onde o Curiosity nunca vai chegar. São amostras do topo sem precisar subir até lá, e escolher as mais variadas é julgamento rápido de campo, o forte do astronauta.",
-   sources:[{label:"JPL, 2023 · crista de Gediz Vallis", url:"https://www.jpl.nasa.gov/news/nasas-curiosity-reaches-mars-ridge-where-water-left-debris-pileup/"}]},
-  {id:"3", name:"Canal de Gediz Vallis · enxofre", sol:4200, lat:-4.78570678, lon:137.408864, el:-3688, ch:"O mistério",
-   sci:"Pedras de enxofre puro, descobertas pelo Curiosity em 2024. A explicação proposta em 2026 é vapor de magma que esfriou no subsolo gelado; ainda é hipótese.",
-   q:"Que fluido formou o enxofre puro? Era água quente, e era habitável?", task:"Coleta principal: pedras de enxofre e a rocha em volta, para análise na Terra. O Curiosity não conseguiu perfurá-las: são pequenas e quebradiças demais para a broca.", risk:"Blocos soltos e areia no canal",
-   imp:"Sulfatos são comuns no Gale, mas enxofre puro só se forma em condições específicas. Foi a primeira vez que se encontrou enxofre puro em Marte, num campo inteiro dessas pedras. Um estudo de 2026 propõe que ele veio de vapor de magma; a origem ainda é debatida.",
-   int:"Na Terra, enxofre puro aparece em vulcões e fontes de água quente. Não é prova de vida, mas é uma pergunta em aberto que justifica trazer amostras para a Terra.",
-   sources:[{label:"JPL, 2024 · enxofre puro", url:"https://www.jpl.nasa.gov/news/nasas-curiosity-rover-discovers-a-surprise-in-a-martian-rock/"}, {label:"VanBommel et al. 2026, Science", url:"https://doi.org/10.1126/science.adu5501"}]},
-  {id:"4", name:"Boxworks · entrada", sol:4600, lat:-4.804189, lon:137.3796858, el:-3633, ext:true, ch:"A água subterrânea",
-   sci:"Cristas mineralizadas deixadas por água que circulou no subsolo (campanha de 2025–26).",
-   q:"A água persistiu no subsolo depois que a superfície secou?", task:"Amostrar crista e depressão lado a lado para comparar.", risk:"Cristas de 1–2 m e depressões com areia",
-   imp:"Os boxworks estão numa altura da montanha onde se esperava um Marte já bem seco. Mostram que, mesmo com a superfície seca, a água ainda circulava no subsolo. A rede de cristas cobre uma área de 10 a 20 km.",
-   int:"As cristas guardam minerais que cristalizaram no subsolo, onde era mais quente e corria água salgada; micróbios da Terra primitiva poderiam ter vivido num ambiente assim. Na Terra, boxwork aparece em cavernas, como a Wind Cave, nos EUA, mas com cristas de poucos centímetros.",
-   sources:[{label:"NASA, 2026 · boxwork de perto", url:"https://www.nasa.gov/missions/mars-science-laboratory/curiosity-rover/nasas-curiosity-rover-sees-martian-spiderwebs-up-close/"}, {label:"JPL, 2024 · extensão e Wind Cave", url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-takes-a-last-look-at-mysterious-sulfur/"}]},
-  {id:"5", name:"Sulfatos em camadas · saída do boxwork", sol:4848, lat:-4.81155245, lon:137.3818117, el:-3590, ext:true, ch:"A secagem",
-   sci:"Camadas ricas em sulfatos, sais deixados quando a água secava. O Curiosity saiu do terreno boxwork para elas, pelo lado sul, em março de 2026.",
-   q:"Como foi a transição final para o Marte seco de hoje?", task:"Amostra de sulfato, o fim da linha do tempo.", risk:"Blocos espalhados, superfície poligonal",
-   imp:"Sulfatos são sais que ficam quando a água seca, como o sal que sobra quando uma poça evapora. Essas camadas registram a passagem para o Marte árido de hoje.",
-   int:"Fecha a linha do tempo: com as amostras de todas as paradas, a tripulação leva para a Terra uma sequência completa, do lago ao deserto, coletada num único lugar.",
-   sources:[{label:"NASA, blog da missão · sols 4845–4851", url:"https://science.nasa.gov/blog/curiosity-blog-sols-4845-4851-bye-bye-boxwork-bye-bye/"}, {label:"JPL, 2022 · região de sulfatos", url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reaches-long-awaited-salty-region/"}]}
+  {id:"H", name:t("Habitat · unidade de argilas"), sol:2449, lat:-4.7288545, lon:137.3836581, el:-4144, ch:t("O lago"),
+   sci:t("Glen Torridon: rochas ricas em argila, formadas de lama de lagos e rios antigos. Terreno plano para base e pouso (avaliação da equipe)."),
+   q:t("Quanto tempo o lago durou e ele tinha condições para vida?"), task:t("Amostra de referência das argilas, o ponto de partida da linha do tempo."), risk:null,
+   imp:t("Argila costuma se formar na água, aqui provavelmente pouco ácida. Vista da órbita, essa faixa tinha um sinal forte de argila e era um dos alvos da missão desde antes do lançamento. As amostras daqui deram o maior teor de argila já medido pelo Curiosity."),
+   int:t("Argilas desse tipo podem preservar moléculas orgânicas, e as amostras de Glen Torridon têm a maior variedade de compostos orgânicos que o Curiosity já detectou. Orgânicos não provam vida, mas fazem daqui um dos melhores lugares para procurar vestígios."),
+   sources:[{label:t("JPL, 2019 · argila em Glen Torridon"), url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-finds-a-clay-cache/"}, {label:"Bennett et al. 2022, JGR Planets", url:"https://doi.org/10.1029/2022JE007185"}]},
+  {id:"1", name:t("Borda do Greenheugh Pediment"), sol:2702, lat:-4.73706071, lon:137.3807898, el:-4089, ch:t("A pausa"),
+   sci:t("Arenito depositado bem depois, sobre as camadas já erodidas da montanha."),
+   q:t("Quanto tempo se passou entre o lago e o arenito, e o clima já era seco?"), task:t("Fotografar e amostrar o contato entre o arenito e as camadas mais antigas logo abaixo."), risk:t("Subida íngreme na borda"),
+   imp:t("O contato registra uma lacuna no tempo: a montanha se formou, foi erodida, e só depois o arenito se depositou, como dunas de areia levadas pelo vento. Marca a passagem de um ambiente de lagos e rios para um deserto de dunas."),
+   int:t("Aqui dá para pôr a mão na fronteira entre duas épocas. No mesmo pedimento, a cerca de 900 m a sudeste, fica o terreno de rochas cortantes que fez o Curiosity dar meia-volta em 2022."),
+   sources:[{label:"Bennett et al. 2022, JGR Planets", url:"https://doi.org/10.1029/2022JE007185"}, {label:t("JPL, 2020 · subida ao pedimento"), url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-takes-a-new-selfie-before-record-climb/"}]},
+  {id:"2", name:t("Sulfatos ao pé da crista de Gediz Vallis"), sol:3974, lat:-4.77647482, lon:137.4045524, el:-3764, ch:t("A água tardia"),
+   sci:t("Local do furo Sequoia do Curiosity (outubro de 2023), em rocha rica em sulfatos, a cerca de 300 m da crista de Gediz Vallis. A crista é feita de fluxos de detritos que desceram a montanha, entre os últimos episódios de água no Gale."),
+   q:t("A água voltou depois que o lago secou? Quando e de onde?"), task:t("Amostrar o sulfato do local. Os blocos trazidos de camadas mais altas ficam na crista, a cerca de 300 m: coletá-los pede um ponto a mais na rota."), risk:t("Campo de blocos e declividade perto da crista"),
+   imp:t("Os fluxos de água, lama e rochas aconteceram depois que a montanha já tinha boa parte da forma atual. Estão entre os episódios de água mais recentes do Gale: muito depois do lago, ainda havia água líquida em algum momento."),
+   int:t("Os blocos da crista vieram das partes altas da montanha, onde o Curiosity nunca vai chegar. São amostras do topo sem precisar subir até lá, e escolher as mais variadas é julgamento rápido de campo, o forte do astronauta."),
+   sources:[{label:t("JPL, 2023 · crista de Gediz Vallis"), url:"https://www.jpl.nasa.gov/news/nasas-curiosity-reaches-mars-ridge-where-water-left-debris-pileup/"}]},
+  {id:"3", name:t("Canal de Gediz Vallis · enxofre"), sol:4200, lat:-4.78570678, lon:137.408864, el:-3688, ch:t("O mistério"),
+   sci:t("Pedras de enxofre puro, descobertas pelo Curiosity em 2024. A explicação proposta em 2026 é vapor de magma que esfriou no subsolo gelado; ainda é hipótese."),
+   q:t("Que fluido formou o enxofre puro? Era água quente, e era habitável?"), task:t("Coleta principal: pedras de enxofre e a rocha em volta, para análise na Terra. O Curiosity não conseguiu perfurá-las: são pequenas e quebradiças demais para a broca."), risk:t("Blocos soltos e areia no canal"),
+   imp:t("Sulfatos são comuns no Gale, mas enxofre puro só se forma em condições específicas. Foi a primeira vez que se encontrou enxofre puro em Marte, num campo inteiro dessas pedras. Um estudo de 2026 propõe que ele veio de vapor de magma; a origem ainda é debatida."),
+   int:t("Na Terra, enxofre puro aparece em vulcões e fontes de água quente. Não é prova de vida, mas é uma pergunta em aberto que justifica trazer amostras para a Terra."),
+   sources:[{label:t("JPL, 2024 · enxofre puro"), url:"https://www.jpl.nasa.gov/news/nasas-curiosity-rover-discovers-a-surprise-in-a-martian-rock/"}, {label:"VanBommel et al. 2026, Science", url:"https://doi.org/10.1126/science.adu5501"}]},
+  {id:"4", name:t("Boxworks · entrada"), sol:4600, lat:-4.804189, lon:137.3796858, el:-3633, ext:true, ch:t("A água subterrânea"),
+   sci:t("Cristas mineralizadas deixadas por água que circulou no subsolo (campanha de 2025–26)."),
+   q:t("A água persistiu no subsolo depois que a superfície secou?"), task:t("Amostrar crista e depressão lado a lado para comparar."), risk:t("Cristas de 1–2 m e depressões com areia"),
+   imp:t("Os boxworks estão numa altura da montanha onde se esperava um Marte já bem seco. Mostram que, mesmo com a superfície seca, a água ainda circulava no subsolo. A rede de cristas cobre uma área de 10 a 20 km."),
+   int:t("As cristas guardam minerais que cristalizaram no subsolo, onde era mais quente e corria água salgada; micróbios da Terra primitiva poderiam ter vivido num ambiente assim. Na Terra, boxwork aparece em cavernas, como a Wind Cave, nos EUA, mas com cristas de poucos centímetros."),
+   sources:[{label:t("NASA, 2026 · boxwork de perto"), url:"https://www.nasa.gov/missions/mars-science-laboratory/curiosity-rover/nasas-curiosity-rover-sees-martian-spiderwebs-up-close/"}, {label:t("JPL, 2024 · extensão e Wind Cave"), url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-takes-a-last-look-at-mysterious-sulfur/"}]},
+  {id:"5", name:t("Sulfatos em camadas · saída do boxwork"), sol:4848, lat:-4.81155245, lon:137.3818117, el:-3590, ext:true, ch:t("A secagem"),
+   sci:t("Camadas ricas em sulfatos, sais deixados quando a água secava. O Curiosity saiu do terreno boxwork para elas, pelo lado sul, em março de 2026."),
+   q:t("Como foi a transição final para o Marte seco de hoje?"), task:t("Amostra de sulfato, o fim da linha do tempo."), risk:t("Blocos espalhados, superfície poligonal"),
+   imp:t("Sulfatos são sais que ficam quando a água seca, como o sal que sobra quando uma poça evapora. Essas camadas registram a passagem para o Marte árido de hoje."),
+   int:t("Fecha a linha do tempo: com as amostras de todas as paradas, a tripulação leva para a Terra uma sequência completa, do lago ao deserto, coletada num único lugar."),
+   sources:[{label:t("NASA, blog da missão · sols 4845–4851"), url:"https://science.nasa.gov/blog/curiosity-blog-sols-4845-4851-bye-bye-boxwork-bye-bye/"}, {label:t("JPL, 2022 · região de sulfatos"), url:"https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reaches-long-awaited-salty-region/"}]}
 ];
 
 // Rochas cortantes "gator-back" do pedimento Greenheugh. O ponto é a posição oficial do Curiosity no sol 3420, onde a
 // missão viu o terreno à frente (a oeste) e deu meia-volta; é a borda do terreno, não o centro. O raio (em km) é da equipe.
-export const HAZARD = { lat: -4.74867, lon: 137.39095, radiusKm: 0.25, name: "Rochas cortantes (gator-back): ponto onde o Curiosity deu meia-volta em 2022. Zona de exclusão de 250 m definida pela equipe",
-  source: { label: "JPL, 2022 · desvio das rochas gator-back", url: "https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/" } };
+export const HAZARD = { lat: -4.74867, lon: 137.39095, radiusKm: 0.25, name: t("Rochas cortantes (gator-back): ponto onde o Curiosity deu meia-volta em 2022. Zona de exclusão de 250 m definida pela equipe"),
+  source: { label: t("JPL, 2022 · desvio das rochas gator-back"), url: "https://www.jpl.nasa.gov/news/nasas-curiosity-mars-rover-reroutes-away-from-gator-back-rocks/" } };
 
 // A pé: valor de planejamento da NASA para a volta a pé de traje (data/traje.js). Veículo: hipótese da equipe.
 export const SPEED_KMH = { walk: WALK_SPEED_KMH, car: 4.5 };

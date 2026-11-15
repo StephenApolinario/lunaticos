@@ -3,8 +3,11 @@
 // Independente do HUD: só usa as APIs de voz do navegador (`toSpeech` é pura).
 
 import { IS_LOCAL_PAGE } from '../../src/local.js';
+import { HTML_LANG, IS_ENGLISH, LANG as UI_LANG } from '../../src/i18n.js';
 
-const LANG = 'pt-BR';
+// Idioma da fala e da escuta do navegador: o da interface.
+const LANG = HTML_LANG;
+const VOICE_PREFIX = IS_ENGLISH ? 'en' : 'pt';
 
 function durationWords(_match, hours, minutes) {
   const mins = `${Number(minutes)} minutos`;
@@ -12,8 +15,36 @@ function durationWords(_match, hours, minutes) {
   return `${hours} ${hours === '1' ? 'hora' : 'horas'} e ${mins}`;
 }
 
+function durationWordsEn(_match, hours, minutes) {
+  const mins = `${Number(minutes)} minutes`;
+  if (hours === '0') return mins;
+  return `${hours} ${hours === '1' ? 'hour' : 'hours'} and ${mins}`;
+}
+
+// O mesmo em inglês. A hora do relógio ("10:21") fica como está: a voz em inglês já a lê certo.
+const SPEECH_FIXES_EN = Object.freeze([
+  [/[*`]+/g, ''],
+  [/O₂/g, 'oxygen'],
+  [/µSv\/h/g, 'microsieverts per hour'],
+  [/µSv/g, 'microsieverts'],
+  [/%\/h/g, ' percent per hour'],
+  [/kPa/g, ' kilopascals'],
+  [/km\/h/g, ' kilometers per hour'],
+  [/m\/s/g, ' meters per second'],
+  [/(\d) ?km\b/g, '$1 kilometers'],
+  [/(\d) ?m\b(?!\/)/g, '$1 meters'],
+  [/(\d) ?min\b/g, '$1 minutes'],
+  [/°C/g, ' degrees Celsius'],
+  [/°/g, ' degrees'],
+  [/(\d+)h(\d{2})\b/g, durationWordsEn],
+  [/×/g, ' times'],
+  [/→/g, ' to '],
+  [/·/g, ','],
+  [/[“”]/g, ''],
+]);
+
 // Símbolos do HUD que a síntese de voz leria errado.
-const SPEECH_FIXES = Object.freeze([
+const SPEECH_FIXES_PT = Object.freeze([
   // Marcas de destaque do texto (negrito) não são ditas.
   [/[*`]+/g, ''],
   [/O₂/g, 'oxigênio'],
@@ -35,6 +66,8 @@ const SPEECH_FIXES = Object.freeze([
   [/·/g, ','],
   [/[“”]/g, ''],
 ]);
+
+const SPEECH_FIXES = IS_ENGLISH ? SPEECH_FIXES_EN : SPEECH_FIXES_PT;
 
 /** Texto do HUD na forma em que deve ser dito. */
 export const toSpeech = (text) => SPEECH_FIXES
@@ -81,7 +114,7 @@ export function createVoice() {
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(toSpeech(text));
     utterance.lang = LANG;
-    const voice = synth.getVoices().find((candidate) => candidate.lang?.toLowerCase().startsWith('pt'));
+    const voice = synth.getVoices().find((candidate) => candidate.lang?.toLowerCase().startsWith(VOICE_PREFIX));
     if (voice) utterance.voice = voice;
     synth.speak(utterance);
   }
@@ -141,7 +174,7 @@ export function createVoice() {
         if (discarded) return;
         if (!heard) { onError('no-speech'); return; }
         const audio = new Blob(chunks, { type: recorder.mimeType });
-        const response = await fetch(`${VOICE_SERVER}/ouvir`, { method: 'POST', headers: { 'Content-Type': audio.type.split(';')[0] || 'audio/webm' }, body: audio });
+        const response = await fetch(`${VOICE_SERVER}/ouvir?idioma=${UI_LANG}`, { method: 'POST', headers: { 'Content-Type': audio.type.split(';')[0] || 'audio/webm' }, body: audio });
         if (!response.ok) throw new Error(`servidor de voz: ${response.status}`);
         const { texto } = await response.json();
         if (texto) onText(texto);

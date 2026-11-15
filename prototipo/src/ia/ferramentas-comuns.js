@@ -11,6 +11,7 @@ import { O2_PCT_PER_HOUR } from '../../data/traje.js';
 import { PROTOCOLS } from '../../data/protocolos.js';
 import { createFactSearch } from './busca.js';
 import { evaluate, formatResult } from './calculo.js';
+import { IS_ENGLISH, t } from '../i18n.js';
 
 /**
  * Terreno e segurança em um ponto local (x, z), calculados sobre o relevo real.
@@ -125,10 +126,15 @@ export function roverInfo(rover, from, { safety, terrain, trips = null }) {
 // Começos de frase que fazem dela uma pergunta mesmo sem "?": o reconhecimento de voz não pontua.
 const ASKS = /^(devo|deveria|posso|podemos|ser[aá] que|[eé] para|[eé] pra|d[aá] para|d[aá] pra|vale a pena|preciso|precisa|tenho que|temos que|conv[eé]m|compensa|como|quando|onde|qual|quais|quanto|quanta|por que|porque|o que|quem|tem como|seria)\b/i;
 
+// O mesmo em inglês: "should I pause", "can we go back", "how do I log a sample".
+const ASKS_EN = /^(should|shall|can|could|may|might|must|do|does|did|is|are|am|was|were|will|would|have|has|how|when|where|which|what|why|who|whose|need i|is it|any chance)\b/i;
+// "Can you pause the walk" é o jeito comum de pedir em inglês, e a voz não põe o ponto de interrogação.
+const POLITE_ORDER_EN = /^(can|could|would|will)\s+you\b/i;
+
 /** Uma ordem direta ("pausa a caminhada") e não uma pergunta ("devo pausar?", "devo pausar"). */
 export function isOrder(question) {
   const text = String(question).trim();
-  return !text.endsWith('?') && !ASKS.test(text);
+  return !text.endsWith('?') && !ASKS.test(text) && (POLITE_ORDER_EN.test(text) || !ASKS_EN.test(text));
 }
 export const NOT_AN_ORDER = Object.freeze({ erro: 'O pedido foi uma pergunta, não uma ordem direta. Não execute a ação: responda à pergunta e diga como pedir a ação.' });
 
@@ -192,16 +198,16 @@ export function createKnowledgeTools({ stops, focusStop, samplesAt = null, siteO
   const calcular = ({ expressao } = {}) => ({ expressao: String(expressao ?? ''), resultado: formatResult(evaluate(expressao)) });
 
   return Object.freeze([
-    { name: 'parada', status: 'lendo a parada…', run: parada,
+    { name: 'parada', status: t('lendo a parada…'), run: parada,
       description: 'Tudo sobre uma parada científica do plano (não serve para achar onde descansar: isso está em pontos_para_parar): a ciência (o que há ali, por que importa, pergunta científica, tarefa de coleta, risco, fontes) e o local (altitude, declive, rádio com o habitat, volta a pé, radiação estimada). Sem id, devolve a parada atual ou a próxima.',
       parameters: { type: 'object', properties: { id: { type: 'string', description: 'Identificador da parada: H, 1, 2, 3, 4, 5 ou a letra de um ponto da rota livre.' } } } },
-    { name: 'protocolo', status: 'lendo o protocolo…', run: protocolo,
+    { name: 'protocolo', status: t('lendo o protocolo…'), run: protocolo,
       description: 'O que fazer em um cenário de perigo: passos do protocolo e os fatos de missões reais que o sustentam.',
       parameters: { type: 'object', required: ['cenario'], properties: { cenario: { type: 'string', enum: PROTOCOLS.map((candidate) => candidate.id), description: 'tempestade (poeira), evento-solar (radiação), temperatura (frio), vento, radio (sem rádio), pane-veiculo, oxigenio (O₂ baixo ou vazamento), atolamento.' } } } },
-    { name: 'buscar_fatos', status: 'buscando nas fontes…', run: buscarFatos,
+    { name: 'buscar_fatos', status: t('buscando nas fontes…'), run: buscarFatos,
       description: 'Busca nas fontes pesquisadas da missão: lições de missões passadas (Apollo, Spirit, Opportunity, Curiosity), números do ambiente em Gale, trajes, coletas do rover, e de onde vem cada dado do protótipo. Use para perguntas de conhecimento e de origem dos dados.',
-      parameters: { type: 'object', required: ['consulta'], properties: { consulta: { type: 'string', description: 'Palavras-chave em português, por exemplo "evento solar 2024 dose" ou "de onde vem a temperatura".' } } } },
-    { name: 'calcular', status: 'calculando…', run: calcular,
+      parameters: { type: 'object', required: ['consulta'], properties: { consulta: { type: 'string', description: IS_ENGLISH ? 'Palavras-chave em inglês (o acervo está em inglês), por exemplo "solar event 2024 dose" ou "where does the temperature come from".' : 'Palavras-chave em português, por exemplo "evento solar 2024 dose" ou "de onde vem a temperatura".' } } } },
+    { name: 'calcular', status: t('calculando…'), run: calcular,
       description: 'Faz uma conta com números que vieram dos dados. Aceita + - * / e parênteses.',
       parameters: { type: 'object', required: ['expressao'], properties: { expressao: { type: 'string', description: 'Por exemplo "4,7 - 2,4" ou "(71 - 10) / 12,5".' } } } },
   ]);

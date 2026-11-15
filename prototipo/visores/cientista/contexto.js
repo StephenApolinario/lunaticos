@@ -11,6 +11,7 @@ import { SIM } from '../../src/simulation.js';
 import { STOPS, STOP_HOURS } from '../../data/travessia.js';
 import { toGeo, clamp } from '../../src/geo.js';
 import { fmtDistance, fmtDuration, fmtNumber } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 import { locateHazards, hazardWarning } from './perigos.js';
 
 export const LIMITS = Object.freeze({
@@ -23,7 +24,7 @@ export const LIMITS = Object.freeze({
   atHabitatM: 5,
 });
 export const SEVERITIES = Object.freeze(['critico', 'atencao', 'info']);
-export const DIRECTION_TEXT = Object.freeze({ back: 'voltando pelo caminho de ida', forward: 'seguindo a rota até o fim' });
+export const DIRECTION_TEXT = Object.freeze({ back: t`voltando pelo caminho de ida`, forward: t`seguindo a rota até o fim` });
 
 export const pct = (value) => `${fmtNumber(Math.max(0, value))}%`;
 export const stopShortName = (stop) => stop.name.split(' ·')[0];
@@ -31,14 +32,24 @@ export const stopShortName = (stop) => stop.name.split(' ·')[0];
 /** "1,20 km, cerca de 0h29 voltando pelo caminho de ida", ou o aviso de que já se está lá. */
 export function homeLine(context) {
   const { habitat } = context;
-  if (habitat.distM < LIMITS.atHabitatM) return 'você já está no habitat';
-  return `${fmtDistance(habitat.distM)}, cerca de ${fmtDuration(habitat.etaH)} ${DIRECTION_TEXT[habitat.direction]}`;
+  if (habitat.distM < LIMITS.atHabitatM) return t`você já está no habitat`;
+  const distance = fmtDistance(habitat.distM);
+  const eta = fmtDuration(habitat.etaH);
+  return habitat.direction === 'back'
+    ? t`${distance}, cerca de ${eta} voltando pelo caminho de ida`
+    : t`${distance}, cerca de ${eta} seguindo a rota até o fim`;
 }
 
-/** Frase completa sobre a distância do habitat pela rota. */
-export const habitatLine = (context) => (
-  context.habitat.distM < LIMITS.atHabitatM ? 'Você já está no habitat' : `O habitat fica a ${homeLine(context)}`
-);
+/** Frase completa sobre a distância do habitat pela rota (sem o ponto final). */
+export function habitatLine(context) {
+  const { habitat } = context;
+  if (habitat.distM < LIMITS.atHabitatM) return t`Você já está no habitat`;
+  const distance = fmtDistance(habitat.distM);
+  const eta = fmtDuration(habitat.etaH);
+  return habitat.direction === 'back'
+    ? t`O habitat fica a ${distance}, cerca de ${eta} voltando pelo caminho de ida`
+    : t`O habitat fica a ${distance}, cerca de ${eta} seguindo a rota até o fim`;
+}
 
 /**
  * Paradas do plano, na ordem (inclui o destino livre escolhido no mapa), seguidas das demais
@@ -116,40 +127,41 @@ export function commsStatus(plan, distM, failed) {
 function suitAlerts(context, add) {
   const { suit, habitat } = context;
   const home = habitatLine(context);
-  const reserve = `a reserva de ${pct(context.assumptions.o2ReservePct)} (hipótese da equipe)`;
+  const reservePct = pct(context.assumptions.o2ReservePct);
   if (suit.o2Pct < LIMITS.o2.danger) {
-    const arrival = habitat.o2ArrivalPct >= 0 ? `você chegaria com cerca de ${pct(habitat.o2ArrivalPct)} de O₂` : 'o O₂ não cobre a volta: peça resgate agora';
-    add('o2-critico', 'critico', `O₂ em ${pct(suit.o2Pct)} · nível crítico${suit.leaking ? ' (vazamento simulado)' : ''}`, `Pare a tarefa e retorne. ${home}; ${arrival}.`);
+    const arrival = habitat.o2ArrivalPct >= 0 ? t`você chegaria com cerca de ${pct(habitat.o2ArrivalPct)} de O₂` : t`o O₂ não cobre a volta: peça resgate agora`;
+    const text = suit.leaking ? t`O₂ em ${pct(suit.o2Pct)} · nível crítico (vazamento simulado)` : t`O₂ em ${pct(suit.o2Pct)} · nível crítico`;
+    add('o2-critico', 'critico', text, t`Pare a tarefa e retorne. ${home}; ${arrival}.`);
   }
   if (suit.marginH < 0) {
-    add('o2-insuficiente', 'critico', `O₂ não cobre o plano · faltam ${fmtDuration(-suit.marginH)}`, `Encurte a saída: pule as paradas que faltam. ${home}.`);
+    add('o2-insuficiente', 'critico', t`O₂ não cobre o plano · faltam ${fmtDuration(-suit.marginH)}`, t`Encurte a saída: pule as paradas que faltam. ${home}.`);
   } else if (suit.marginH < SIM.lowMarginH) {
-    add('o2-margem', 'atencao', `Margem de O₂ baixa · ${fmtDuration(suit.marginH)}`, 'Não estenda as paradas além do previsto.');
+    add('o2-margem', 'atencao', t`Margem de O₂ baixa · ${fmtDuration(suit.marginH)}`, t`Não estenda as paradas além do previsto.`);
   }
   if (habitat.walkH !== null && habitat.o2ArrivalPct < context.assumptions.o2ReservePct && suit.o2Pct >= LIMITS.o2.danger) {
-    const fix = context.mode === 'walk' ? 'Retorne agora pelo caminho mais curto.' : 'Você depende do veículo para voltar: não se afaste dele.';
-    add('sem-volta', context.mode === 'walk' ? 'critico' : 'atencao', `O₂ não cobre a volta a pé com ${reserve}`, `${fix} A volta a pé pelo relevo leva ${fmtDuration(habitat.walkH)}.`);
+    const fix = context.mode === 'walk' ? t`Retorne agora pelo caminho mais curto.` : t`Você depende do veículo para voltar: não se afaste dele.`;
+    add('sem-volta', context.mode === 'walk' ? 'critico' : 'atencao', t`O₂ não cobre a volta a pé com a reserva de ${reservePct} (hipótese da equipe)`, `${fix} ${t`A volta a pé pelo relevo leva ${fmtDuration(habitat.walkH)}.`}`);
   } else if (context.noReturn && context.noReturn.aheadM > 0 && context.noReturn.aheadM <= LIMITS.noReturnWarnM) {
-    add('sem-volta-a-frente', 'atencao', `Ponto sem volta a pé em ${fmtDistance(context.noReturn.aheadM)}`, `Depois dele o O₂ não cobre a caminhada de volta com ${reserve}. Só siga se o retorno estiver garantido.`);
+    add('sem-volta-a-frente', 'atencao', t`Ponto sem volta a pé em ${fmtDistance(context.noReturn.aheadM)}`, t`Depois dele o O₂ não cobre a caminhada de volta com a reserva de ${reservePct} (hipótese da equipe). Só siga se o retorno estiver garantido.`);
   }
   if (suit.batteryPct < LIMITS.battery.warn) {
     const level = suit.batteryPct < LIMITS.battery.danger ? 'critico' : 'atencao';
-    add('bateria', level, `Bateria do traje em ${pct(suit.batteryPct)}`, `Planeje o retorno. ${home}.`);
+    add('bateria', level, t`Bateria do traje em ${pct(suit.batteryPct)}`, t`Planeje o retorno. ${home}.`);
   }
 }
 
 function terrainAlerts(context, alerts, add) {
   const { riskZone, env, hazards, target, focusStop } = context;
   if (riskZone.near) {
-    add('zona-risco', 'atencao', `Rochas cortantes a ${fmtDistance(riskZone.edgeM)} ${riskZone.side} (zona aproximada)`, 'Mantenha-se na rota marcada.');
+    add('zona-risco', 'atencao', t`Rochas cortantes a ${fmtDistance(riskZone.edgeM)} ${riskZone.side} (zona aproximada)`, t`Mantenha-se na rota marcada.`);
   }
   if (env.slopeAheadDeg >= SIM.slopeWarnDeg) {
-    add('declive', 'atencao', `Declive de ${fmtNumber(env.slopeAheadDeg)}° à frente`, `Reduza o passo e firme o apoio nos próximos ${SIM.slopeLookaheadM} m.`);
+    add('declive', 'atencao', t`Declive de ${fmtNumber(env.slopeAheadDeg)}° à frente`, t`Reduza o passo e firme o apoio nos próximos ${SIM.slopeLookaheadM} m.`);
   }
   const reported = hazardWarning(hazards.list);
   if (reported) alerts.push(reported);
   if (target.kind === 'stop' && focusStop.risk && target.distM <= LIMITS.stopRiskWarnM) {
-    add('risco-parada', 'info', `Risco na parada ${focusStop.id}: ${focusStop.risk}`, 'Avalie o terreno antes de começar a coleta.');
+    add('risco-parada', 'info', t`Risco na parada ${focusStop.id}: ${focusStop.risk}`, t`Avalie o terreno antes de começar a coleta.`);
   }
 }
 
@@ -164,16 +176,16 @@ export function buildAlerts(context) {
   const add = (kind, level, text, action) => alerts.push({ kind, key: kind, level, text, action });
   const home = habitatLine(context);
   if (context.emergencies.solar) {
-    add('solar', 'critico', `Evento solar · radiação ${SIM.solarEventFactor}× acima do normal (simulado)`, `Interrompa a coleta e vá para o abrigo. ${home}.`);
+    add('solar', 'critico', t`Evento solar · radiação ${SIM.solarEventFactor}× acima do normal (simulado)`, t`Interrompa a coleta e vá para o abrigo. ${home}.`);
   }
   if (context.emergencies.storm) {
-    add('tempestade', 'critico', 'Tempestade de poeira · visibilidade reduzida (simulado)', `Pare, firme os pés e siga só a rota marcada no visor. ${home}.`);
+    add('tempestade', 'critico', t`Tempestade de poeira · visibilidade reduzida (simulado)`, t`Pare, firme os pés e siga só a rota marcada no visor. ${home}.`);
   }
   suitAlerts(context, add);
   if (context.emergencies.radio) {
-    add('radio', 'atencao', 'Falha de rádio com o habitat (simulada)', 'O visor segue funcionando sem rádio. Não avance para uma parada nova.');
+    add('radio', 'atencao', t`Falha de rádio com o habitat (simulada)`, t`O visor segue funcionando sem rádio. Não avance para uma parada nova.`);
   } else if (context.comms.lineOfSight === false) {
-    add('sem-visada', 'info', `Sem linha de visada de rádio com o habitat · volta em ${fmtDistance(context.comms.backInM)}`, 'O relevo tapa o mastro do habitat neste trecho (relevo real; alturas de antena são hipótese da equipe). O visor segue funcionando sem rádio.');
+    add('sem-visada', 'info', t`Sem linha de visada de rádio com o habitat · volta em ${fmtDistance(context.comms.backInM)}`, t`O relevo tapa o mastro do habitat neste trecho (relevo real; alturas de antena são hipótese da equipe). O visor segue funcionando sem rádio.`);
   }
   terrainAlerts(context, alerts, add);
   return alerts.sort((a, b) => SEVERITIES.indexOf(a.level) - SEVERITIES.indexOf(b.level));

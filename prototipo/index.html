@@ -1,119 +1,130 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Martian Map · Lunáticos</title>
-  <meta name="description" content="Guia de sobrevivência para uma caminhada em Marte: um tablet para planejar a saída no habitat e um visor de capacete para seguir a rota, sobre dados reais da NASA.">
+  <meta name="description" content="A survival guide for a walk on Mars: a tablet to plan the EVA in the habitat and a helmet visor to follow the route, built on real NASA data.">
   <meta name="color-scheme" content="dark">
-  <!-- A página não roda script nenhum: é só texto, imagem e estilo. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'self'; form-action 'none'">
+  <!-- Só o script da própria página roda aqui (a rota na rolagem e a conversa de exemplo). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'self'; form-action 'none'">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Martian Map · Lunáticos">
-  <meta property="og:description" content="Uma caminhada em Marte, planejada para dar tempo de voltar. Projeto da equipe Lunáticos para o NASA Space Apps Challenge 2026.">
+  <meta property="og:description" content="A walk on Mars, planned so there is time to get back. Team Lunáticos' project for the NASA Space Apps Challenge 2026.">
   <meta property="og:image" content="https://lunaticos-ruby.vercel.app/apresentacao/img/og.jpg">
+  <link rel="alternate" hreflang="pt-BR" href="./pt.html">
+  <link rel="alternate" hreflang="x-default" href="./">
   <link rel="icon" href="data:,">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-  <link rel="preload" as="image" href="./apresentacao/img/tablet.webp" type="image/webp" fetchpriority="high">
+  <link rel="preload" as="image" href="./apresentacao/img/tablet-en.webp" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="./apresentacao/site.css">
+  <script type="module" src="./apresentacao/site.js"></script>
 </head>
 <body>
-  <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+  <a class="pular" href="#conteudo">Skip to content</a>
 
   <header class="barra">
     <a class="marca" href="./"><span class="marca-led" aria-hidden="true"></span>Martian Map <span class="marca-equipe">Lunáticos</span></a>
-    <nav class="barra-nav" aria-label="Seções da página">
-      <a href="#problema">Problema</a>
-      <a href="#telas">Duas telas</a>
-      <a href="#dados">Dados</a>
-      <a href="#seguranca">Segurança</a>
-      <a href="#limites">Limites</a>
+    <nav class="barra-nav" aria-label="Page sections">
+      <a href="#problema">Problem</a>
+      <a href="#telas">Two screens</a>
+      <a href="#dados">Data</a>
+      <a href="#seguranca">Safety</a>
+      <a href="#limites">Limits</a>
     </nav>
-    <a class="botao botao-pequeno" href="./demo.html"><span>Ver demo</span><span class="seta" aria-hidden="true">→</span></a>
+    <nav class="idiomas" aria-label="Language">
+      <a href="./" lang="en" aria-current="true" title="English">EN</a>
+      <a href="./pt.html" lang="pt-BR" title="Português (Brasil)">PT</a>
+    </nav>
+    <a class="botao botao-pequeno" href="./demo.html?lang=en"><span>View demo</span><span class="seta" aria-hidden="true">→</span></a>
   </header>
 
   <main id="conteudo">
     <section class="abertura" aria-labelledby="titulo">
       <div class="abertura-texto">
         <p class="selo">NASA Space Apps Challenge 2026 · Interplanetary Survival Guide: Martian Map</p>
-        <h1 id="titulo">Uma caminhada em Marte, planejada para dar tempo de voltar.</h1>
-        <p class="lede">O projeto junta dados de várias missões da NASA na área de uma única saída. O tablet planeja a rota no habitat. O visor do capacete acompanha o astronauta lá fora.</p>
+        <h1 id="titulo">A walk on Mars, planned so there is time to get back.</h1>
+        <p class="lede">The project brings data from several NASA missions together over the area of a single EVA. The tablet plans the route in the habitat. The helmet visor stays with the astronaut outside.</p>
         <div class="acoes">
-          <a class="botao" href="./demo.html"><span>Ver demo</span><span class="seta" aria-hidden="true">→</span></a>
-          <a class="link-seta" href="#problema">Como funciona</a>
+          <a class="botao" href="./demo.html?lang=en"><span>View demo</span><span class="seta" aria-hidden="true">→</span></a>
+          <a class="link-seta" href="#problema">How it works</a>
         </div>
-        <p class="nota">Abre no navegador, sem instalar nada. Fica melhor num computador.</p>
+        <p class="nota">Opens in the browser, nothing to install. Best on a computer.</p>
       </div>
       <div class="abertura-telas">
-        <img class="tela-tablet" src="./apresentacao/img/tablet.webp" width="1600" height="1000" fetchpriority="high" alt="Tablet de missão: mapa 3D da cratera Gale com a rota em azul, as paradas numeradas e o painel de planejamento à direita.">
-        <img class="tela-visor" src="./apresentacao/img/visor.webp" width="1600" height="952" alt="Visor do capacete: o terreno de Marte à frente, a guia azul no chão até a próxima parada e os blocos de oxigênio, bateria e volta a pé.">
+        <img class="tela-tablet" src="./apresentacao/img/tablet-en.webp" width="1600" height="1000" fetchpriority="high" alt="Mission tablet: 3D map of Gale crater with the route in blue, the numbered stops and the planning panel on the right.">
+        <figure class="capacete capacete-abertura">
+          <img src="./apresentacao/img/capacete-en.webp" width="1600" height="1000" alt="Helmet visor: the Mars terrain ahead, the blue guide on the ground to the next stop and the oxygen, battery and walk-back blocks.">
+        </figure>
       </div>
     </section>
 
     <section class="ficha" aria-labelledby="ficha-titulo">
       <div class="ficha-nome">
-        <p class="rotulo">Saída de exemplo</p>
-        <h2 id="ficha-titulo">Das argilas ao enxofre</h2>
-        <p>Travessia do Monte Sharp, na cratera Gale, ao lado do trajeto do rover Curiosity.</p>
+        <p class="rotulo">Sample EVA</p>
+        <h2 id="ficha-titulo">From the clays to the sulfur</h2>
+        <p>A traverse of Mount Sharp, in Gale crater, alongside the path of the Curiosity rover.</p>
       </div>
       <dl class="ficha-numeros">
-        <div><dt>com retorno</dt><dd>9,0 km</dd></div>
-        <div><dt>tempo estimado</dt><dd>6h44</dd></div>
-        <div><dt>subida acumulada</dt><dd>+482 m</dd></div>
-        <div><dt>declive máximo</dt><dd>19,9°</dd></div>
-        <div><dt>paradas científicas</dt><dd>3</dd></div>
+        <div><dt>round trip</dt><dd>9.0 km</dd></div>
+        <div><dt>estimated time</dt><dd>6h44</dd></div>
+        <div><dt>total climb</dt><dd>+482 m</dd></div>
+        <div><dt>maximum slope</dt><dd>19.9°</dd></div>
+        <div><dt>science stops</dt><dd>3</dd></div>
       </dl>
-      <p class="ficha-nota">A pé, com partida às 10:00. Calculado pelo protótipo sobre o relevo real do USGS.</p>
+      <p class="ficha-nota">On foot, departing at 10:00. Calculated by the prototype on the real USGS terrain.</p>
     </section>
 
     <div class="rota">
       <section class="parada" id="problema" aria-labelledby="problema-titulo">
         <span class="pino pino-habitat" aria-hidden="true">H</span>
-        <p class="rotulo">Ponto de partida · O problema</p>
+        <p class="rotulo">Starting point · The problem</p>
         <div class="dupla">
           <div class="prosa">
-            <h2 id="problema-titulo">Os dados de Marte existem. Falta juntá-los na escala de uma saída.</h2>
-            <p>Ferramentas como o Mars Trek e o mapeamento geológico USGS-NASA foram feitas para ver Marte por regiões. Uma caminhada cabe em poucos quilômetros.</p>
-            <p>Nessa escala, quem está de traje precisa de respostas diretas: onde pisar, quanto falta, se o rádio alcança e se o oxigênio cobre a volta.</p>
+            <h2 id="problema-titulo">The Mars data exists. What is missing is bringing it together at the scale of one EVA.</h2>
+            <p>Tools such as Mars Trek and the USGS-NASA geologic mapping were built to look at Mars by region. A walk fits within a few kilometers.</p>
+            <p>At that scale, someone in a suit needs direct answers: where to step, how far is left, whether the radio reaches, and whether the oxygen covers the way back.</p>
           </div>
           <figure class="globo">
-            <img src="./apresentacao/img/globo.webp" width="900" height="900" loading="lazy" alt="Globo de Marte quase todo escurecido, com um pequeno círculo laranja marcando a área mapeada na cratera Gale.">
-            <figcaption>O globo que abre o tablet. Só a área mapeada fica iluminada. Mosaico das sondas Viking, lido do NASA Mars Trek.</figcaption>
+            <img src="./apresentacao/img/globo-en.webp" width="900" height="900" loading="lazy" alt="Globe of Mars almost entirely darkened, with a small orange circle marking the mapped area in Gale crater.">
+            <figcaption>The globe that opens the tablet. Only the mapped area is lit. Viking orbiter mosaic, read from NASA Mars Trek.</figcaption>
           </figure>
         </div>
       </section>
 
       <section class="parada" id="telas" aria-labelledby="telas-titulo">
         <span class="pino" aria-hidden="true">1</span>
-        <p class="rotulo">Parada 1 · Duas telas</p>
-        <h2 id="telas-titulo">Planejar no habitat. Seguir lá fora.</h2>
+        <p class="rotulo">Stop 1 · Two screens</p>
+        <h2 id="telas-titulo">Plan in the habitat. Follow it outside.</h2>
 
         <article class="tela">
-          <img src="./apresentacao/img/tablet.webp" width="1600" height="1000" loading="lazy" alt="Mapa de planejamento no tablet, com relevo e imagem reais, a rota calculada e o painel com o objetivo da missão.">
+          <img src="./apresentacao/img/tablet-en.webp" width="1600" height="1000" loading="lazy" alt="Planning map on the tablet, with real terrain and imagery, the calculated route and the panel with the mission objective.">
           <div class="tela-texto">
-            <p class="rotulo rotulo-rota">No habitat</p>
-            <h3>Tablet de missão</h3>
+            <p class="rotulo rotulo-rota">In the habitat</p>
+            <h3>Mission tablet</h3>
             <ul>
-              <li>Mapa 3D com o relevo e a imagem reais da cratera Gale.</li>
-              <li>Cada clique no mapa vira uma parada. A rota sai do habitat, passa por todas e volta pelo caminho mais seguro.</li>
-              <li>O controle de hora move o Sol, refaz as sombras e diz quanta luz sobra.</li>
-              <li>O painel de segurança mostra oxigênio, rádio, areia e abrigo antes de alguém sair.</li>
+              <li>3D map with the real terrain and imagery of Gale crater.</li>
+              <li>Each click on the map becomes a stop. The route leaves the habitat, visits them all and returns by the safest path.</li>
+              <li>The time control moves the Sun, redraws the shadows and tells how much daylight is left.</li>
+              <li>The safety panel shows oxygen, radio, sand and shelter before anyone goes out.</li>
             </ul>
           </div>
         </article>
 
         <article class="tela tela-invertida">
-          <img src="./apresentacao/img/visor.webp" width="1600" height="952" loading="lazy" alt="Visor do capacete durante a saída: rumo, próxima parada a 120 metros, estado seguro e minimapa.">
+          <figure class="capacete">
+            <img src="./apresentacao/img/capacete-en.webp" width="1600" height="1000" loading="lazy" alt="View through the helmet visor during the EVA: heading, next stop 120 meters ahead, safe status and minimap.">
+          </figure>
           <div class="tela-texto">
-            <p class="rotulo rotulo-rota">Durante a saída</p>
-            <h3>Visor do capacete</h3>
+            <p class="rotulo rotulo-rota">During the EVA</p>
+            <h3>Helmet visor</h3>
             <ul>
-              <li>A vista do terreno fica livre. Sempre na tela, só o essencial: rumo, próxima parada, oxigênio, bateria e volta a pé.</li>
-              <li>Uma guia no chão mostra o caminho até a próxima parada.</li>
-              <li>Os alertas aparecem por gravidade, e o protocolo de emergência é conduzido passo a passo.</li>
-              <li>O resto abre a pedido, por toque ou por voz.</li>
+              <li>The view of the terrain stays clear. Always on screen, only the essentials: heading, next stop, oxygen, battery and walk-back.</li>
+              <li>A guide on the ground shows the way to the next stop.</li>
+              <li>Alerts appear by severity, and the emergency protocol is walked through step by step.</li>
+              <li>Everything else opens on request, by touch or by voice.</li>
             </ul>
           </div>
         </article>
@@ -121,7 +132,7 @@
 
       <section class="parada" id="dados" aria-labelledby="dados-titulo">
         <span class="pino" aria-hidden="true">2</span>
-        <p class="rotulo">Parada 2 · Dados em camadas</p>
+        <p class="rotulo">Stop 2 · Layered data</p>
         <div class="dupla dupla-camadas">
           <div class="pilha" aria-hidden="true">
             <span class="plano plano-optico"></span>
@@ -132,120 +143,131 @@
             <span class="plano plano-geo"></span>
           </div>
           <div class="prosa">
-            <h2 id="dados-titulo">Seis tipos de dado sobre o mesmo chão.</h2>
-            <p>O desafio pede pelo menos três. Cada camada tem a missão e o instrumento registrados.</p>
+            <h2 id="dados-titulo">Six kinds of data over the same ground.</h2>
+            <p>The challenge asks for at least three. Each layer has its mission and instrument on record.</p>
             <ol class="camadas">
-              <li><strong>Óptico</strong><span>HiRISE, sonda MRO</span><em>Fotos de 25 cm a 2,5 m por pixel</em></li>
-              <li><strong>Topográfico</strong><span>Modelo de elevação de 1 m, USGS</span><em>Relevo, declive e rotas</em></li>
-              <li><strong>Térmico</strong><span>THEMIS, sonda Mars Odyssey</span><em>Imagem térmica noturna</em></li>
-              <li><strong>Atmosférico</strong><span>REMS, rover Curiosity</span><em>Temperatura e pressão</em></li>
-              <li><strong>Radiação</strong><span>RAD, rover Curiosity</span><em>Dose dos últimos 30 dias</em></li>
-              <li><strong>Geológico</strong><span>Mapa geológico USGS-NASA</span><em>Unidade geológica da área</em></li>
+              <li><strong>Optical</strong><span>HiRISE, MRO orbiter</span><em>Photos from 25 cm to 2.5 m per pixel</em></li>
+              <li><strong>Topographic</strong><span>1 m elevation model, USGS</span><em>Terrain, slope and routes</em></li>
+              <li><strong>Thermal</strong><span>THEMIS, Mars Odyssey orbiter</span><em>Night thermal image</em></li>
+              <li><strong>Atmospheric</strong><span>REMS, Curiosity rover</span><em>Temperature and pressure</em></li>
+              <li><strong>Radiation</strong><span>RAD, Curiosity rover</span><em>Dose over the last 30 days</em></li>
+              <li><strong>Geologic</strong><span>USGS-NASA geologic map</span><em>Geologic unit of the area</em></li>
             </ol>
-            <p class="nota">Sobre elas o protótipo calcula declive, volta a pé, alcance do rádio e areia fofa. A areia é estimativa da equipe, pela cor da imagem.</p>
+            <p class="nota">On top of them the prototype calculates slope, walk-back, radio reach and soft sand. The sand is a team estimate, from the color of the image.</p>
           </div>
         </div>
       </section>
 
       <section class="parada" id="seguranca" aria-labelledby="seguranca-titulo">
         <span class="pino" aria-hidden="true">3</span>
-        <p class="rotulo">Parada 3 · Segurança primeiro</p>
-        <h2 id="seguranca-titulo">Antes da ciência, a volta.</h2>
-        <p class="abre">O painel de segurança responde, sobre o relevo real, às perguntas que decidem a saída.</p>
+        <p class="rotulo">Stop 3 · Safety first</p>
+        <h2 id="seguranca-titulo">Before the science, the way back.</h2>
+        <p class="abre">The safety panel answers, on the real terrain, the questions that decide the EVA.</p>
         <ul class="perguntas">
           <li>
-            <h3>Dá para voltar a pé?</h3>
-            <p>O oxigênio precisa cobrir a caminhada de qualquer ponto até o habitat, a 2 km/h, com uma hora de reserva.</p>
-            <span class="tipo tipo-calc">Calculado</span>
+            <h3>Can I walk back?</h3>
+            <p>The oxygen has to cover the walk from any point to the habitat, at 2 km/h, with one hour in reserve.</p>
+            <span class="tipo tipo-calc">Calculated</span>
           </li>
           <li>
-            <h3>O rádio alcança?</h3>
-            <p>Uma linha reta liga a antena do traje ao habitat. Se o relevo fica no meio, não há sinal direto.</p>
-            <span class="tipo tipo-calc">Calculado</span>
+            <h3>Does the radio reach?</h3>
+            <p>A straight line links the suit antenna to the habitat. If the terrain is in the way, there is no direct signal.</p>
+            <span class="tipo tipo-calc">Calculated</span>
           </li>
           <li>
-            <h3>Onde me abrigo?</h3>
-            <p>O ponto mais afastado da rota já sai com o abrigo de relevo mais próximo marcado.</p>
-            <span class="tipo tipo-calc">Calculado</span>
+            <h3>Where do I shelter?</h3>
+            <p>The farthest point of the route already comes with the nearest terrain shelter marked.</p>
+            <span class="tipo tipo-calc">Calculated</span>
           </li>
           <li>
-            <h3>Quanta radiação?</h3>
-            <p>A dose vem do instrumento RAD do Curiosity, com a média dos últimos 30 dias.</p>
-            <span class="tipo tipo-real">Real</span>
+            <h3>How much radiation?</h3>
+            <p>The dose comes from Curiosity's RAD instrument, averaged over the last 30 days.</p>
+            <span class="tipo tipo-real">Measured</span>
           </li>
           <li>
-            <h3>Vai esfriar?</h3>
-            <p>O tablet avisa em que parte da saída o ar fica abaixo do mínimo do traje. O visor avisa uma hora antes.</p>
-            <span class="tipo tipo-hip">Hipótese</span>
+            <h3>Will it get cold?</h3>
+            <p>The tablet warns in which part of the EVA the air drops below the suit minimum. The visor warns one hour ahead.</p>
+            <span class="tipo tipo-hip">Assumption</span>
           </li>
           <li>
-            <h3>E se der errado?</h3>
-            <p>Tempestade de poeira, evento solar, perda de rádio, pane do veículo: cada cenário tem um protocolo.</p>
-            <span class="tipo tipo-hip">Hipótese</span>
+            <h3>What if it goes wrong?</h3>
+            <p>Dust storm, solar event, loss of radio, vehicle failure: each scenario has a protocol.</p>
+            <span class="tipo tipo-hip">Assumption</span>
           </li>
         </ul>
-        <p class="achado"><strong>81%</strong><span>da travessia de exemplo fica sem linha de visada com o habitat. O painel mostra isso antes de alguém sair.</span></p>
+        <p class="achado"><strong>81%</strong><span>of the sample traverse has no line of sight to the habitat. The panel shows it before anyone goes out.</span></p>
       </section>
 
       <section class="parada" id="ia" aria-labelledby="ia-titulo">
         <span class="pino" aria-hidden="true">4</span>
-        <p class="rotulo">Parada 4 · IA de bordo</p>
+        <p class="rotulo">Stop 4 · Onboard AI</p>
         <div class="dupla">
           <div class="prosa">
-            <h2 id="ia-titulo">Uma IA que só cita número que veio dos dados.</h2>
-            <p>No tablet e no visor, a conversa é com um modelo de linguagem no papel de computador de bordo. A cada pergunta ele recebe os dados da saída daquele instante.</p>
-            <p>A resposta é conferida antes de aparecer, e número sem origem não passa. Os alertas e os protocolos seguem regras fixas e não dependem dela.</p>
-            <p class="nota">Ela fala e escuta em português, com dois modelos abertos: Kokoro para a fala e Whisper para a escuta.</p>
+            <h2 id="ia-titulo">An AI that only quotes numbers that came from the data.</h2>
+            <p>On the tablet and in the visor, the conversation is with a language model playing the onboard computer. With every question it receives the EVA data from that instant.</p>
+            <p>The answer is checked before it appears, and a number with no origin does not get through. Alerts and protocols follow fixed rules and do not depend on it.</p>
+            <p class="nota">It speaks and listens in English and Portuguese, with two open models: Kokoro for speech and Whisper for listening.</p>
           </div>
-          <div class="conversa">
-            <p class="rotulo">Perguntas que ela entende</p>
-            <ul>
-              <li>Esse plano é seguro?</li>
-              <li>Dá tempo com luz?</li>
-              <li>Onde falta rádio?</li>
-              <li>E se eu for de veículo?</li>
-              <li>Me mostra meu oxigênio.</li>
-            </ul>
+          <div class="conversa" data-conversa>
+            <div class="conversa-topo">
+              <p><span class="marca-led" aria-hidden="true"></span>Onboard AI</p>
+              <button class="conversa-pausa" type="button" hidden data-pausar="Pause" data-tocar="Play">Pause</button>
+            </div>
+            <ol class="conversa-falas">
+              <li class="troca">
+                <p class="fala fala-pergunta">Is there enough daylight leaving at this time?</p>
+                <p class="fala fala-resposta" data-estado="thinking…">Yes. The EVA is expected to end at 16:33, <strong>1h26 before sunset</strong> at 17:56.</p>
+              </li>
+              <li class="troca">
+                <p class="fala fala-pergunta">Where does the route lose radio?</p>
+                <p class="fala fala-resposta" data-estado="thinking…">The route has <strong>7.3 km without direct radio</strong> to the habitat, across 6 stretches; the current data does not identify their exact locations.</p>
+              </li>
+              <li class="troca">
+                <p class="fala fala-pergunta">Does the oxygen cover the walk-back from anywhere on the route?</p>
+                <p class="fala fala-resposta" data-estado="thinking…">Yes—the plan says the suit oxygen covers a walk-back to the habitat from any point on the route. This is calculated, not measured; the prototype has no real suit.</p>
+              </li>
+            </ol>
+            <p class="conversa-nota">Real answers from the onboard AI about the sample traverse, recorded on November 15, 2026. The emphasis was added on this page.</p>
           </div>
         </div>
       </section>
 
       <section class="parada" id="fontes" aria-labelledby="fontes-titulo">
         <span class="pino" aria-hidden="true">5</span>
-        <p class="rotulo">Parada 5 · De onde vem cada dado</p>
-        <h2 id="fontes-titulo">Cada dado de Marte tem fonte.</h2>
-        <p class="abre">Nada foi inventado. O que é conta, hipótese ou simulação aparece marcado na tela.</p>
+        <p class="rotulo">Stop 5 · Where each piece of data comes from</p>
+        <h2 id="fontes-titulo">Every piece of Mars data has a source.</h2>
+        <p class="abre">Nothing was invented. What is a calculation, an assumption or a simulation is labelled on screen.</p>
         <dl class="tipos">
-          <div><dt><span class="tipo tipo-real">Real</span></dt><dd>Medido por sonda ou rover: relevo, imagens, clima e radiação.</dd></div>
-          <div><dt><span class="tipo tipo-calc">Calculado</span></dt><dd>Conta feita sobre o dado real: rotas, declive, rádio, posição do Sol e sombras.</dd></div>
-          <div><dt><span class="tipo tipo-hip">Hipótese</span></dt><dd>Escolha da equipe: velocidade do veículo, limites dos alertas, bateria do traje e protocolos.</dd></div>
-          <div><dt><span class="tipo tipo-sim">Simulado</span></dt><dd>A posição do astronauta no visor e as falhas dos cenários de treino.</dd></div>
+          <div><dt><span class="tipo tipo-real">Measured</span></dt><dd>Measured by an orbiter or a rover: terrain, imagery, weather and radiation.</dd></div>
+          <div><dt><span class="tipo tipo-calc">Calculated</span></dt><dd>A calculation on real data: routes, slope, radio, Sun position and shadows.</dd></div>
+          <div><dt><span class="tipo tipo-hip">Assumption</span></dt><dd>A team choice: vehicle speed, alert thresholds, suit battery and protocols.</dd></div>
+          <div><dt><span class="tipo tipo-sim">Simulated</span></dt><dd>The astronaut's position in the visor and the failures in the training scenarios.</dd></div>
         </dl>
-        <p class="nota">A lista completa, com o link de cada dado, fica no fim do painel do tablet, na demo.</p>
+        <p class="nota">The full list, with the link for each item, is at the end of the tablet panel, in the demo.</p>
       </section>
 
       <section class="parada" id="limites" aria-labelledby="limites-titulo">
         <span class="pino" aria-hidden="true">6</span>
-        <p class="rotulo">Parada 6 · Como foi feito e onde para</p>
-        <h2 id="limites-titulo">Roda no navegador. Tem limites, e eles estão à vista.</h2>
+        <p class="rotulo">Stop 6 · How it was built and where it stops</p>
+        <h2 id="limites-titulo">It runs in the browser. It has limits, and they are in plain sight.</h2>
         <div class="dupla dupla-listas">
           <div>
-            <h3>Feito com</h3>
+            <h3>Built with</h3>
             <ul class="lista">
-              <li>HTML, CSS e JavaScript puro, sem etapa de build.</li>
-              <li>Three.js para o relevo, o globo e o visor em 3D.</li>
-              <li>Rotas de menor custo (A*) sobre o relevo, com a função de caminhada de Tobler.</li>
-              <li>Posição do Sol pelo algoritmo Mars24, da NASA.</li>
+              <li>Plain HTML, CSS and JavaScript, with no build step.</li>
+              <li>Three.js for the terrain, the globe and the visor in 3D.</li>
+              <li>Least-cost routes (A*) over the terrain, with Tobler's hiking function.</li>
+              <li>Sun position from NASA's Mars24 algorithm.</li>
             </ul>
           </div>
           <div>
-            <h3>Limites</h3>
+            <h3>Limits</h3>
             <ul class="lista">
-              <li>O relevo usa uma grade de 8 metros. Pedras menores não aparecem.</li>
-              <li>A areia fofa é estimativa pela cor da imagem.</li>
-              <li>Em Marte não há GPS. A posição do astronauta é simulada.</li>
-              <li>Os protocolos de emergência são proposta da equipe.</li>
-              <li>A IA e as medições ao vivo precisam de rede.</li>
+              <li>The terrain uses an 8-meter grid. Smaller rocks do not show up.</li>
+              <li>Soft sand is an estimate from the color of the image.</li>
+              <li>There is no GPS on Mars. The astronaut's position is simulated.</li>
+              <li>The emergency protocols are a team proposal.</li>
+              <li>The AI and the live measurements need a network connection.</li>
             </ul>
           </div>
         </div>
@@ -253,18 +275,18 @@
 
       <section class="parada parada-fim" aria-labelledby="fim-titulo">
         <span class="pino pino-habitat" aria-hidden="true">H</span>
-        <p class="rotulo">Volta ao habitat</p>
-        <h2 id="fim-titulo">Veja a saída inteira funcionando.</h2>
+        <p class="rotulo">Back to the habitat</p>
+        <h2 id="fim-titulo">See the whole EVA working.</h2>
         <div class="acoes">
-          <a class="botao" href="./demo.html"><span>Ver demo</span><span class="seta" aria-hidden="true">→</span></a>
+          <a class="botao" href="./demo.html?lang=en"><span>View demo</span><span class="seta" aria-hidden="true">→</span></a>
         </div>
       </section>
     </div>
   </main>
 
   <footer class="rodape">
-    <p>Equipe Lunáticos · NASA Space Apps Challenge 2026 · <a href="https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/" rel="noopener">Interplanetary Survival Guide: Martian Map</a></p>
-    <p>Imagens e dados: NASA/JPL-Caltech/UArizona (HiRISE), USGS Astrogeology (relevo e ortofoto), NASA Mars Trek (Viking e THEMIS) e a missão Curiosity (REMS, RAD e Navcam). A NASA não endossa este projeto.</p>
+    <p>Team Lunáticos · NASA Space Apps Challenge 2026 · <a href="https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/" rel="noopener">Interplanetary Survival Guide: Martian Map</a></p>
+    <p>Images and data: NASA/JPL-Caltech/UArizona (HiRISE), USGS Astrogeology (terrain and orthophoto), NASA Mars Trek (Viking and THEMIS) and the Curiosity mission (REMS, RAD and Navcam). NASA does not endorse this project.</p>
   </footer>
 </body>
 </html>

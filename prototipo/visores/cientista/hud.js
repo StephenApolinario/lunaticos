@@ -6,14 +6,15 @@ import { SIM } from '../../src/simulation.js';
 import { angleDeltaDeg, clamp } from '../../src/geo.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock, fmtSigned } from '../../src/format.js';
 import { byId, h, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { LIMITS, pct } from './contexto.js';
 
 const COMPASS = Object.freeze({ pxPerDeg: 5, marginDeg: 60, tickDeg: 15, maxTargetDeg: 30 });
-const CARDINALS = Object.freeze({ 0: 'N', 45: 'NE', 90: 'L', 135: 'SE', 180: 'S', 225: 'SO', 270: 'O', 315: 'NO' });
-const MODE_LABEL = Object.freeze({ walk: 'A pé', car: 'Veículo' });
-const DIRECTION_LABEL = Object.freeze({ back: 'voltando', forward: 'seguindo' });
+const CARDINALS = Object.freeze({ 0: 'N', 45: 'NE', 90: t('L', 'ponto cardeal'), 135: 'SE', 180: 'S', 225: t('SO', 'ponto cardeal'), 270: t('O', 'ponto cardeal'), 315: t('NO', 'ponto cardeal') });
+const MODE_LABEL = Object.freeze({ walk: t`A pé`, car: t`Veículo` });
+const DIRECTION_LABEL = Object.freeze({ back: t`voltando`, forward: t`seguindo` });
 
-// Marcação fixa do HUD (texto estático, sem dado externo).
+// Marcação fixa do HUD (texto estático, sem dado externo). Os textos entram já no idioma da interface.
 const HUD_TEMPLATE = `
 <div class="cientista-hud" id="cientista-hud" data-panel="closed">
   <div class="cientista-dust" id="cientista-dust" data-on="false" aria-hidden="true"></div>
@@ -21,13 +22,13 @@ const HUD_TEMPLATE = `
   <div class="cientista-markers" id="cientista-markers" aria-hidden="true"></div>
 
   <div class="cientista-view">
-    <section class="cientista-block cientista-clock" aria-label="Tempo de missão">
-      <span class="cientista-label">Tempo de saída</span>
+    <section class="cientista-block cientista-clock" aria-label="${t`Tempo de missão`}">
+      <span class="cientista-label">${t`Tempo de saída`}</span>
       <b class="cientista-value" id="cientista-elapsed">0h00</b>
-      <span class="cientista-sub"><span id="cientista-mode">A pé</span> · hora local <span id="cientista-clock">09:00</span> <small>sim.</small></span>
+      <span class="cientista-sub"><span id="cientista-mode">${t`A pé`}</span> · ${t`hora local`} <span id="cientista-clock">09:00</span> <small>${t`sim.`}</small></span>
     </section>
 
-    <section class="cientista-compass" aria-label="Bússola">
+    <section class="cientista-compass" aria-label="${t`Bússola`}">
       <div class="cientista-compass-window">
         <div class="cientista-tape" id="cientista-tape"></div>
         <i class="cientista-needle"></i>
@@ -36,59 +37,59 @@ const HUD_TEMPLATE = `
       <b class="cientista-value" id="cientista-heading">000°</b>
     </section>
 
-    <section class="cientista-block cientista-next" aria-label="Destinos">
-      <span class="cientista-label" id="cientista-next-label">Próxima parada</span>
+    <section class="cientista-block cientista-next" aria-label="${t`Destinos`}">
+      <span class="cientista-label" id="cientista-next-label">${t`Próxima parada`}</span>
       <b class="cientista-value" id="cientista-next-name">–</b>
       <span class="cientista-sub" id="cientista-next-info"></span>
       <span class="cientista-row"><span>Habitat</span><b id="cientista-habitat">–</b></span>
     </section>
 
-    <div class="cientista-alerts" id="cientista-alerts" role="group" aria-label="Alertas"></div>
+    <div class="cientista-alerts" id="cientista-alerts" role="group" aria-label="${t`Alertas`}"></div>
     <i class="cientista-reticle" aria-hidden="true"></i>
 
-    <section class="cientista-block cientista-suit" aria-label="Traje">
-      <span class="cientista-label">Traje <small>simulado</small></span>
+    <section class="cientista-block cientista-suit" aria-label="${t`Traje`}">
+      <span class="cientista-label">${t`Traje`} <small>${t`simulado`}</small></span>
       <div class="cientista-meter" id="cientista-o2"><span>O₂</span><i></i><b id="cientista-o2-value">100%</b></div>
-      <div class="cientista-meter" id="cientista-battery"><span>Bateria</span><i></i><b id="cientista-battery-value">100%</b></div>
-      <div class="cientista-row"><span>Margem de O₂<span class="cientista-wide"> no fim</span></span><b id="cientista-margin">–</b></div>
-      <div class="cientista-row cientista-extra"><span>O₂ na volta</span><b id="cientista-o2-return">–</b></div>
-      <div class="cientista-row cientista-extra" title="Linha de visada calculada sobre o relevo real; as alturas de antena são hipótese da equipe"><span>Rádio <small>hip.</small></span><b id="cientista-radio">–</b></div>
+      <div class="cientista-meter" id="cientista-battery"><span>${t`Bateria`}</span><i></i><b id="cientista-battery-value">100%</b></div>
+      <div class="cientista-row"><span>${t`Margem de O₂`}<span class="cientista-wide"> ${t`no fim`}</span></span><b id="cientista-margin">–</b></div>
+      <div class="cientista-row cientista-extra"><span>${t`O₂ na volta`}</span><b id="cientista-o2-return">–</b></div>
+      <div class="cientista-row cientista-extra" title="${t`Linha de visada calculada sobre o relevo real; as alturas de antena são hipótese da equipe`}"><span>${t`Rádio`} <small>${t`hip.`}</small></span><b id="cientista-radio">–</b></div>
     </section>
 
-    <section class="cientista-block cientista-env" aria-label="Ambiente">
-      <span class="cientista-label">Ambiente</span>
-      <div class="cientista-row"><span>Declive <small class="cientista-real">DEM USGS</small></span><b id="cientista-slope">–</b></div>
-      <div class="cientista-row"><span>Altitude <small class="cientista-real">DEM USGS</small></span><b id="cientista-altitude">–</b></div>
-      <div class="cientista-row"><span>Radiação <small>RAD</small></span><b id="cientista-radiation">–</b></div>
-      <div class="cientista-row"><span>Dose na saída <small>est.</small></span><b id="cientista-dose">–</b></div>
-      <div class="cientista-row"><span>Temp. do ar <small>est.</small></span><b id="cientista-temperature">–</b></div>
-      <div class="cientista-row"><span>Visibilidade <small>sim.</small></span><b id="cientista-visibility">–</b></div>
-      <div class="cientista-row"><span>Relato</span><b id="cientista-nearest">–</b></div>
+    <section class="cientista-block cientista-env" aria-label="${t`Ambiente`}">
+      <span class="cientista-label">${t`Ambiente`}</span>
+      <div class="cientista-row"><span>${t`Declive`} <small class="cientista-real">${t`DEM USGS`}</small></span><b id="cientista-slope">–</b></div>
+      <div class="cientista-row"><span>${t`Altitude`} <small class="cientista-real">${t`DEM USGS`}</small></span><b id="cientista-altitude">–</b></div>
+      <div class="cientista-row"><span>${t`Radiação`} <small>RAD</small></span><b id="cientista-radiation">–</b></div>
+      <div class="cientista-row"><span>${t`Dose na saída`} <small>${t`est.`}</small></span><b id="cientista-dose">–</b></div>
+      <div class="cientista-row"><span>${t`Temp. do ar`} <small>${t`est.`}</small></span><b id="cientista-temperature">–</b></div>
+      <div class="cientista-row"><span>${t`Visibilidade`} <small>${t`sim.`}</small></span><b id="cientista-visibility">–</b></div>
+      <div class="cientista-row"><span>${t`Relato`}</span><b id="cientista-nearest">–</b></div>
     </section>
 
-    <section class="cientista-strip" id="cientista-strip" data-ui data-kind="assistant" aria-label="Assistente de campo">
-      <span class="cientista-label">Assistente de campo <small>simulado por regras</small></span>
+    <section class="cientista-strip" id="cientista-strip" data-ui data-kind="assistant" aria-label="${t`Assistente de campo`}">
+      <span class="cientista-label">${t`Assistente de campo`} <small>${t`simulado por regras`}</small></span>
       <p id="cientista-strip-text" role="status" aria-live="polite"></p>
       <div class="cientista-strip-actions">
-        <button type="button" id="cientista-strip-mic" aria-pressed="false" hidden>Falar</button>
-        <button type="button" id="cientista-strip-open">Conversar</button>
+        <button type="button" id="cientista-strip-mic" aria-pressed="false" hidden>${t`Falar`}</button>
+        <button type="button" id="cientista-strip-open">${t`Conversar`}</button>
       </div>
     </section>
   </div>
 
-  <aside class="cientista-panel" id="cientista-panel" data-ui aria-label="Assistente de campo" hidden></aside>
+  <aside class="cientista-panel" id="cientista-panel" data-ui aria-label="${t`Assistente de campo`}" hidden></aside>
 
-  <div class="cientista-pop" id="cientista-pop-hazard" data-ui role="group" aria-label="Tipo de perigo a relatar" hidden></div>
-  <div class="cientista-pop" id="cientista-pop-emergency" data-ui role="group" aria-label="Emergências simuladas" hidden></div>
+  <div class="cientista-pop" id="cientista-pop-hazard" data-ui role="group" aria-label="${t`Tipo de perigo a relatar`}" hidden></div>
+  <div class="cientista-pop" id="cientista-pop-emergency" data-ui role="group" aria-label="${t`Emergências simuladas`}" hidden></div>
 
-  <div class="cientista-controls" data-ui role="toolbar" aria-label="Controles da simulação">
-    <button type="button" id="cientista-pause">Pausar</button>
-    <label class="cientista-speed"><span>Velocidade</span> <select id="cientista-speed" aria-label="Velocidade da simulação"></select></label>
-    <input type="range" id="cientista-scrub" min="0" value="0" aria-label="Posição na rota">
-    <button type="button" id="cientista-hazard-btn" aria-expanded="false" aria-controls="cientista-pop-hazard">Relatar perigo</button>
-    <button type="button" id="cientista-emergency-btn" aria-expanded="false" aria-controls="cientista-pop-emergency">Emergências</button>
-    <button type="button" id="cientista-panel-btn" aria-expanded="false" aria-controls="cientista-panel">Assistente</button>
-    <button type="button" id="cientista-exit" class="cientista-primary">Voltar ao tablet</button>
+  <div class="cientista-controls" data-ui role="toolbar" aria-label="${t`Controles da simulação`}">
+    <button type="button" id="cientista-pause">${t`Pausar`}</button>
+    <label class="cientista-speed"><span>${t`Velocidade`}</span> <select id="cientista-speed" aria-label="${t`Velocidade da simulação`}"></select></label>
+    <input type="range" id="cientista-scrub" min="0" value="0" aria-label="${t`Posição na rota`}">
+    <button type="button" id="cientista-hazard-btn" aria-expanded="false" aria-controls="cientista-pop-hazard">${t`Relatar perigo`}</button>
+    <button type="button" id="cientista-emergency-btn" aria-expanded="false" aria-controls="cientista-pop-emergency">${t`Emergências`}</button>
+    <button type="button" id="cientista-panel-btn" aria-expanded="false" aria-controls="cientista-panel">${t`Assistente`}</button>
+    <button type="button" id="cientista-exit" class="cientista-primary">${t`Voltar ao tablet`}</button>
   </div>
 </div>
 `;
@@ -165,10 +166,10 @@ function renderTarget(els, context) {
   setText(els.nextLabel, target.label);
   setText(els.nextName, target.name);
   const info = target.kind === 'dwell'
-    ? `em coleta · faltam ${fmtDuration(target.etaH)}`
+    ? t`em coleta · faltam ${fmtDuration(target.etaH)}`
     : `${fmtDistance(target.distM)} · ${fmtDuration(target.etaH)} · ${fmtSigned(target.gainM)} m`;
   setText(els.nextInfo, info);
-  const home = habitat.distM < LIMITS.atHabitatM ? 'você está aqui' : `${fmtDistance(habitat.distM)} · ${fmtDuration(habitat.etaH)} · ${DIRECTION_LABEL[habitat.direction]}`;
+  const home = habitat.distM < LIMITS.atHabitatM ? t`você está aqui` : `${fmtDistance(habitat.distM)} · ${fmtDuration(habitat.etaH)} · ${DIRECTION_LABEL[habitat.direction]}`;
   setText(els.habitat, home);
 }
 
@@ -185,9 +186,9 @@ function renderAlerts(container, alerts) {
 }
 
 function radioText(comms) {
-  if (comms.failed) return 'falha (sim.)';
-  if (comms.lineOfSight === null) return 'sem dado';
-  return comms.lineOfSight ? 'visada direta' : `sem visada · ${fmtDistance(comms.backInM)}`;
+  if (comms.failed) return t`falha (sim.)`;
+  if (comms.lineOfSight === null) return t`sem dado`;
+  return comms.lineOfSight ? t`visada direta` : t`sem visada · ${fmtDistance(comms.backInM)}`;
 }
 
 function renderSuit(els, { suit, habitat, comms, assumptions }) {
@@ -195,7 +196,7 @@ function renderSuit(els, { suit, habitat, comms, assumptions }) {
   setMeter(els.battery, els.batteryValue, suit.batteryPct, LIMITS.battery);
   setLeveled(els.margin, fmtDuration(suit.marginH), suit.marginH < 0 ? 'danger' : suit.marginH < SIM.lowMarginH ? 'warn' : 'ok');
   const arrival = habitat.o2ArrivalPct;
-  setLeveled(els.o2Return, arrival >= 0 ? `chega com ${pct(arrival)}` : 'não cobre a volta', arrival < 0 ? 'danger' : arrival < assumptions.o2ReservePct ? 'warn' : 'ok');
+  setLeveled(els.o2Return, arrival >= 0 ? t`chega com ${pct(arrival)}` : t`não cobre a volta`, arrival < 0 ? 'danger' : arrival < assumptions.o2ReservePct ? 'warn' : 'ok');
   setLeveled(els.radio, radioText(comms), comms.failed || comms.lineOfSight === false ? 'warn' : 'ok');
 }
 
@@ -205,9 +206,9 @@ function renderEnvironment(els, { env, position, emergencies, hazards }) {
   setLeveled(els.radiation, `${fmtNumber(env.radiationUsvH)} µSv/h`, emergencies.solar ? 'danger' : 'ok');
   setText(els.dose, `${fmtNumber(env.doseUsv)} µSv`);
   setText(els.temperature, `${fmtNumber(env.airTempC)} °C`);
-  setLeveled(els.visibility, emergencies.storm ? 'reduzida' : 'normal', emergencies.storm ? 'danger' : 'ok');
+  setLeveled(els.visibility, emergencies.storm ? t`reduzida` : 'normal', emergencies.storm ? 'danger' : 'ok');
   const { nearest } = hazards;
-  setText(els.nearest, nearest ? `${nearest.label} · ${fmtDistance(nearest.distM)}` : 'nenhum');
+  setText(els.nearest, nearest ? `${nearest.label} · ${fmtDistance(nearest.distM)}` : t`nenhum`);
 }
 
 /**

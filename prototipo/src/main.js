@@ -31,6 +31,7 @@ import { PROTOCOLS, SHELTER_KINDS, protocolFor } from '../data/protocolos.js';
 import { byId } from './dom.js';
 import { fmtClock } from './format.js';
 import { DEFAULT_QUALITY, QUALITY } from './config.js';
+import { applyStaticTexts, LANG, LANGS, setLang, t } from './i18n.js';
 
 const TABLET_CAMERA = Object.freeze({ position: [-700, 4300, -5500], target: [0, 300, -250] });
 const ORBIT_LIMITS = Object.freeze({ minDistanceM: 150, maxDistanceM: 16000, maxPolarRad: Math.PI * 0.47 });
@@ -40,7 +41,7 @@ const FOCUS = Object.freeze({ distanceM: 1300, durationS: 0.9 });
 // entrada. `minPolarRad`: inclinação mínima da câmera local, para o rumo não se perder olhando reto
 // para baixo. `durationS`: descida até a vista de planejamento quando a entrada foi pelo botão.
 const PLANET_HANDOFF = Object.freeze({ durationS: 1.6, backAtShare: 0.985, backOffFactor: 1.05, minPolarRad: 0.001 });
-const AREA_LABEL = 'Cratera Gale · Monte Sharp';
+const AREA_LABEL = t('Cratera Gale · Monte Sharp');
 const MAX_FRAME_S = 0.1;
 // Hora solar local em que o mapa abre, e de quanto em quanto a luz é refeita enquanto o relógio do visor anda.
 const DEFAULT_HOUR_H = 10;
@@ -51,7 +52,7 @@ const IDLE_RENDER_S = 0.5;
 const RENDER_BURST_FRAMES = 3;
 // Clique no mapa: até quantos pixels o ponteiro pode andar sem virar arrasto, e o passo da busca do ponto no relevo.
 const PICK = Object.freeze({ clickTolerancePx: 5, stepM: 8, maxM: 40000, refineSteps: 12 });
-const OUTSIDE_DATA_NOTICE = 'Escolha um ponto dentro da área fotografada do mapa.';
+const OUTSIDE_DATA_NOTICE = t('Escolha um ponto dentro da área fotografada do mapa.');
 const RAD_TO_DEG = 180 / Math.PI;
 // A qualidade escolhida fica guardada neste navegador.
 const QUALITY_STORAGE_KEY = 'lunaticos:qualidade';
@@ -73,18 +74,18 @@ function storeQuality(id) {
 const easeOutCubic = (t) => 1 - (1 - t) ** 3;
 // Selo sobre o mapa: diz o que é real no que está na tela.
 function badgeText({ imagery, relief, detail, fine }) {
-  const reliefText = relief === 'real' ? 'relevo real (USGS)' : 'altura do relevo aproximada';
-  if (imagery === 'loading') return `Carregando imagem HiRISE… · ${reliefText}`;
+  const reliefText = relief === 'real' ? t('relevo real (USGS)') : t('altura do relevo aproximada');
+  if (imagery === 'loading') return `${t('Carregando imagem HiRISE…')} · ${reliefText}`;
   if (imagery === 'ready') {
-    const base = relief === 'real' ? 'Imagem HiRISE e relevo reais (USGS)' : `Imagem HiRISE real · ${reliefText}`;
-    if (detail === 'offline') return `${base} · sem rede para o detalhe fino`;
-    if (detail) return `${base} · detalhe de ${detail} por pixel`;
-    return fine ? `${base} · foto de 0,7 m por pixel` : base;
+    const base = relief === 'real' ? t('Imagem HiRISE e relevo reais (USGS)') : `${t('Imagem HiRISE real')} · ${reliefText}`;
+    if (detail === 'offline') return `${base} · ${t('sem rede para o detalhe fino')}`;
+    if (detail) return `${base} · ${t`detalhe de ${detail} por pixel`}`;
+    return fine ? `${base} · ${t('foto de 0,7 m por pixel')}` : base;
   }
-  return `Imagem HiRISE indisponível · ${reliefText}`;
+  return `${t('Imagem HiRISE indisponível')} · ${reliefText}`;
 }
 
-function boot(elevation, visor, sandBits) {
+function boot(elevation, visor, sandBits, globeModule) {
   const app = byId('app');
   app.dataset.visor = visor.id;
   const stageElement = byId('stage');
@@ -158,9 +159,9 @@ function boot(elevation, visor, sandBits) {
   // Estação de hoje em Marte (longitude solar), que define o caminho do Sol no céu.
   const lsDeg = solarLongitudeDeg(julianDateTT(new Date()));
   // Barra de estado do tablet de missão: a estação de hoje em Marte (calculada) e a hora de partida escolhida.
-  byId('device-season').textContent = `Ls ${Math.round(lsDeg)}° · estação de hoje`;
+  byId('device-season').textContent = t`Ls ${Math.round(lsDeg)}° · estação de hoje`;
   const deviceClock = byId('device-clock');
-  const showDeviceClock = () => { deviceClock.textContent = `Partida ${fmtClock(state.hourH)} · hora solar local`; };
+  const showDeviceClock = () => { deviceClock.textContent = t`Partida ${fmtClock(state.hourH)} · hora solar local`; };
   showDeviceClock();
   let sunHourH = null;
   // Põe o Sol na posição da hora dada. No visor é chamado a cada quadro, então só refaz a luz a cada minuto.
@@ -334,6 +335,7 @@ function boot(elevation, visor, sandBits) {
   // Sem o módulo do globo, fica só o local.
   let globe = null;
   let globeEnterM = ORBIT_LIMITS.maxDistanceM;
+  // A página chega marcada como planeta (demo.html), para o mapa local não aparecer enquanto carrega.
   let scope = 'local';
   // O botão "Entrar na área mapeada" foi usado? Aí, depois da chegada, a câmera desce sozinha até a vista de planejamento.
   let isFlyingIn = false;
@@ -411,10 +413,15 @@ function boot(elevation, visor, sandBits) {
     globe?.flyToArea();
   });
 
-  // O módulo do globo entra depois da cena local: se ele falhar, o tablet abre direto na área mapeada.
+  // O módulo do globo chega junto com o relevo (ver `start`), o globo é criado com a cena local e o
+  // tablet muda para o planeta antes do primeiro quadro (ver o fim de `boot`): assim a página nunca
+  // mostra o mapa de planejamento por um instante antes do planeta. Se o módulo não carregar ou o
+  // globo falhar ao ser criado, o tablet abre direto na área mapeada.
   // Com ?local na URL o tablet abre na área mapeada mesmo com o globo disponível.
-  import('./globo.js')
-    .then(({ createGlobe, GLOBE_SOURCE, ENTER_DISTANCE_M }) => {
+  function openOnPlanet() {
+    if (!globeModule) return;
+    const { createGlobe, GLOBE_SOURCE, ENTER_DISTANCE_M } = globeModule;
+    try {
       globeEnterM = ENTER_DISTANCE_M;
       globe = createGlobe({
         renderer: stage.renderer, container: stageElement, area: DATA_BOUNDS, label: AREA_LABEL, quality: state.quality,
@@ -423,13 +430,17 @@ function boot(elevation, visor, sandBits) {
           isFlyingIn = false;
         },
       });
-      // "Mosaico Viking" sozinho não diz nada a quem não conhece a missão: o crédito na tela explica o que é.
-      byId('planet-source').textContent = `Imagem do planeta: fotos das sondas ${GLOBE_SOURCE.mission} (NASA, anos 1970), reunidas pelo USGS num mosaico de 232 m por pixel e lidas do NASA Mars Trek.`;
-      const opensLocal = new URLSearchParams(window.location.search).has('local');
-      if (state.view === 'tablet' && !opensLocal) setScope('planeta');
-      else canInheritLocalView = true;
-    })
-    .catch((error) => console.warn('Globo de Marte indisponível: o tablet abre direto na área mapeada.', error));
+    } catch (error) {
+      globe = null;
+      console.warn('Globo de Marte indisponível: o tablet abre direto na área mapeada.', error);
+      return;
+    }
+    // "Mosaico Viking" sozinho não diz nada a quem não conhece a missão: o crédito na tela explica o que é.
+    byId('planet-source').textContent = t`Imagem do planeta: fotos das sondas ${GLOBE_SOURCE.mission} (NASA, anos 1970), reunidas pelo USGS num mosaico de 232 m por pixel e lidas do NASA Mars Trek.`;
+    const opensLocal = new URLSearchParams(window.location.search).has('local');
+    if (state.view === 'tablet' && !opensLocal) setScope('planeta');
+    else canInheritLocalView = true;
+  }
 
   const PLAN_KEYS = ['mode', 'includeExtension', 'waypoints'];
   // Só o que de fato muda o plano: na rota livre a extensão não conta.
@@ -440,7 +451,7 @@ function boot(elevation, visor, sandBits) {
   // Acrescenta um ponto ao fim da rota livre (A, B, C…).
   function addWaypoint(point) {
     if (state.waypoints.length >= MAX_WAYPOINTS) {
-      setState({ notice: `A rota livre aceita até ${MAX_WAYPOINTS} pontos. Remova um para escolher outro.` });
+      setState({ notice: t`A rota livre aceita até ${MAX_WAYPOINTS} pontos. Remova um para escolher outro.` });
       return;
     }
     setState({ waypoints: Object.freeze([...state.waypoints, point]) });
@@ -628,7 +639,7 @@ function boot(elevation, visor, sandBits) {
     systemPrompt: TABLET_PROMPT,
     onStatus: (text) => panel.setAssistantBusy(text),
   });
-  const showPlannerHealth = (health) => panel.setAssistantNote(health.ok ? engineLabel(health) : 'fora do ar');
+  const showPlannerHealth = (health) => panel.setAssistantNote(health.ok ? engineLabel(health) : t('fora do ar'));
   async function askPlanner(question) {
     try {
       const reply = await planningAgent.ask(question);
@@ -696,14 +707,15 @@ function boot(elevation, visor, sandBits) {
     }
     requestAnimationFrame(frame);
   }
+  openOnPlanet();
   requestAnimationFrame(frame);
 }
 
 function showFatal(loading, error) {
-  const reason = error instanceof Error ? error.message : 'erro desconhecido';
+  const reason = error instanceof Error ? error.message : t('erro desconhecido');
   loading.hidden = false;
   loading.dataset.state = 'error';
-  loading.textContent = `Não foi possível iniciar o mapa 3D: ${reason}`;
+  loading.textContent = t`Não foi possível iniciar o mapa 3D: ${reason}`;
   console.error(error);
 }
 
@@ -719,10 +731,36 @@ async function resolveVisor() {
   }
 }
 
+// Idioma: aplica o português ao texto fixo da página (ela chega em inglês) e monta o seletor na barra
+// do tablet. Trocar de idioma recarrega a página; o link do nome da equipe volta à apresentação no
+// mesmo idioma.
+function setupLanguage() {
+  applyStaticTexts();
+  byId('device-home').href = LANG === 'pt' ? './pt.html' : './';
+  const holder = byId('device-lang');
+  for (const lang of LANGS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = lang.short;
+    button.title = lang.label;
+    button.lang = lang.id;
+    button.setAttribute('aria-label', lang.label);
+    button.setAttribute('aria-pressed', String(lang.id === LANG));
+    button.addEventListener('click', () => setLang(lang.id));
+    holder.append(button);
+  }
+}
+
 // Inicia sem esperar timer nem quadro: em aba em segundo plano o navegador segura os dois.
 // Se a grade de altitude real não carregar, o protótipo abre com o relevo aproximado.
 async function start() {
+  setupLanguage();
   const loading = byId('loading');
+  // O globo carrega em paralelo com o relevo. Sem ele o protótipo segue só com a área mapeada.
+  const globeLoading = import('./globo.js').catch((error) => {
+    console.warn('Globo de Marte indisponível: o tablet abre direto na área mapeada.', error);
+    return null;
+  });
   try {
     const elevation = await loadElevation().catch((error) => {
       console.warn(error);
@@ -730,7 +768,7 @@ async function start() {
     });
     // Sem o arquivo da areia, o protótipo segue sem essa camada e sem esse desvio.
     const sandBits = await loadSandBits().catch((error) => { console.warn(error); return null; });
-    boot(elevation, await resolveVisor(), sandBits);
+    boot(elevation, await resolveVisor(), sandBits, await globeLoading);
     loading.hidden = true;
   } catch (error) {
     showFatal(loading, error);

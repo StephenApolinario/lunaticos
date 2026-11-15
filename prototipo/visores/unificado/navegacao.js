@@ -5,6 +5,7 @@
 import { clamp } from '../../src/geo.js';
 import { fmtDistance, fmtNumber, fmtSigned } from '../../src/format.js';
 import { COLORS } from '../../src/config.js';
+import { t } from '../../src/i18n.js';
 import { analyzePlan, HABITAT } from '../navegador/analise.js';
 import { antennaFrom, lineOfSight } from '../navegador/radio.js';
 import { radioReading } from '../navegador/leitura.js';
@@ -18,7 +19,7 @@ const RADIO_INTERVAL_S = 0.25;
 const GUIDE_LIFT_M = 2;
 const NO_RADIO = Object.freeze({ visible: true, clearanceM: Infinity, blockAtM: 0, distM: 0 });
 
-const zoomText = (radiusM) => `raio ${radiusM >= 1000 ? `${fmtNumber(radiusM / 1000, radiusM % 1000 === 0 ? 0 : 1)} km` : `${radiusM} m`}`;
+const zoomText = (radiusM) => t`raio ${radiusM >= 1000 ? `${fmtNumber(radiusM / 1000, radiusM % 1000 === 0 ? 0 : 1)} km` : `${radiusM} m`}`;
 
 /**
  * @param {{
@@ -109,7 +110,7 @@ export function createNavigation({ canvases, edge, camera, terrain, assumptions,
         radiusM: ZOOM_RADII_M[zoomIndex], targetId: r.target.stopId ?? '', rejoin: guide.rejoin, radio: sight,
       });
       const ahead = profile.draw(state.distM);
-      onProfile(`Perfil à frente · relevo real · ${fmtDistance(ahead.aheadM)} · ${fmtSigned(ahead.gainM)} m · máx. ${fmtSigned(ahead.peakDeg)}°`);
+      onProfile(t`Perfil à frente · relevo real · ${fmtDistance(ahead.aheadM)} · ${fmtSigned(ahead.gainM)} m · máx. ${fmtSigned(ahead.peakDeg)}°`);
     }
     return { guide, radio: { ahead: radioAheadText(reading), soon: reading.lossSoon } };
   }

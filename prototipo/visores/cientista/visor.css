@@ -127,9 +127,11 @@
 .cientista-alert[data-level="info"] { color: var(--hud); }
 .cientista-alert[data-level="info"]::before { content: "INFO · "; }
 .cientista-alert[data-level="atencao"] { color: var(--vehicle); }
-.cientista-alert[data-level="atencao"]::before { content: "ATENÇÃO · "; }
+.cientista-alert[data-level="atencao"]::before { content: "CAUTION · "; }
+:root[lang="pt-BR"] .cientista-alert[data-level="atencao"]::before { content: "ATENÇÃO · "; }
 .cientista-alert[data-level="critico"] { color: var(--cientista-danger); background: rgba(60, 8, 10, 0.82); animation: cientista-pulse 1.1s ease-in-out infinite; }
-.cientista-alert[data-level="critico"]::before { content: "CRÍTICO · "; }
+.cientista-alert[data-level="critico"]::before { content: "CRITICAL · "; }
+:root[lang="pt-BR"] .cientista-alert[data-level="critico"]::before { content: "CRÍTICO · "; }
 @keyframes cientista-pulse { 50% { opacity: 0.55; } }
 
 .cientista-reticle {

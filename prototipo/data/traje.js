@@ -4,6 +4,8 @@
 // inventados: o consumo de oxigênio sai de uma conta com valores publicados (abaixo), e o que
 // continua sendo escolha da equipe está marcado como hipótese.
 
+import { t } from '../src/i18n.js';
+
 const KG_PER_LB = 0.45359237;
 const KPA_PER_PSI = 6.894757;
 // Energia liberada por litro de oxigênio consumido: a regra de 5 kcal por litro.
@@ -28,10 +30,10 @@ export const SUIT = Object.freeze({
   // Consumo da bateria, em % por hora: hipótese da equipe (não achamos a capacidade publicada).
   batteryPctPerHour: Object.freeze({ foot: 9, cabin: 5 }),
   sources: Object.freeze({
-    oxygen: Object.freeze({ label: 'Campbell 2012, NASA · sistema de suporte de vida do traje avançado', url: 'https://ntrs.nasa.gov/api/citations/20120009158/downloads/20120009158.pdf' }),
-    metabolic: Object.freeze({ label: 'Paul, NASA · gasto de energia nas saídas até a Apollo', url: 'https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf' }),
-    pressure: Object.freeze({ label: 'NASA · traje EMU da estação espacial', url: 'https://ntrs.nasa.gov/api/citations/20140009556/downloads/20140009556.pdf' }),
-    contingency: Object.freeze({ label: 'NASA EVA-EXP-0042 · conceito de operações de saída', url: 'https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf' }),
+    oxygen: Object.freeze({ label: t('Campbell 2012, NASA · sistema de suporte de vida do traje avançado'), url: 'https://ntrs.nasa.gov/api/citations/20120009158/downloads/20120009158.pdf' }),
+    metabolic: Object.freeze({ label: t('Paul, NASA · gasto de energia nas saídas até a Apollo'), url: 'https://ntrs.nasa.gov/api/citations/20120003917/downloads/20120003917.pdf' }),
+    pressure: Object.freeze({ label: t('NASA · traje EMU da estação espacial'), url: 'https://ntrs.nasa.gov/api/citations/20140009556/downloads/20140009556.pdf' }),
+    contingency: Object.freeze({ label: t('NASA EVA-EXP-0042 · conceito de operações de saída'), url: 'https://www.nasa.gov/wp-content/uploads/2017/02/eva-exp-0042_xeva_system_con_ops_rev_b_final_dtd_10192020_ref_doc.pdf' }),
   }),
 });
 
@@ -50,5 +52,5 @@ export const O2_RESERVE_PCT = Math.round(O2_PCT_PER_HOUR.foot * SUIT.contingency
 export const WALK_SPEED_KMH = 2;
 export const WALK_SPEED_SOURCE = SUIT.sources.contingency;
 
-export const SUIT_ORIGIN = 'calculado, não medido: não existe traje real neste protótipo. O consumo de oxigênio sai da taxa metabólica medida nas saídas lunares da Apollo e do tanque de oxigênio do traje avançado da NASA; a reserva é a contingência de 1 hora do conceito de operações da NASA; a pressão é a do traje EMU; o consumo da bateria é hipótese da equipe.';
-export const SPEED_ORIGIN = 'A velocidade a pé (2 km/h) é o valor de planejamento da NASA para a volta a pé de traje; a do veículo (4,5 km/h) e os 45 min por parada são hipótese da equipe.';
+export const SUIT_ORIGIN = t('calculado, não medido: não existe traje real neste protótipo. O consumo de oxigênio sai da taxa metabólica medida nas saídas lunares da Apollo e do tanque de oxigênio do traje avançado da NASA; a reserva é a contingência de 1 hora do conceito de operações da NASA; a pressão é a do traje EMU; o consumo da bateria é hipótese da equipe.');
+export const SPEED_ORIGIN = t('A velocidade a pé (2 km/h) é o valor de planejamento da NASA para a volta a pé de traje; a do veículo (4,5 km/h) e os 45 min por parada são hipótese da equipe.');

@@ -4,6 +4,7 @@
 import { yToElev } from '../../src/geo.js';
 import { COLORS } from '../../src/config.js';
 import { fmtNumber } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 import { slopeLevel, limitFor } from './terreno.js';
 
 export const PROFILE_WINDOW_M = Object.freeze({
@@ -132,7 +133,7 @@ function drawMarks(ctx, plan, analysis, color, span, distM, at) {
     ctx.moveTo(x, top);
     ctx.lineTo(x, base);
     ctx.stroke();
-    ctx.fillText(`P${entry.stop.id}`, x, labelY);
+    ctx.fillText(t`P${entry.stop.id}`, x, labelY);
   }
   ctx.setLineDash([]);
 

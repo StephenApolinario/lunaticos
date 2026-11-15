@@ -6,6 +6,7 @@ import { toGeo, yToElev } from './geo.js';
 import { heightAt } from './heightfield.js';
 import { TRAVEL } from './pathfind.js';
 import { buildPlanFromLegs, legFromPoints, registerStop } from './route.js';
+import { t } from './i18n.js';
 
 // Letras dos pontos livres, na ordem em que são visitados. Sem o H, que é o habitat.
 export const WAYPOINT_IDS = Object.freeze('ABCDEFGIJKLMN'.split(''));
@@ -15,12 +16,19 @@ export const MAX_WAYPOINTS = WAYPOINT_IDS.length;
 const SAFE = Object.freeze({ slopeWeight: 10, noCommsPenalty: 1.6 });
 
 const MIN_ROUTE_M = 30;
-const TOO_CLOSE = `Escolha um ponto a mais de ${MIN_ROUTE_M} m do anterior e do habitat.`;
-const TOO_MANY = `A rota livre aceita até ${MAX_WAYPOINTS} pontos.`;
+const TOO_CLOSE = t`Escolha um ponto a mais de ${MIN_ROUTE_M} m do anterior e do habitat.`;
+const TOO_MANY = t`A rota livre aceita até ${MAX_WAYPOINTS} pontos.`;
 
+// Por que não há rota: até um ponto (`toPoint`) ou até o habitat, na volta de um ponto (`toHabitat`).
 const UNREACHABLE = Object.freeze({
-  walk: (place) => `Não há caminho a pé até ${place} dentro do limite de declive.`,
-  car: (place) => `O veículo não alcança ${place} dentro do limite de declive. Tente a pé ou escolha outro ponto.`,
+  walk: Object.freeze({
+    toPoint: (id) => t`Não há caminho a pé até o ponto ${id} dentro do limite de declive.`,
+    toHabitat: (id) => t`Não há caminho a pé até o habitat, na volta do ponto ${id} dentro do limite de declive.`,
+  }),
+  car: Object.freeze({
+    toPoint: (id) => t`O veículo não alcança o ponto ${id} dentro do limite de declive. Tente a pé ou escolha outro ponto.`,
+    toHabitat: (id) => t`O veículo não alcança o habitat, na volta do ponto ${id} dentro do limite de declive. Tente a pé ou escolha outro ponto.`,
+  }),
 });
 
 /**
@@ -53,14 +61,14 @@ export function createPlanner(field, router, safety) {
     const { lat, lon } = toGeo(point.x, point.z);
     return Object.freeze({
       id,
-      name: `Ponto ${id}`,
+      name: t`Ponto ${id}`,
       lat,
       lon,
       el: Math.round(yToElev(heightAt(field, point.x, point.z))),
-      ch: 'Ponto escolhido no mapa',
-      sci: 'Ponto escolhido pela tripulação. A rota foi calculada na hora sobre o relevo real.',
-      q: 'O que chamou a atenção aqui e que o rover não registrou?',
-      task: 'Descrever o local, fotografar e decidir se vale uma coleta.',
+      ch: t('Ponto escolhido no mapa'),
+      sci: t('Ponto escolhido pela tripulação. A rota foi calculada na hora sobre o relevo real.'),
+      q: t('O que chamou a atenção aqui e que o rover não registrou?'),
+      task: t('Descrever o local, fotografar e decidir se vale uma coleta.'),
       risk: null,
       custom: true,
     });
@@ -86,8 +94,8 @@ export function createPlanner(field, router, safety) {
       const isReturn = index === targets.length - 1;
       const found = router.findPath(from, target, profile);
       if (!found.reachable) {
-        const place = isReturn ? `o habitat, na volta do ponto ${ids[index]}` : `o ponto ${ids[index + 1]}`;
-        return { plan: null, reason: UNREACHABLE[mode](place) };
+        const reason = isReturn ? UNREACHABLE[mode].toHabitat(ids[index]) : UNREACHABLE[mode].toPoint(ids[index + 1]);
+        return { plan: null, reason };
       }
       if (found.points.length < 2 || found.lengthM < MIN_ROUTE_M) return { plan: null, reason: TOO_CLOSE };
       segments.push(found);

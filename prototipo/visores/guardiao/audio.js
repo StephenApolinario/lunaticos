@@ -3,6 +3,7 @@
 // (prototipo/tools/voz, Kokoro) quando ele responde; senão, do speechSynthesis do navegador.
 
 import { IS_LOCAL_PAGE } from '../../src/local.js';
+import { t, LANG, HTML_LANG, IS_ENGLISH } from '../../src/i18n.js';
 import { toSpeech, VOICE_SERVER } from '../cientista/voz.js';
 
 const STORAGE = Object.freeze({ sound: 'guardiao:som', voice: 'guardiao:voz' });
@@ -40,14 +41,20 @@ function writePref(key, on) {
   }
 }
 
-/** Melhor voz pt-BR instalada, ou null (o navegador usa a padrão). */
+// Voz do idioma da interface: qualquer inglês (en-US, en-GB…) ou só o português do Brasil.
+const speaksInterfaceLang = (voice) => {
+  const lang = voice.lang?.replace('_', '-').toLowerCase() ?? '';
+  return IS_ENGLISH ? lang.startsWith('en') : lang === 'pt-br';
+};
+
+/** Melhor voz instalada no idioma da interface, ou null (o navegador usa a padrão). */
 function bestSystemVoice(synth) {
-  const portuguese = synth.getVoices().filter((voice) => voice.lang?.replace('_', '-').toLowerCase() === 'pt-br');
+  const voices = synth.getVoices().filter(speaksInterfaceLang);
   for (const rank of VOICE_RANKS) {
-    const found = portuguese.find((voice) => rank.test(voice.name));
+    const found = voices.find((voice) => rank.test(voice.name));
     if (found) return found;
   }
-  return portuguese[0] ?? null;
+  return voices[0] ?? null;
 }
 
 export function createAudio() {
@@ -67,7 +74,7 @@ export function createAudio() {
     lastProbe = performance.now();
     if (!VOICE_SERVER) return;
     try {
-      const response = await fetch(`${VOICE_SERVER}/saude`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+      const response = await fetch(`${VOICE_SERVER}/saude?idioma=${LANG}`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
       const health = await response.json();
       remote = health.ok ? { modelo: health.modelo, voz: health.voz } : null;
     } catch {
@@ -119,7 +126,7 @@ export function createAudio() {
     if (synth.speaking && priority < speakingPriority) return;
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'pt-BR';
+    utterance.lang = HTML_LANG;
     utterance.voice = bestSystemVoice(synth);
     utterance.rate = SYNTH_RATE;
     utterance.onend = () => { speakingPriority = -1; };
@@ -138,7 +145,8 @@ export function createAudio() {
       const response = await fetch(`${VOICE_SERVER}/falar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto: text, voz: remote.voz }),
+        // Sem `voz`: o servidor escolhe a voz pelo idioma (uma voz pedida aqui passaria por cima dele).
+        body: JSON.stringify({ texto: text, idioma: LANG }),
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`servidor de voz: ${response.status}`);
@@ -208,9 +216,12 @@ export function createAudio() {
     silence,
     get hasVoice() { return remote !== null || synth !== null; },
     get voiceInfo() {
-      if (remote) return `voz neural${IS_LOCAL_PAGE ? ' local' : ''} · ${remote.modelo.replace(/-\d+M$/, '')} (${remote.voz})`;
+      if (remote) {
+        const model = remote.modelo.replace(/-\d+M$/, '');
+        return IS_LOCAL_PAGE ? t`voz neural local · ${model} (${remote.voz})` : t`voz neural · ${model} (${remote.voz})`;
+      }
       const voice = synth ? bestSystemVoice(synth) : null;
-      return voice ? `voz do sistema · ${voice.name}` : 'voz do sistema';
+      return voice ? t`voz do sistema · ${voice.name}` : t`voz do sistema`;
     },
     get soundOn() { return soundOn; },
     get voiceOn() { return voiceOn; },

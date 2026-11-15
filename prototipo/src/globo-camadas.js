@@ -11,11 +11,12 @@
 
 import * as THREE from 'three';
 import { TILE_PX, tilesInRect, tileBounds, areaCenter, angleBetween, centeredBounds } from './globo-geo.js';
+import { t } from './i18n.js';
 
 /** Fonte do mosaico global, para a lista de fontes. */
 export const GLOBE_SOURCE = Object.freeze({
   label: 'Mosaico global colorido do Viking (MDIM 2.1), 232 m por pixel',
-  mission: 'Viking Orbiter 1 e 2',
+  mission: t('Viking Orbiter 1 e 2'),
   instrument: 'VIS (Visual Imaging Subsystem)',
   url: 'https://astrogeology.usgs.gov/search/map/mars_viking_colorized_global_mosaic_232m',
   served: 'NASA Mars Trek (JPL), camada Mars_Viking_MDIM21_ClrMosaic_global_232m, níveis 0 a 7: https://trek.nasa.gov/mars/',

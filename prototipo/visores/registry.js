@@ -1,12 +1,14 @@
 // Registro das variantes de visor. A variante é escolhida por ?visor=<id> na URL.
 // Cada uma mora em visores/<id>/ e segue o contrato de LEIA-ME.md.
 
+import { t } from '../src/i18n.js';
+
 export const VISORS = Object.freeze([
-  { id: 'unificado', name: 'Visor único' },
+  { id: 'unificado', name: t`Visor único` },
   { id: 'base', name: 'Base' },
-  { id: 'guardiao', name: 'Guardião · segurança' },
-  { id: 'navegador', name: 'Navegador · terreno' },
-  { id: 'cientista', name: 'Cientista · assistente' },
+  { id: 'guardiao', name: t`Guardião · segurança` },
+  { id: 'navegador', name: t`Navegador · terreno` },
+  { id: 'cientista', name: t`Cientista · assistente` },
 ]);
 // O visor único junta o Guardião, o Navegador e o Cientista. As outras variantes ficam
 // disponíveis para comparação.

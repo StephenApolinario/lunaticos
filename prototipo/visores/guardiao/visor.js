@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { angleDeltaDeg, clamp } from '../../src/geo.js';
 import { samplePath, headingAt } from '../../src/route.js';
 import { fmtDistance, fmtDuration } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 import { LEVELS, SCENARIOS, SHELTER_NAMES } from './catalog.js';
 import { createAnalyzer } from './analysis.js';
 import { statusLine, assistantMessage, goStepText } from './rules.js';
@@ -148,13 +149,13 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     const marks = { pnr: null, shelter: null };
     if (r.pnr.status === 'ahead' && r.pnr.aheadM <= MARK.pnrMaxM) {
       const at = project(r.pnr.position);
-      if (at) marks.pnr = { ...at, text: `Ponto de não retorno · ${fmtDistance(r.pnr.aheadM)}` };
+      if (at) marks.pnr = { ...at, text: t`Ponto de não retorno · ${fmtDistance(r.pnr.aheadM)}` };
     }
     const pick = proto?.pick;
     // O habitat já tem o pino dele no mapa; aqui entram veículo e relevo.
     if (pick && pick.kind !== 'habitat' && pick.distM >= 1) {
       const at = project(pick.position);
-      if (at) marks.shelter = { ...at, text: `Abrigo · ${SHELTER_NAMES[pick.kind].toLowerCase()} · ${fmtDistance(pick.distM)}` };
+      if (at) marks.shelter = { ...at, text: t`Abrigo · ${SHELTER_NAMES[pick.kind].toLowerCase()} · ${fmtDistance(pick.distM)}` };
     }
     return marks;
   }
@@ -196,10 +197,10 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     });
 
     const { target } = r;
-    const prefix = target.kind === 'shelter' ? 'Abrigo · ' : '';
     const atTarget = target.kind === 'dwell' || target.kind === 'home';
     const howFar = target.timeOnly ? fmtDuration(target.etaH) : fmtDistance(target.distM);
-    overlays.setNextStop(target.stopId, atTarget ? target.name : `${prefix}${target.name} · ${howFar}`);
+    const pinText = target.kind === 'shelter' ? t`Abrigo · ${target.name} · ${howFar}` : `${target.name} · ${howFar}`;
+    overlays.setNextStop(target.stopId, atTarget ? target.name : pinText);
   }
 
   const KEY_ACTIONS = Object.freeze({

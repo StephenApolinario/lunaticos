@@ -6,6 +6,7 @@ import { angleDeltaDeg, clamp } from '../../src/geo.js';
 import { samplePath, headingAt } from '../../src/route.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock, fmtSigned } from '../../src/format.js';
 import { byId, h, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 
 const DEG = Math.PI / 180;
 const EYE_HEIGHT_M = Object.freeze({ walk: 1.7, car: 2.4 });
@@ -13,25 +14,25 @@ const MIN_CLEARANCE_M = 1;
 const CAMERA = Object.freeze({ basePitchDeg: -5, slopePitchFactor: 0.5, baseTurnRate: 2, turnRatePerMps: 0.125, heightRate: 6 });
 const LOOK = Object.freeze({ degPerPx: 0.18, maxYawDeg: 120, maxPitchDeg: 45, returnDelayS: 1.5, returnRate: 2.2 });
 const COMPASS = Object.freeze({ pxPerDeg: 5, marginDeg: 60, tickDeg: 15, maxTargetDeg: 30 });
-const CARDINALS = Object.freeze({ 0: 'N', 45: 'NE', 90: 'L', 135: 'SE', 180: 'S', 225: 'SO', 270: 'O', 315: 'NO' });
+const CARDINALS = Object.freeze({ 0: 'N', 45: 'NE', 90: t('L', 'leste'), 135: 'SE', 180: 'S', 225: t('SO', 'sudoeste'), 270: t('O', 'oeste'), 315: t('NO', 'noroeste') });
 const SCRUB_MAX = 1000;
-const MODE_LABEL = Object.freeze({ walk: 'A pé', car: 'Veículo' });
+const MODE_LABEL = Object.freeze({ walk: t`A pé`, car: t`Veículo` });
 const LEVELS = Object.freeze({ o2: { danger: 25, warn: 45 }, battery: { danger: 20, warn: 40 } });
 const TYPING_TAGS = new Set(['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA']);
 
-// Marcação fixa do HUD (texto estático, sem dado externo).
+// Marcação fixa do HUD (texto estático, sem dado externo; as traduções vêm do dicionário do projeto).
 const HUD_TEMPLATE = `
 <div class="hud" id="hud">
   <div class="hud-frame" aria-hidden="true"></div>
 
   <div class="hud-view">
-    <section class="hud-block hud-clock" aria-label="Tempo de missão">
-      <span class="hud-label">Tempo de saída</span>
+    <section class="hud-block hud-clock" aria-label="${t`Tempo de missão`}">
+      <span class="hud-label">${t`Tempo de saída`}</span>
       <b class="hud-value" id="hud-elapsed">0h00</b>
-      <span class="hud-sub"><span id="hud-mode">A pé</span> · hora local <span id="hud-clock">09:00</span></span>
+      <span class="hud-sub"><span id="hud-mode">${t`A pé`}</span> · ${t`hora local`} <span id="hud-clock">09:00</span></span>
     </section>
 
-    <section class="hud-compass" aria-label="Bússola">
+    <section class="hud-compass" aria-label="${t`Bússola`}">
       <div class="compass-window">
         <div class="compass-tape" id="hud-tape"></div>
         <i class="compass-needle"></i>
@@ -40,8 +41,8 @@ const HUD_TEMPLATE = `
       <b class="hud-value" id="hud-heading">000°</b>
     </section>
 
-    <section class="hud-block hud-next" aria-label="Próximo destino">
-      <span class="hud-label" id="hud-next-label">Próxima parada</span>
+    <section class="hud-block hud-next" aria-label="${t`Próximo destino`}">
+      <span class="hud-label" id="hud-next-label">${t`Próxima parada`}</span>
       <b class="hud-value" id="hud-next-name">–</b>
       <span class="hud-sub"><span id="hud-next-dist"></span> <span id="hud-next-eta"></span> <span id="hud-next-gain"></span></span>
     </section>
@@ -50,34 +51,34 @@ const HUD_TEMPLATE = `
     <p class="visually-hidden" id="hud-announce" role="status" aria-live="polite"></p>
     <i class="hud-reticle" aria-hidden="true"></i>
 
-    <section class="hud-block hud-suit" aria-label="Traje">
-      <span class="hud-label">Traje <small>simulado</small></span>
+    <section class="hud-block hud-suit" aria-label="${t`Traje`}">
+      <span class="hud-label">${t`Traje`} <small>${t`simulado`}</small></span>
       <div class="meter" id="hud-o2"><span>O₂</span><i class="meter-bar"></i><b id="hud-o2-value">100%</b></div>
-      <div class="meter" id="hud-battery"><span>Bateria</span><i class="meter-bar"></i><b id="hud-battery-value">100%</b></div>
-      <div class="hud-row"><span>Margem de O₂ no fim</span><b id="hud-margin">–</b></div>
+      <div class="meter" id="hud-battery"><span>${t`Bateria`}</span><i class="meter-bar"></i><b id="hud-battery-value">100%</b></div>
+      <div class="hud-row"><span>${t`Margem de O₂ no fim`}</span><b id="hud-margin">–</b></div>
     </section>
 
-    <section class="hud-block hud-env" aria-label="Ambiente">
-      <span class="hud-label">Ambiente</span>
-      <div class="hud-row"><span>Declive</span><b id="hud-slope">–</b></div>
+    <section class="hud-block hud-env" aria-label="${t`Ambiente`}">
+      <span class="hud-label">${t`Ambiente`}</span>
+      <div class="hud-row"><span>${t`Declive`}</span><b id="hud-slope">–</b></div>
       <div class="hud-row"><span>Altitude</span><b id="hud-altitude">–</b></div>
-      <div class="hud-row"><span>Radiação <small>RAD</small></span><b id="hud-radiation">–</b></div>
-      <div class="hud-row"><span>Dose na saída <small>est.</small></span><b id="hud-dose">–</b></div>
-      <div class="hud-row"><span>Temp. do ar <small>est.</small></span><b id="hud-temperature">–</b></div>
+      <div class="hud-row"><span>${t`Radiação`} <small>RAD</small></span><b id="hud-radiation">–</b></div>
+      <div class="hud-row"><span>${t`Dose na saída`} <small>est.</small></span><b id="hud-dose">–</b></div>
+      <div class="hud-row"><span>${t`Temp. do ar`} <small>est.</small></span><b id="hud-temperature">–</b></div>
     </section>
 
     <p class="hud-copilot">
-      <span class="hud-label">Copiloto <small>regras simuladas</small></span>
+      <span class="hud-label">${t`Copiloto`} <small>${t`regras simuladas`}</small></span>
       <span id="hud-copilot"></span>
     </p>
   </div>
 
-  <div class="hud-controls" role="toolbar" aria-label="Controles da simulação">
-    <button type="button" id="hud-pause">Pausar</button>
-    <label>Velocidade <select id="hud-speed"></select></label>
-    <input type="range" id="hud-scrub" min="0" value="0" aria-label="Posição na rota">
-    <button type="button" id="hud-solar" aria-pressed="false">Simular evento solar</button>
-    <button type="button" id="hud-exit" class="primary">Voltar ao tablet</button>
+  <div class="hud-controls" role="toolbar" aria-label="${t`Controles da simulação`}">
+    <button type="button" id="hud-pause">${t`Pausar`}</button>
+    <label>${t`Velocidade`} <select id="hud-speed"></select></label>
+    <input type="range" id="hud-scrub" min="0" value="0" aria-label="${t`Posição na rota`}">
+    <button type="button" id="hud-solar" aria-pressed="false">${t`Simular evento solar`}</button>
+    <button type="button" id="hud-exit" class="primary">${t`Voltar ao tablet`}</button>
   </div>
 </div>
 `;
@@ -113,13 +114,13 @@ function renderTarget(els, target) {
   setText(els.nextLabel, target.label);
   setText(els.nextName, target.name);
   if (target.kind === 'dwell') {
-    setText(els.nextDist, 'coleta em andamento');
-    setText(els.nextEta, `faltam ${fmtDuration(target.etaH)}`);
+    setText(els.nextDist, t`coleta em andamento`);
+    setText(els.nextEta, t`faltam ${fmtDuration(target.etaH)}`);
     setText(els.nextGain, '');
     return;
   }
   setText(els.nextDist, fmtDistance(target.distM));
-  setText(els.nextEta, `chegada em ${fmtDuration(target.etaH)}`);
+  setText(els.nextEta, t`chegada em ${fmtDuration(target.etaH)}`);
   setText(els.nextGain, `${fmtSigned(target.gainM)} m`);
 }
 
@@ -199,7 +200,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
 
   function syncControls() {
     // O rótulo já diz o estado; aria-pressed junto com rótulo que muda seria contraditório.
-    setText(els.pause, state.paused ? 'Continuar' : 'Pausar');
+    setText(els.pause, state.paused ? t`Continuar` : t`Pausar`);
     els.pause.dataset.active = String(state.paused);
     els.solar.setAttribute('aria-pressed', String(state.solarEvent));
     els.speed.value = String(state.speed);

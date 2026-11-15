@@ -1,6 +1,7 @@
-// Formatação de números para a interface, em pt-BR.
+// Formatação de números para a interface, no idioma escolhido (vírgula decimal em português, ponto em inglês).
 
-const LOCALE = 'pt-BR';
+import { LOCALE } from './i18n.js';
+
 const M_PER_KM = 1000;
 
 export const fmtNumber = (value, digits = 0) =>

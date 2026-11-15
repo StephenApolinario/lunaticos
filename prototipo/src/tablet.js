@@ -18,15 +18,16 @@ import { OPPORTUNITIES, trackPositionAtSol } from '../data/oportunidades.js';
 import { LAYERS, QUALITY, SLOPE_CLASSES } from './config.js';
 import { emphasized, h, svg } from './dom.js';
 import { KINDS, SOURCE_GROUPS, CHALLENGE_RESOURCES } from '../data/fontes.js';
+import { LOCALE, t } from './i18n.js';
 
 const LAYER_OPTIONS = Object.freeze([
-  { id: 'none', label: 'Relevo' },
-  { id: 'slope', label: 'Declividade' },
-  { id: 'walkback', label: 'Volta a pé' },
-  { id: 'comms', label: 'Rádio' },
-  { id: 'radiation', label: 'Radiação' },
-  { id: 'thermal', label: 'Térmico' },
-  { id: 'sand', label: 'Areia' },
+  { id: 'none', label: t('Relevo') },
+  { id: 'slope', label: t('Declividade') },
+  { id: 'walkback', label: t('Volta a pé') },
+  { id: 'comms', label: t('Rádio') },
+  { id: 'radiation', label: t('Radiação') },
+  { id: 'thermal', label: t('Térmico') },
+  { id: 'sand', label: t('Areia') },
 ]);
 const SLOPE_LIMIT_DEG = Object.freeze({ walk: 20, car: 15 });
 const PROFILE = Object.freeze({ width: 380, height: 150, left: 40, right: 10, top: 12, bottom: 22, gridStepM: 100 });
@@ -35,24 +36,24 @@ const STOP_MINUTES = STOP_HOURS * 60;
 function buildHeader(handlers, options) {
   const qualityNote = h('p', { class: 'note' }, QUALITY[options.quality].note);
   return h('header', { class: 'panel-header' },
-    h('p', { class: 'eyebrow' }, 'Cratera Gale · Monte Sharp · Marte'),
-    h('h1', {}, 'Das argilas ao enxofre'),
-    h('p', { class: 'lede' }, 'Rota de exploração humana calculada sobre o relevo real, ao lado do trajeto do Curiosity (2019–2026). Planeje aqui e siga a rota pelo visor do capacete.'),
+    h('p', { class: 'eyebrow' }, t('Cratera Gale · Monte Sharp · Marte')),
+    h('h1', {}, t('Das argilas ao enxofre')),
+    h('p', { class: 'lede' }, t('Rota de exploração humana calculada sobre o relevo real, ao lado do trajeto do Curiosity (2019–2026). Planeje aqui e siga a rota pelo visor do capacete.')),
     h('div', { class: 'mission' },
-      h('p', { class: 'eyebrow' }, 'Objetivo da missão'),
-      h('p', {}, h('strong', {}, 'Seguir a água do Monte Sharp: '), 'reconstruir quando e como Marte perdeu a água líquida, e trazer as amostras com mais chance de guardar sinais de vida.'),
+      h('p', { class: 'eyebrow' }, t('Objetivo da missão')),
+      h('p', {}, h('strong', {}, `${t('Seguir a água do Monte Sharp:')} `), t('reconstruir quando e como Marte perdeu a água líquida, e trazer as amostras com mais chance de guardar sinais de vida.')),
     ),
     h('button', { class: 'cta', type: 'button', onclick: handlers.onEnterVisor },
-      h('span', {}, 'Entrar no visor do capacete'),
+      h('span', {}, t('Entrar no visor do capacete')),
       h('span', { class: 'cta-arrow', 'aria-hidden': 'true' }, '→'),
     ),
-    h('label', { class: 'visor-pick' }, 'Variante do visor',
+    h('label', { class: 'visor-pick' }, t('Variante do visor'),
       h('select', { onchange: (event) => handlers.onVisorChange(event.target.value) },
         options.visors.map((visor) => h('option', { value: visor.id, selected: visor.id === options.visorId }, visor.name)),
       ),
     ),
     // Qualidade de renderização: a mínima é o padrão, para rodar em qualquer computador.
-    h('label', { class: 'visor-pick' }, 'Qualidade da imagem',
+    h('label', { class: 'visor-pick' }, t('Qualidade da imagem'),
       h('select', {
         onchange: (event) => {
           handlers.onQualityChange(event.target.value);
@@ -67,11 +68,11 @@ function buildHeader(handlers, options) {
 // IA de planejamento: conversa com o modelo de linguagem local, que lê o plano da tela e o altera a pedido.
 const MAX_ASSISTANT_MESSAGES = 14;
 function buildAssistant(handlers) {
-  const note = h('small', { class: 'meta' }, 'verificando…');
-  const log = h('ol', { class: 'ia-log', tabIndex: 0, 'aria-label': 'Conversa com a IA de planejamento' });
+  const note = h('small', { class: 'meta' }, t('verificando…'));
+  const log = h('ol', { class: 'ia-log', tabIndex: 0, 'aria-label': t('Conversa com a IA de planejamento') });
   const busy = h('p', { class: 'ia-busy', role: 'status', hidden: true });
-  const input = h('input', { type: 'text', id: 'ia-pedido', maxLength: 240, autocomplete: 'off', placeholder: 'Pergunte sobre o plano ou peça uma mudança…' });
-  const send = h('button', { type: 'submit' }, 'Enviar');
+  const input = h('input', { type: 'text', id: 'ia-pedido', maxLength: 240, autocomplete: 'off', placeholder: t('Pergunte sobre o plano ou peça uma mudança…') });
+  const send = h('button', { type: 'submit' }, t('Enviar'));
 
   function add(from, text) {
     log.append(h('li', { dataset: { from } }, ...(from === 'assistant' ? emphasized(text) : [text])));
@@ -90,11 +91,11 @@ function buildAssistant(handlers) {
     }
   }
   const node = h('section', { class: 'ia' },
-    h('h2', {}, 'IA de planejamento ', note),
-    h('p', { class: 'note' }, 'Responde só com os dados do plano e das fontes, e muda o plano quando você pede.'),
+    h('h2', {}, t('IA de planejamento'), ' ', note),
+    h('p', { class: 'note' }, t('Responde só com os dados do plano e das fontes, e muda o plano quando você pede.')),
     log,
     busy,
-    h('div', { class: 'ia-chips', role: 'group', 'aria-label': 'Pedidos de exemplo' },
+    h('div', { class: 'ia-chips', role: 'group', 'aria-label': t('Pedidos de exemplo') },
       TABLET_EXAMPLES.map(([label, request]) => h('button', { class: 'ghost', type: 'button', onclick: () => ask(request) }, label))),
     h('form', { class: 'ia-form', onsubmit: (event) => {
       event.preventDefault();
@@ -102,7 +103,7 @@ function buildAssistant(handlers) {
       if (!question) return;
       input.value = '';
       ask(question);
-    } }, h('label', { class: 'visually-hidden', for: 'ia-pedido' }, 'Pedido para a IA de planejamento'), input, send),
+    } }, h('label', { class: 'visually-hidden', for: 'ia-pedido' }, t('Pedido para a IA de planejamento')), input, send),
   );
   return {
     node,
@@ -112,12 +113,12 @@ function buildAssistant(handlers) {
 }
 
 function buildModeControls(handlers) {
-  const walk = h('button', { type: 'button', onclick: () => handlers.onModeChange('walk') }, 'A pé');
-  const car = h('button', { type: 'button', onclick: () => handlers.onModeChange('car') }, 'Veículo');
+  const walk = h('button', { type: 'button', onclick: () => handlers.onModeChange('walk') }, t('A pé'));
+  const car = h('button', { type: 'button', onclick: () => handlers.onModeChange('car') }, t('Veículo'));
   const extension = h('input', { type: 'checkbox', onchange: (event) => handlers.onExtensionChange(event.target.checked) });
-  const extensionLabel = h('label', { class: 'opt' }, extension, 'Incluir extensão até os boxworks');
-  const node = h('section', { 'aria-label': 'Modo de deslocamento' },
-    h('div', { class: 'seg', role: 'group', 'aria-label': 'Modo' }, walk, car),
+  const extensionLabel = h('label', { class: 'opt' }, extension, t('Incluir extensão até os boxworks'));
+  const node = h('section', { 'aria-label': t('Modo de deslocamento') },
+    h('div', { class: 'seg', role: 'group', 'aria-label': t('Modo') }, walk, car),
     extensionLabel,
   );
   const sync = (state) => {
@@ -133,12 +134,12 @@ function buildModeControls(handlers) {
 }
 
 const LEGEND_NOTES = Object.freeze({
-  photoRealRelief: 'Imagem HiRISE e relevo reais. A altura vem do modelo de elevação de 1 m do USGS, em grade de 8 m.',
-  photo: 'Imagem HiRISE real. A altura do relevo é aproximada: fiel ao longo das rotas, suavizada entre elas.',
-  proceduralRealRelief: 'Relevo real (USGS). A cor do solo é ilustrativa: a imagem não está carregada.',
-  procedural: 'Cor do solo ilustrativa. O relevo é aproximado, ancorado nas altitudes reais das rotas.',
-  slopeReal: 'Declive real, calculado sobre o modelo de elevação de 1 m do USGS.',
-  slopeIllustrative: 'Declive do relevo ilustrativo: a imagem real não está carregada.',
+  photoRealRelief: t('Imagem HiRISE e relevo reais. A altura vem do modelo de elevação de 1 m do USGS, em grade de 8 m.'),
+  photo: t('Imagem HiRISE real. A altura do relevo é aproximada: fiel ao longo das rotas, suavizada entre elas.'),
+  proceduralRealRelief: t('Relevo real (USGS). A cor do solo é ilustrativa: a imagem não está carregada.'),
+  procedural: t('Cor do solo ilustrativa. O relevo é aproximado, ancorado nas altitudes reais das rotas.'),
+  slopeReal: t('Declive real, calculado sobre o modelo de elevação de 1 m do USGS.'),
+  slopeIllustrative: t('Declive do relevo ilustrativo: a imagem real não está carregada.'),
 });
 
 function reliefNote(hasPhoto, realRelief) {
@@ -171,8 +172,8 @@ function buildLayerControls(handlers) {
   }));
   const legend = h('div', { class: 'layer-legend' });
   const node = h('section', {},
-    h('h2', {}, 'Camadas do mapa'),
-    h('div', { class: 'chips', role: 'group', 'aria-label': 'Camada exibida' }, buttons.map((button) => button.node)),
+    h('h2', {}, t('Camadas do mapa')),
+    h('div', { class: 'chips', role: 'group', 'aria-label': t('Camada exibida') }, buttons.map((button) => button.node)),
     legend,
   );
   const sync = (state) => {
@@ -182,28 +183,28 @@ function buildLayerControls(handlers) {
   return { node, sync };
 }
 
-const CUSTOM_ROUTE_NOTE = ' Rota calculada no navegador sobre a grade de 8 m: blocos e cristas menores que isso não aparecem, então ela é mais grosseira que as pré-calculadas em 2 m.';
+const CUSTOM_ROUTE_NOTE = t('Rota calculada no navegador sobre a grade de 8 m: blocos e cristas menores que isso não aparecem, então ela é mais grosseira que as pré-calculadas em 2 m.');
 
 function assumptionNote(plan) {
-  return baseAssumptionNote(plan) + (plan.isCustom ? CUSTOM_ROUTE_NOTE : '');
+  const base = baseAssumptionNote(plan);
+  return plan.isCustom ? `${base} ${CUSTOM_ROUTE_NOTE}` : base;
 }
 
 function baseAssumptionNote(plan) {
   const { mode, stats } = plan;
   if (mode === 'walk') {
-    return `Estimativa: ${fmtNumber(SPEED_KMH.walk, 1)} km/h com traje e carga, ${STOP_MINUTES} min por parada. Rota evita declives acima de ${SLOPE_LIMIT_DEG.walk}°.`;
+    return t`Estimativa: ${fmtNumber(SPEED_KMH.walk, 1)} km/h com traje e carga, ${STOP_MINUTES} min por parada. Rota evita declives acima de ${SLOPE_LIMIT_DEG.walk}°.`;
   }
-  const blocked = stats.blockedLegs.length > 0
-    ? ` Trechos em vermelho exigem declive acima de ${SLOPE_LIMIT_DEG.car}°: o veículo para antes e a equipe segue a pé.`
-    : '';
-  return `Estimativa: veículo a ${fmtNumber(SPEED_KMH.car, 1)} km/h, ${STOP_MINUTES} min por parada a pé. Rota evita declives acima de ${SLOPE_LIMIT_DEG.car}° e a zona de rochas cortantes.${blocked}`;
+  const estimate = t`Estimativa: veículo a ${fmtNumber(SPEED_KMH.car, 1)} km/h, ${STOP_MINUTES} min por parada a pé. Rota evita declives acima de ${SLOPE_LIMIT_DEG.car}° e a zona de rochas cortantes.`;
+  if (stats.blockedLegs.length === 0) return estimate;
+  return `${estimate} ${t`Trechos em vermelho exigem declive acima de ${SLOPE_LIMIT_DEG.car}°: o veículo para antes e a equipe segue a pé.`}`;
 }
 
 function buildStats() {
-  const cells = ['distância de ida', 'total com retorno', 'tempo estimado', 'subida acumulada', 'declive máximo', 'paradas científicas']
+  const cells = [t('distância de ida'), t('total com retorno'), t('tempo estimado'), t('subida acumulada'), t('declive máximo'), t('paradas científicas')]
     .map((label) => ({ value: h('b', {}, '–'), label }));
   const note = h('p', { class: 'note' });
-  const node = h('section', { 'aria-label': 'Resumo da rota' },
+  const node = h('section', { 'aria-label': t('Resumo da rota') },
     h('div', { class: 'stats' }, cells.map((cell) => h('div', { class: 'stat' }, cell.value, h('span', {}, cell.label)))),
     note,
   );
@@ -221,7 +222,7 @@ function buildStats() {
 
 function legRow(leg, label) {
   return h('tr', { class: leg.blocked ? 'blocked' : '' },
-    h('td', {}, label, leg.blocked ? h('span', { class: 'meta' }, ' · a pé') : null),
+    h('td', {}, label, leg.blocked ? h('span', { class: 'meta' }, ` · ${t('a pé')}`) : null),
     h('td', { class: 'n' }, fmtKm(leg.len_km)),
     h('td', { class: 'n' }, `+${Math.round(leg.gain_m)} m`),
     h('td', { class: 'n' }, `${fmtNumber(leg.max_slope, 1)}°`),
@@ -231,15 +232,15 @@ function legRow(leg, label) {
 function buildLegs() {
   const body = h('tbody');
   const node = h('section', {},
-    h('h2', {}, 'Trechos'),
+    h('h2', {}, t('Trechos')),
     h('table', { class: 'legs' },
-      h('thead', {}, h('tr', {}, h('th', {}, 'Trecho'), h('th', { class: 'n' }, 'Dist.'), h('th', { class: 'n' }, 'Subida'), h('th', { class: 'n' }, 'Decl. máx.'))),
+      h('thead', {}, h('tr', {}, h('th', {}, t('Trecho')), h('th', { class: 'n' }, t('Dist.')), h('th', { class: 'n' }, t('Subida')), h('th', { class: 'n' }, t('Decl. máx.')))),
       body,
     ),
   );
   const render = (plan) => body.replaceChildren(
     ...plan.legs.map((leg) => legRow(leg, `${shortName(leg.from)} → ${shortName(leg.to)}`)),
-    legRow(plan.returnLeg, 'Retorno ao habitat'),
+    legRow(plan.returnLeg, t('Retorno ao habitat')),
   );
   return { node, render };
 }
@@ -250,18 +251,18 @@ function stopCard(stop, handlers) {
   return h('article', { class: 'stop', dataset: { id: stop.id } },
     h('span', { class: `num${stop.id === 'H' ? ' habitat' : ''}` }, stop.id),
     h('div', { class: 'stop-body' },
-      h('button', { class: 'go', type: 'button', title: 'Ver no mapa', onclick: () => handlers.onStopFocus(stop) },
-        h('strong', {}, stop.name, stop.ext ? h('span', { class: 'meta' }, ' · extensão') : null)),
+      h('button', { class: 'go', type: 'button', title: t('Ver no mapa'), onclick: () => handlers.onStopFocus(stop) },
+        h('strong', {}, stop.name, stop.ext ? h('span', { class: 'meta' }, ` · ${t('extensão')}`) : null)),
       h('span', { class: 'chapter' }, stop.ch),
       h('span', { class: 'meta' }, `sol ${stop.sol} · ${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)} · ${stop.el} m`),
       h('span', { class: 'txt' }, stop.sci),
-      stop.sources ? h('span', { class: 'meta' }, 'Fonte: ', stop.sources.flatMap((source, i) => [i > 0 ? ' · ' : null, sourceLink(source)])) : null,
-      question('Pergunta', stop.q),
-      question('Tarefa', stop.task),
+      stop.sources ? h('span', { class: 'meta' }, `${t('Fonte:')} `, stop.sources.flatMap((source, i) => [i > 0 ? ' · ' : null, sourceLink(source)])) : null,
+      question(t('Pergunta'), stop.q),
+      question(t('Tarefa'), stop.task),
       h('details', { class: 'why' },
-        h('summary', {}, 'Por que essa parada importa'),
-        question('Importância', stop.imp),
-        question('O que a torna interessante', stop.int),
+        h('summary', {}, t('Por que essa parada importa')),
+        question(t('Importância'), stop.imp),
+        question(t('O que a torna interessante'), stop.int),
       ),
       stop.risk ? h('span', { class: 'risk' }, stop.risk) : null,
       surfacePhotos(stop),
@@ -276,27 +277,27 @@ function surfacePhotos(stop) {
   const details = h('details', { class: 'why', ontoggle: async () => {
     if (!details.open || loaded) return;
     loaded = true;
-    gallery.textContent = 'Buscando no acervo da NASA…';
+    gallery.textContent = t('Buscando no acervo da NASA…');
     try {
       const images = await loadSurfaceImages(stop.sol);
-      gallery.replaceChildren(...(images.length === 0 ? ['Nenhuma foto da Navcam neste sol.'] : images.map((image) =>
+      gallery.replaceChildren(...(images.length === 0 ? [t('Nenhuma foto da Navcam neste sol.')] : images.map((image) =>
         h('a', { href: image.url, target: '_blank', rel: 'noopener noreferrer' },
-          h('img', { src: image.url, alt: `Foto da Navcam do Curiosity no sol ${image.sol}`, loading: 'lazy', width: 96, height: 96 })))));
+          h('img', { src: image.url, alt: t`Foto da Navcam do Curiosity no sol ${image.sol}`, loading: 'lazy', width: 96, height: 96 })))));
     } catch (error) {
       loaded = false;
-      gallery.textContent = 'Não foi possível buscar as fotos agora. Verifique a rede e abra de novo.';
+      gallery.textContent = t('Não foi possível buscar as fotos agora. Verifique a rede e abra de novo.');
       console.warn(error);
     }
   } },
-  h('summary', {}, `O que o Curiosity viu aqui (sol ${stop.sol})`),
+  h('summary', {}, t`O que o Curiosity viu aqui (sol ${stop.sol})`),
   gallery,
-  h('span', { class: 'note' }, 'Fotos brutas da Navcam, do acervo público da missão · NASA/JPL-Caltech.'));
+  h('span', { class: 'note' }, t('Fotos brutas da Navcam, do acervo público da missão · NASA/JPL-Caltech.')));
   return details;
 }
 
 function buildStops(handlers) {
   const cards = STOPS.map((stop) => ({ stop, node: stopCard(stop, handlers) }));
-  const node = h('section', {}, h('h2', {}, 'Paradas'), h('div', { class: 'stops' }, cards.map((card) => card.node)));
+  const node = h('section', {}, h('h2', {}, t('Paradas')), h('div', { class: 'stops' }, cards.map((card) => card.node)));
   const render = (plan) => cards.forEach((card) => {
     const inPlan = card.stop.id === 'H' || plan.stops.some((entry) => entry.stop.id === card.stop.id);
     card.node.dataset.off = String(!inPlan);
@@ -308,15 +309,15 @@ function buildStops(handlers) {
 function buildDestination(handlers) {
   const list = h('ol', { class: 'waypoints' });
   const card = h('div', { class: 'destination', hidden: true },
-    h('strong', {}, 'Pontos da rota, na ordem da visita'),
+    h('strong', {}, t('Pontos da rota, na ordem da visita')),
     list,
-    h('span', { class: 'note' }, 'A rota é a mais segura: foge das encostas e evita onde não há rádio direto com o habitat.'),
-    h('button', { class: 'ghost', type: 'button', onclick: handlers.onClearDestination }, 'Voltar à travessia do Monte Sharp'),
+    h('span', { class: 'note' }, t('A rota é a mais segura: foge das encostas e evita onde não há rádio direto com o habitat.')),
+    h('button', { class: 'ghost', type: 'button', onclick: handlers.onClearDestination }, t('Voltar à travessia do Monte Sharp')),
   );
   const notice = h('p', { class: 'notice', role: 'status', hidden: true });
   const node = h('section', {},
-    h('h2', {}, 'Rota livre'),
-    h('p', { class: 'note' }, `Clique no mapa, sem arrastar: cada clique vira a próxima parada (A, B, C… até ${MAX_WAYPOINTS}). A rota sai do habitat, passa por todas na ordem e volta, calculada na hora sobre o relevo real.`),
+    h('h2', {}, t('Rota livre')),
+    h('p', { class: 'note' }, t`Clique no mapa, sem arrastar: cada clique vira a próxima parada (A, B, C… até ${MAX_WAYPOINTS}). A rota sai do habitat, passa por todas na ordem e volta, calculada na hora sobre o relevo real.`),
     card,
     notice,
   );
@@ -325,8 +326,8 @@ function buildDestination(handlers) {
     card.hidden = stops.length === 0;
     list.replaceChildren(...stops.map(({ stop, distM }, index) => h('li', {},
       h('span', { class: 'waypoint-id' }, stop.id),
-      h('span', { class: 'meta' }, `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)} · ${stop.el} m · ${fmtDistance(distM)} de rota`),
-      h('button', { class: 'ghost', type: 'button', 'aria-label': `Remover o ponto ${stop.id}`, onclick: () => handlers.onRemoveWaypoint(index) }, 'Remover'),
+      h('span', { class: 'meta' }, t`${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)} · ${stop.el} m · ${fmtDistance(distM)} de rota`),
+      h('button', { class: 'ghost', type: 'button', 'aria-label': t`Remover o ponto ${stop.id}`, onclick: () => handlers.onRemoveWaypoint(index) }, t('Remover')),
     )));
     notice.hidden = !state.notice;
     notice.textContent = state.notice ?? '';
@@ -346,38 +347,38 @@ function buildDaylight(handlers, options) {
   const shadowNote = h('span', {});
   const temperature = h('span', { class: 'meta' });
   const node = h('section', {},
-    h('h2', {}, 'Hora do dia'),
+    h('h2', {}, t('Hora do dia')),
     h('div', { class: 'hour-row' },
-      h('label', { class: 'visually-hidden', for: 'hour' }, 'Hora solar local em que a saída começa'), slider, clock),
+      h('label', { class: 'visually-hidden', for: 'hour' }, t('Hora solar local em que a saída começa')), slider, clock),
     sunText,
     temperature,
     margin,
     cold,
-    h('p', { class: 'note' }, `Sol calculado para a estação de hoje em Marte (Ls ${Math.round(options.lsDeg)}°) com o algoritmo Mars24 da NASA: nasce às ${fmtClock(sunriseH)} e se põe às ${fmtClock(sunsetH)}, sem contar a poeira. `, shadowNote),
+    h('p', { class: 'note' }, t`Sol calculado para a estação de hoje em Marte (Ls ${Math.round(options.lsDeg)}°) com o algoritmo Mars24 da NASA: nasce às ${fmtClock(sunriseH)} e se põe às ${fmtClock(sunsetH)}, sem contar a poeira.`, ' ', shadowNote),
   );
 
   // Texto e gravidade da folga de luz: começa `startH`, dura `hours` (horas da Terra) e precisa acabar antes do pôr do Sol.
   function marginOf(startH, hours) {
-    if (startH < sunriseH || startH >= sunsetH) return { level: 'alert', text: `Às ${fmtClock(startH)} está escuro: a saída começaria sem luz do Sol.` };
+    if (startH < sunriseH || startH >= sunsetH) return { level: 'alert', text: t`Às ${fmtClock(startH)} está escuro: a saída começaria sem luz do Sol.` };
     const endH = localSolarHour(startH, hours);
     const spareH = (sunsetH - endH) * EARTH_HOURS_PER_MARS_HOUR;
-    if (spareH < 0) return { level: 'alert', text: `Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)}, ${fmtDuration(-spareH)} depois do pôr do Sol.` };
-    return { level: spareH < LOW_DAYLIGHT_H ? 'warn' : 'ok', text: `Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)} e sobram ${fmtDuration(spareH)} de luz.` };
+    if (spareH < 0) return { level: 'alert', text: t`Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)}, ${fmtDuration(-spareH)} depois do pôr do Sol.` };
+    return { level: spareH < LOW_DAYLIGHT_H ? 'warn' : 'ok', text: t`Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)} e sobram ${fmtDuration(spareH)} de luz.` };
   }
 
   // Frio: em que parte da saída o ar estimado fica abaixo do mínimo do traje. Avisa no planejamento,
   // antes de a tripulação sair, e diz para quando mudar a partida.
   function coldOf(startH, hours) {
-    const limit = `${SUIT.minTempC} °C, hipótese da equipe`;
-    const span = coldSpan(startH, localSolarHour(startH, hours), SUIT.minTempC);
-    if (!span) return { level: 'ok', text: `O ar fica acima do mínimo do traje (${limit}) a saída inteira.` };
-    const coldest = `chega a ${Math.round(span.coldestC)} °C`;
+    const limitC = SUIT.minTempC;
+    const span = coldSpan(startH, localSolarHour(startH, hours), limitC);
+    if (!span) return { level: 'ok', text: t`O ar fica acima do mínimo do traje (${limitC} °C, hipótese da equipe) a saída inteira.` };
+    const coldestC = Math.round(span.coldestC);
     const fromStart = span.firstH - startH < 1e-6;
-    if (!fromStart) return { level: 'alert', text: `Frio abaixo do mínimo do traje (${limit}) a partir das ${fmtClock(span.firstH)}, antes do fim da saída: ${coldest}. Saia mais cedo ou encurte a rota.` };
+    if (!fromStart) return { level: 'alert', text: t`Frio abaixo do mínimo do traje (${limitC} °C, hipótese da equipe) a partir das ${fmtClock(span.firstH)}, antes do fim da saída: chega a ${coldestC} °C. Saia mais cedo ou encurte a rota.` };
     // A hora boa para sair é quando o ar volta a passar do mínimo, que pode ser depois do fim desta saída.
-    const warmH = warmAfter(startH, SUIT.minTempC);
-    const advice = warmH === null ? 'Hoje o ar não chega a esse mínimo.' : `O ar só passa do mínimo às ${fmtClock(warmH)}: saia depois desse horário.`;
-    return { level: 'alert', text: `Frio abaixo do mínimo do traje (${limit}) desde a partida: ${coldest}. ${advice}` };
+    const warmH = warmAfter(startH, limitC);
+    const advice = warmH === null ? t('Hoje o ar não chega a esse mínimo.') : t`O ar só passa do mínimo às ${fmtClock(warmH)}: saia depois desse horário.`;
+    return { level: 'alert', text: `${t`Frio abaixo do mínimo do traje (${limitC} °C, hipótese da equipe) desde a partida: chega a ${coldestC} °C.`} ${advice}` };
   }
 
   const render = (plan, state) => {
@@ -385,15 +386,15 @@ function buildDaylight(handlers, options) {
     clock.textContent = fmtClock(state.hourH);
     const sun = sunAt(ORIGIN.lat, options.lsDeg, state.hourH);
     sunText.textContent = sun.elevationDeg > 0
-      ? `Sol a ${Math.round(sun.elevationDeg)}° de altura, a ${compassName(sun.azimuthDeg)} · calculado`
-      : 'Sol abaixo do horizonte · calculado';
-    temperature.textContent = `Ar ${Math.round(estimatedAirTempC(state.hourH))} °C · solo ${Math.round(estimatedGroundTempC(state.hourH))} °C · estimado entre os extremos do REMS`;
+      ? t`Sol a ${Math.round(sun.elevationDeg)}° de altura, a ${compassName(sun.azimuthDeg)} · calculado`
+      : t('Sol abaixo do horizonte · calculado');
+    temperature.textContent = t`Ar ${Math.round(estimatedAirTempC(state.hourH))} °C · solo ${Math.round(estimatedGroundTempC(state.hourH))} °C · estimado entre os extremos do REMS`;
     const { level, text } = marginOf(state.hourH, plan.stats.hours);
     margin.dataset.level = level;
     margin.textContent = text;
     shadowNote.textContent = QUALITY[state.quality].shadowMapPx > 0
-      ? 'As sombras são as do relevo real.'
-      : 'Na qualidade mínima as encostas escurecem conforme o Sol, sem sombra projetada.';
+      ? t('As sombras são as do relevo real.')
+      : t('Na qualidade mínima as encostas escurecem conforme o Sol, sem sombra projetada.');
     const chill = coldOf(state.hourH, plan.stats.hours);
     cold.dataset.level = chill.level;
     cold.textContent = chill.text;
@@ -406,60 +407,75 @@ function buildMeasurements() {
   const weather = h('p', { class: 'measure' });
   const dose = h('p', { class: 'measure' });
   const node = h('section', {},
-    h('h2', {}, 'Medições do Curiosity em Gale'),
+    h('h2', {}, t('Medições do Curiosity em Gale')),
     weather,
     dose,
-    h('p', { class: 'measure' }, 'Geologia: toda a área fica em uma só unidade do mapa geológico global de Marte (1:20.000.000), a Htu, “Hesperian transition undivided unit”. O mapa de detalhe da região (Aeolis Mons, 1:60.000) ainda está em preparação. ',
+    h('p', { class: 'measure' }, t('Geologia: toda a área fica em uma só unidade do mapa geológico global de Marte (1:20.000.000), a Htu, “Hesperian transition undivided unit”. O mapa de detalhe da região (Aeolis Mons, 1:60.000) ainda está em preparação.'), ' ',
       link('https://doi.org/10.3133/sim3292', 'USGS SIM 3292 · Tanaka et al. 2014')),
   );
-  const reserve = (value) => (value === undefined ? 'lendo da NASA; por enquanto, valor de reserva' : 'sem rede, valor de reserva');
+  const reserve = (value) => (value === undefined ? t('lendo da NASA; por enquanto, valor de reserva') : t('sem rede, valor de reserva'));
   const degrees = (value) => `${Math.round(value)} °C`;
   const render = (plan, state) => {
     const w = state.weather;
     weather.replaceChildren(...(w
-      ? [`Temperatura e pressão nesta estação do ano: ar de ${degrees(w.air.minC)} a ${degrees(w.air.maxC)}, solo de ${degrees(w.ground.minC)} a ${degrees(w.ground.maxC)}, pressão de ${Math.round(w.pressurePa)} Pa. Média de ${w.sols} sols medidos pelo REMS com a estação a até ${w.windowDeg}° da de hoje (último sol do feed: ${w.lastSol}). `, sourceLink(w.source)]
-      : [`Temperatura (${reserve(w)}): em um sol típico do início da missão, ar de ${degrees(REMS.air.minC)} a ${degrees(REMS.air.maxC)} e solo de ${degrees(REMS.ground.minC)} a ${degrees(REMS.ground.maxC)}. `, sourceLink(REMS.source)]));
+      ? [t`Temperatura e pressão nesta estação do ano: ar de ${degrees(w.air.minC)} a ${degrees(w.air.maxC)}, solo de ${degrees(w.ground.minC)} a ${degrees(w.ground.maxC)}, pressão de ${Math.round(w.pressurePa)} Pa. Média de ${w.sols} sols medidos pelo REMS com a estação a até ${w.windowDeg}° da de hoje (último sol do feed: ${w.lastSol}).`, ' ', sourceLink(w.source)]
+      : [t`Temperatura (${reserve(w)}): em um sol típico do início da missão, ar de ${degrees(REMS.air.minC)} a ${degrees(REMS.air.maxC)} e solo de ${degrees(REMS.ground.minC)} a ${degrees(REMS.ground.maxC)}.`, ' ', sourceLink(REMS.source)]));
     const d = state.dose;
     dose.replaceChildren(...(d
-      ? [`Radiação agora: ${Math.round(d.ugyPerDay)} µGy por dia de dose absorvida, média das ${d.samples} leituras do RAD nos ${d.days} dias até ${d.until.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}. `, sourceLink(d.source)]
-      : [`Radiação (${reserve(d)}): ${String(RAD.surfaceMsvPerDay).replace('.', ',')} mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013. `, sourceLink(RAD.sources.surface)]));
+      ? [t`Radiação agora: ${Math.round(d.ugyPerDay)} µGy por dia de dose absorvida, média das ${d.samples} leituras do RAD nos ${d.days} dias até ${d.until.toLocaleDateString(LOCALE, { timeZone: 'UTC' })}.`, ' ', sourceLink(d.source)]
+      : [t`Radiação (${reserve(d)}): ${RAD.surfaceMsvPerDay.toLocaleString(LOCALE)} mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013.`, ' ', sourceLink(RAD.sources.surface)]));
   };
   return { node, render };
 }
 
+// Volta a pé: até onde o oxigênio cobre a caminhada até o habitat, e o que isso significa no modo da saída.
+function walkBackItem(safety, mode) {
+  const { noReturn, minMarginH } = safety;
+  if (!noReturn) {
+    const covered = t`O oxigênio cobre a volta a pé de qualquer ponto da rota, com ${fmtNumber(ASSUMPTIONS.o2ReservePct, 1)}% de reserva.`;
+    return { level: 'ok', text: minMarginH === null ? covered : `${covered} ${t`Menor folga: ${fmtDuration(minMarginH)}.`}` };
+  }
+  const fromKm = fmtKm(noReturn.distM / 1000);
+  const cause = noReturn.noWalkRoute
+    ? t`A partir de ${fromKm} de rota, não há caminho a pé até o habitat dentro do limite de declive.`
+    : t`A partir de ${fromKm} de rota, o oxigênio não cobre mais a volta a pé (${fmtDuration(noReturn.walkH ?? 0)} de caminhada até o habitat).`;
+  const afterIt = mode === 'car'
+    ? t('Se o veículo quebrar depois desse ponto, a tripulação não volta sozinha.')
+    : t('Depois desse ponto, a única saída é terminar a rota.');
+  return { level: 'danger', text: `${cause} ${afterIt}` };
+}
+
+// Rádio: quanto da rota fica sem linha de visada com o habitat, e em quantos trechos.
+function radioGapText(lostM, lostShare, gapCount) {
+  const lostKm = fmtKm(lostM / 1000);
+  return gapCount === 1
+    ? t`${lostKm} da rota (${lostShare}%) sem linha de visada com o habitat, em 1 trecho. Sem repetidor, não há rádio direto ali.`
+    : t`${lostKm} da rota (${lostShare}%) sem linha de visada com o habitat, em ${gapCount} trechos. Sem repetidor, não há rádio direto ali.`;
+}
+
 function safetyItems(plan) {
   const { safety, mode, path } = plan;
-  const { noReturn, commsGaps, commsLostM, farthest, shelter, sandM = 0 } = safety;
-  const afterIt = mode === 'car'
-    ? 'Se o veículo quebrar depois desse ponto, a tripulação não volta sozinha.'
-    : 'Depois desse ponto, a única saída é terminar a rota.';
-  const noReturnCause = noReturn?.noWalkRoute
-    ? 'não há caminho a pé até o habitat dentro do limite de declive'
-    : `o oxigênio não cobre mais a volta a pé (${fmtDuration(noReturn?.walkH ?? 0)} de caminhada até o habitat)`;
-  const slack = safety.minMarginH === null ? '' : ` Menor folga: ${fmtDuration(safety.minMarginH)}.`;
-  const walkBack = noReturn
-    ? { level: 'danger', text: `A partir de ${fmtKm(noReturn.distM / 1000)} de rota, ${noReturnCause}. ${afterIt}` }
-    : { level: 'ok', text: `O oxigênio cobre a volta a pé de qualquer ponto da rota, com ${fmtNumber(ASSUMPTIONS.o2ReservePct, 1)}% de reserva.${slack}` };
+  const { commsGaps, commsLostM, farthest, shelter, sandM = 0 } = safety;
   const lostShare = path.totalM > 0 ? Math.round((commsLostM / path.totalM) * 100) : 0;
   const radio = commsLostM > 0
-    ? { level: lostShare > 50 ? 'danger' : 'warn', text: `${fmtKm(commsLostM / 1000)} da rota (${lostShare}%) sem linha de visada com o habitat, em ${commsGaps.length} ${commsGaps.length === 1 ? 'trecho' : 'trechos'}. Sem repetidor, não há rádio direto ali.` }
-    : { level: 'ok', text: 'Toda a rota tem linha de visada com o habitat.' };
-  const items = [{ label: 'Volta a pé', ...walkBack }, { label: 'Rádio', ...radio }];
+    ? { level: lostShare > 50 ? 'danger' : 'warn', text: radioGapText(commsLostM, lostShare, commsGaps.length) }
+    : { level: 'ok', text: t('Toda a rota tem linha de visada com o habitat.') };
+  const items = [{ label: t('Volta a pé'), ...walkBackItem(safety, mode) }, { label: t('Rádio'), ...radio }];
   if (sandM > 0) {
     items.push({
-      label: 'Areia fofa',
+      label: t('Areia fofa'),
       level: 'warn',
-      text: `${fmtDistance(sandM)} da rota passam por areia escura (estimada pela cor da imagem; veja a camada Areia). A pé cansa mais; de veículo há risco de atolar.`,
+      text: t`${fmtDistance(sandM)} da rota passam por areia escura (estimada pela cor da imagem; veja a camada Areia). A pé cansa mais; de veículo há risco de atolar.`,
     });
   }
   if (farthest && shelter) {
     const terrain = shelter.terrain
-      ? ` Proteção de relevo a ${fmtDistance(shelter.terrain.distM)}: a encosta tapa ${Math.round(shelter.terrain.skyBlocked * 100)}% do céu (estimativa geométrica).`
-      : ' Sem proteção de relevo a menos de 1,5 km.';
+      ? t`Proteção de relevo a ${fmtDistance(shelter.terrain.distM)}: a encosta tapa ${Math.round(shelter.terrain.skyBlocked * 100)}% do céu (estimativa geométrica).`
+      : t('Sem proteção de relevo a menos de 1,5 km.');
     items.push({
-      label: 'Abrigo no ponto mais afastado',
+      label: t('Abrigo no ponto mais afastado'),
       level: 'ok',
-      text: `Habitat a ${fmtKm(shelter.habitat.distM / 1000)} em linha reta, ${fmtDuration(farthest.walkH)} a pé.${terrain}`,
+      text: `${t`Habitat a ${fmtKm(shelter.habitat.distM / 1000)} em linha reta, ${fmtDuration(farthest.walkH)} a pé.`} ${terrain}`,
     });
   }
   return items;
@@ -474,9 +490,9 @@ function sourceLink(source) {
 function protocolCard(protocol) {
   return h('details', { class: 'protocol' },
     h('summary', {}, protocol.title),
-    h('span', { class: 'meta' }, `Gatilho: ${protocol.trigger}`),
+    h('span', { class: 'meta' }, t`Gatilho: ${protocol.trigger}`),
     h('ol', {}, protocol.steps.map((step) => h('li', {}, step))),
-    h('span', { class: 'meta' }, `Abrigo: ${SHELTER_KINDS[protocol.shelter]} · Passos: ${protocol.source.toLowerCase()}`),
+    h('span', { class: 'meta' }, t`Abrigo: ${SHELTER_KINDS[protocol.shelter]} · Passos: ${protocol.source.toLowerCase()}`),
     protocol.evidence.map((fact) => h('p', { class: 'evidence' }, `${fact.text} `, sourceLink(fact))),
   );
 }
@@ -485,17 +501,20 @@ function protocolCard(protocol) {
 function buildOpportunities(handlers) {
   const card = (entry) => {
     const position = trackPositionAtSol(entry.sol);
+    const where = `${position.lat.toFixed(5)}, ${position.lon.toFixed(5)} · ${position.elev} m`;
     return h('article', { class: 'opportunity' },
       h('strong', {}, entry.name),
       // A posição é a do ponto do trajeto mais recente até o sol da tentativa, que pode ser de alguns sols antes.
-      h('span', { class: 'meta' }, `tentativa no sol ${entry.sol} · ${position.lat.toFixed(5)}, ${position.lon.toFixed(5)} · ${position.elev} m${position.sol === entry.sol ? '' : ` (posição do rover no sol ${position.sol})`}`),
+      h('span', { class: 'meta' }, position.sol === entry.sol
+        ? t`tentativa no sol ${entry.sol} · ${where}`
+        : t`tentativa no sol ${entry.sol} · ${where} (posição do rover no sol ${position.sol})`),
       h('p', { class: 'evidence' }, `${entry.what} `, sourceLink(entry.source)),
-      h('button', { class: 'ghost', type: 'button', onclick: () => handlers.onPlanTo(position) }, 'Adicionar à rota'),
+      h('button', { class: 'ghost', type: 'button', onclick: () => handlers.onPlanTo(position) }, t('Adicionar à rota')),
     );
   };
   return h('section', {},
-    h('h2', {}, 'Onde a coleta do rover deu trabalho'),
-    h('p', { class: 'note' }, 'Perfurações do Curiosity nesta região que falharam ou ficaram incompletas na primeira tentativa; o texto de cada caso diz como terminou. A posição é a do rover naquele sol, tirada do trajeto real. Para a equipe, mostram o que uma tripulação resolveria na hora: escolher outra rocha, firmar o bloco ou usar outra ferramenta.'),
+    h('h2', {}, t('Onde a coleta do rover deu trabalho')),
+    h('p', { class: 'note' }, t('Perfurações do Curiosity nesta região que falharam ou ficaram incompletas na primeira tentativa; o texto de cada caso diz como terminou. A posição é a do rover naquele sol, tirada do trajeto real. Para a equipe, mostram o que uma tripulação resolveria na hora: escolher outra rocha, firmar o bloco ou usar outra ferramenta.')),
     h('div', { class: 'stops' }, OPPORTUNITIES.map(card)),
   );
 }
@@ -503,11 +522,11 @@ function buildOpportunities(handlers) {
 function buildSafety() {
   const list = h('ul', { class: 'safety-list' });
   const node = h('section', {},
-    h('h2', {}, 'Segurança da saída'),
+    h('h2', {}, t('Segurança da saída')),
     list,
-    h('p', { class: 'note' }, `Calculado sobre o relevo real. O consumo de oxigênio é calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA; a reserva de ${fmtNumber(ASSUMPTIONS.o2ReservePct, 1)}% é 1 hora de contingência. São hipóteses da equipe as antenas de ${ASSUMPTIONS.habitatMastM} m no habitat e ${ASSUMPTIONS.suitAntennaM} m no traje.`),
-    h('p', { class: 'evidence' }, 'A regra da volta a pé vem das Apollo: o jipe lunar podia rodar 92 km, mas ninguém passou de 7,6 km do módulo. ', sourceLink({ label: 'NASA OCHMO-TB-023', url: 'https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-023-extraterrestrial-surface-transport-vehicles-rovers.pdf' })),
-    h('h2', { style: 'margin-top:14px' }, 'O que fazer em cada cenário'),
+    h('p', { class: 'note' }, t`Calculado sobre o relevo real. O consumo de oxigênio é calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA; a reserva de ${fmtNumber(ASSUMPTIONS.o2ReservePct, 1)}% é 1 hora de contingência. São hipóteses da equipe as antenas de ${ASSUMPTIONS.habitatMastM} m no habitat e ${ASSUMPTIONS.suitAntennaM} m no traje.`),
+    h('p', { class: 'evidence' }, t('A regra da volta a pé vem das Apollo: o jipe lunar podia rodar 92 km, mas ninguém passou de 7,6 km do módulo.'), ' ', sourceLink({ label: 'NASA OCHMO-TB-023', url: 'https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-023-extraterrestrial-surface-transport-vehicles-rovers.pdf' })),
+    h('h2', { style: 'margin-top:14px' }, t('O que fazer em cada cenário')),
     h('div', { class: 'protocols' }, PROTOCOLS.map(protocolCard)),
   );
   const render = (plan) => list.replaceChildren(
@@ -555,7 +574,7 @@ function profileChart(legs) {
     svg('text', { x: toX(mark.km), y: toY(mark.elev) + 3, 'text-anchor': 'middle', class: 'mark-label' }, mark.id),
   ]);
 
-  return svg('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': 'Altitude ao longo da rota calculada' },
+  return svg('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': t('Altitude ao longo da rota calculada') },
     ...grid,
     svg('path', { d: area, class: 'area' }),
     svg('path', { d: line, class: 'line' }),
@@ -566,9 +585,9 @@ function profileChart(legs) {
 function buildProfile() {
   const chart = h('div', { class: 'profile' });
   const node = h('section', {},
-    h('h2', {}, 'Perfil de altitude da rota'),
+    h('h2', {}, t('Perfil de altitude da rota')),
     chart,
-    h('p', { class: 'note' }, 'Altitude (m) pela distância percorrida na ida, lida do mapa de altitude real. Para comparar: o Curiosity rodou cerca de 11 km entre o habitat e o canal de enxofre.'),
+    h('p', { class: 'note' }, t('Altitude (m) pela distância percorrida na ida, lida do mapa de altitude real. Para comparar: o Curiosity rodou cerca de 11 km entre o habitat e o canal de enxofre.')),
   );
   // Rota sem comprimento não tem perfil para desenhar.
   const render = (plan) => chart.replaceChildren(...(plan.stats.outKm > 0 ? [profileChart(plan.legs)] : []));
@@ -578,14 +597,14 @@ function buildProfile() {
 function buildLegend() {
   const item = (className, label) => h('span', { class: 'swatch' }, h('i', { class: className }), label);
   return h('section', {},
-    h('h2', {}, 'Legenda'),
+    h('h2', {}, t('Legenda')),
     h('div', { class: 'legend' },
-      item('rover', 'Trajeto do Curiosity'),
-      item('route', 'Rota a pé (calculada)'),
-      item('vehicle', 'Rota de veículo (calculada)'),
-      item('hazard', 'Zona de exclusão da equipe (250 m) em volta das rochas cortantes'),
+      item('rover', t('Trajeto do Curiosity')),
+      item('route', t('Rota a pé (calculada)')),
+      item('vehicle', t('Rota de veículo (calculada)')),
+      item('hazard', t('Zona de exclusão da equipe (250 m) em volta das rochas cortantes')),
     ),
-    h('p', { class: 'note' }, 'As rotas são o caminho de menor custo sobre o mapa de altitude de 1 m do USGS (reamostrado para 2 m). O custo pesa declividade, rugosidade e a zona de rochas cortantes. A zona de rochas é aproximada, e blocos menores que cerca de 2 m não aparecem no mapa de altitude.'),
+    h('p', { class: 'note' }, t('As rotas são o caminho de menor custo sobre o mapa de altitude de 1 m do USGS (reamostrado para 2 m). O custo pesa declividade, rugosidade e a zona de rochas cortantes. A zona de rochas é aproximada, e blocos menores que cerca de 2 m não aparecem no mapa de altitude.')),
   );
 }
 
@@ -594,15 +613,15 @@ const link = (href, text) => h('a', { href, target: '_blank', rel: 'noopener nor
 // De onde vem cada informação: a mesma lista de data/fontes.js que gera docs/fontes.md.
 function buildSources(realRelief) {
   const row = ({ item, kind, source, url }) => h('li', { dataset: { kind } },
-    h('strong', {}, item), ' ', h('span', { class: 'kind' }, KINDS[kind]), ' ', source, url ? [' ', link(url, 'fonte')] : null);
+    h('strong', {}, item), ' ', h('span', { class: 'kind' }, KINDS[kind]), ' ', source, url ? [' ', link(url, t('fonte'))] : null);
   return h('section', { class: 'sources' },
-    h('h2', {}, 'De onde vem cada informação'),
-    realRelief ? null : h('span', { class: 'simulated' }, 'O arquivo de relevo real não carregou: a altura do relevo entre as rotas está aproximada.'),
+    h('h2', {}, t('De onde vem cada informação')),
+    realRelief ? null : h('span', { class: 'simulated' }, t('O arquivo de relevo real não carregou: a altura do relevo entre as rotas está aproximada.')),
     SOURCE_GROUPS.map((group) => h('details', { class: 'why' },
       h('summary', {}, `${group.title} (${group.entries.length})`),
       h('ul', { class: 'source-list' }, group.entries.map(row)))),
     h('details', { class: 'why' },
-      h('summary', {}, `Recursos do desafio (${CHALLENGE_RESOURCES.length})`),
+      h('summary', {}, t`Recursos do desafio (${CHALLENGE_RESOURCES.length})`),
       h('ul', { class: 'source-list' }, CHALLENGE_RESOURCES.map((resource) => h('li', {}, link(resource.url, resource.name), ': ', resource.use)))),
   );
 }

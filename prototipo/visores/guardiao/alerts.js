@@ -2,6 +2,7 @@
 // alerta com nível, os alertas são ordenados por prioridade, podem ser reconhecidos
 // e tudo fica em um histórico de tamanho limitado. Funções puras.
 
+import { t } from '../../src/i18n.js';
 import { levelOrder } from './catalog.js';
 
 const HISTORY_MAX = 60;
@@ -42,7 +43,7 @@ export function syncAlerts(previous, conditions, clockH) {
     if (levelOrder(condition.level) > levelOrder(old.level)) {
       // Agravou: volta a pedir reconhecimento e abre novo registro.
       events.push({ type: 'escalated', alert: fresh });
-      history = [...updateOpen(history, old.id, { clearedH: clockH }), logEntry(fresh, clockH, 'agravou')];
+      history = [...updateOpen(history, old.id, { clearedH: clockH }), logEntry(fresh, clockH, t`agravou`)];
       return fresh;
     }
     return { ...condition, raisedH: old.raisedH, ack: old.ack || condition.level === 'info' };
