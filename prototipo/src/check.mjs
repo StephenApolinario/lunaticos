@@ -13,6 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { fmtDuration, fmtDistance } from './format.js';
 import { STOPS, TRACK } from '../data/travessia.js';
 import { yToElev } from './geo.js';
+import { coldSpan, warmAfter } from './clima.js';
 import { buildHeightField, fieldFromElevation, heightAt, probe } from './heightfield.js';
 import { MOSAIC, mosaicPixel, mosaicUv, mosaicCoverage, tileList } from './tiles.js';
 import { DATA_BOUNDS } from './geo.js';
@@ -313,4 +314,20 @@ assert.equal(fmtDistance(124), '120 m');
   assert.ok(withSand < without * 0.75, `a rota que conhece a areia cruza menos areia (${withSand.toFixed(0)} m contra ${without.toFixed(0)} m)`);
 }
 
-process.stdout.write('ok: projeção, rotas, areia e formatação conferidas\n');
+// Frio na saída, com os extremos típicos do REMS e o mínimo de −60 °C do traje: de dia não esfria,
+// de madrugada a saída começa fria, e à noite o frio chega no meio do caminho (depois da 1h).
+{
+  assert.equal(coldSpan(10, 16.7, -60), null, 'saída das 10h às 16h42 fica acima do mínimo');
+  const early = coldSpan(5, 11.7, -60);
+  assert.ok(early && early.firstH === 5 && early.lastH > 8 && early.lastH < 9.2 && early.coldestC <= -74, 'saindo às 5h começa no frio e esquenta antes das 9h12');
+  const late = coldSpan(20, 27, -60);
+  assert.ok(late && late.firstH > 25 && late.firstH < 26 && late.lastH <= 27, 'saindo às 20h o frio chega depois da 1h');
+  // Saída curta de madrugada: acaba ainda fria, e a hora boa para sair é quando o ar passa do mínimo.
+  const short = coldSpan(3, 5, -60);
+  assert.ok(short && short.lastH <= 5 + 1e-6, 'a saída das 3h às 5h é fria até o fim');
+  const warm = warmAfter(3, -60);
+  assert.ok(warm > 8 && warm < 9.2, `o ar só passa do mínimo depois das 8h (${warm})`);
+  assert.equal(warmAfter(12, -60), 12, 'ao meio-dia já está acima do mínimo');
+}
+
+process.stdout.write('ok: projeção, rotas, areia, frio e formatação conferidas\n');

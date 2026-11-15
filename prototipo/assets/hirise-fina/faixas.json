@@ -1,0 +1,35 @@
+{
+  "source": "Mosaico colorido HiRISE (MRO) da equipe do Curiosity, NASA/JPL-Caltech/UArizona: ladrilhos de zoom 17 da camada MSL_Gale_HiRISE-LRGB_78quads do mapa oficial da missão, reduzidos para cerca de 0,69 m por pixel.",
+  "sourceUrl": "https://mars.nasa.gov/mmgis-maps/MSL/Layers/MSL_Gale_HiRISE-LRGB_78quads/",
+  "builtBy": "planejador/pipeline/fetch_hd_tiles.py e export_3d.py (ramo feat/planejador-de-travessia)",
+  "metersPerPixel": 0.69,
+  "bounds": {
+    "south": -4.819958382362103,
+    "north": -4.720016919182629,
+    "west": 137.37003026602451,
+    "east": 137.41794278382156
+  },
+  "bands": [
+    {
+      "file": "faixa-0.jpg",
+      "northFrac": 0.0,
+      "southFrac": 0.33355840648210666,
+      "widthPx": 4096,
+      "heightPx": 2850
+    },
+    {
+      "file": "faixa-1.jpg",
+      "northFrac": 0.33355840648210666,
+      "southFrac": 0.6664415935178933,
+      "widthPx": 4096,
+      "heightPx": 2844
+    },
+    {
+      "file": "faixa-2.jpg",
+      "northFrac": 0.6664415935178933,
+      "southFrac": 1.0,
+      "widthPx": 4096,
+      "heightPx": 2850
+    }
+  ]
+}

@@ -7,7 +7,7 @@
 import { fmtClock, fmtDistance, fmtDuration, fmtKm, fmtNumber } from '../format.js';
 import { ORIGIN, toLocal, toGeo } from '../geo.js';
 import { sunAt, daylightHours, localSolarHour, compassName, EARTH_HOURS_PER_MARS_HOUR } from '../luz.js';
-import { estimatedAirTempC, estimatedGroundTempC } from '../clima.js';
+import { coldSpan, estimatedAirTempC, estimatedGroundTempC } from '../clima.js';
 import { shortName } from '../route.js';
 import { TRAVEL } from '../pathfind.js';
 import { LAYERS } from '../config.js';
@@ -120,8 +120,12 @@ export function createTabletTools({ getState, getPlan, safety, terrain, lsDeg, i
     if (assessed.noReturn) add('alta', `a partir de ${fmtKm(assessed.noReturn.distM / 1000)} de rota não dá mais para voltar a pé ao habitat`);
     if (lostShare > 50) add('alta', `${pct(lostShare)} da rota fica sem rádio direto com o habitat`);
     else if (lostShare > 0) add('média', `${pct(lostShare)} da rota fica sem rádio direto com o habitat`);
-    const airAtStartC = estimatedAirTempC(getState().hourH);
-    if (airAtStartC < SUIT.minTempC) add('média', `na partida o ar estará a cerca de ${fmtNumber(airAtStartC)} °C, abaixo do mínimo de ${SUIT.minTempC} °C do traje (limite que é hipótese da equipe)`);
+    const startH = getState().hourH;
+    const endH = localSolarHour(startH, stats.hours);
+    const chill = coldSpan(startH, endH, SUIT.minTempC);
+    // `lastH` é a última hora fria dentro da saída: se encosta no fim, o frio continua depois dela.
+    const chillUntil = chill && endH - chill.lastH < 0.1 ? 'até o fim da saída' : `às ${fmtClock(chill?.lastH ?? 0)}`;
+    if (chill) add('alta', `das ${fmtClock(chill.firstH)} ${chillUntil} o ar fica abaixo do mínimo de ${SUIT.minTempC} °C do traje (limite que é hipótese da equipe), chegando a cerca de ${fmtNumber(chill.coldestC)} °C: o aquecimento gasta mais bateria`);
     if (stats.maxSlopeDeg >= slopeLimit - 2) add('média', `maior declive de ${fmtNumber(stats.maxSlopeDeg, 1)}°, perto do limite de ${slopeLimit}° deste deslocamento`);
     if (assessed.sandM > 0) add('média', `${fmtDistance(assessed.sandM)} da rota passam por areia escura (estimada pela cor da imagem): a pé cansa mais e de veículo há risco de atolar`);
     if (stats.blockedLegs.length > 0) add('média', `${stats.blockedLegs.length} trecho(s) em que o veículo não passa e a tripulação segue a pé`);

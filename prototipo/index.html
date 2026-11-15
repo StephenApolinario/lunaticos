@@ -22,6 +22,14 @@
 </head>
 <body>
   <div class="app" id="app" data-view="tablet">
+    <header class="device-bar" id="device-bar">
+      <p class="device-brand"><span class="device-led" aria-hidden="true"></span>Tablet de missão <span class="device-team">Lunáticos</span></p>
+      <p class="device-status">
+        <span>Cratera Gale · Monte Sharp</span>
+        <span id="device-season"></span>
+        <span id="device-clock"></span>
+      </p>
+    </header>
     <main class="stage" id="stage" aria-label="Mapa 3D da travessia no Monte Sharp">
       <p class="loading" id="loading" role="status">Gerando relevo…</p>
 
@@ -31,11 +39,21 @@
         <p class="hint">Arrastar gira · botão direito ou Shift + arrastar move · rolagem aproxima</p>
       </div>
 
+      <!-- Tela de abertura: Marte inteiro. Só a área mapeada fica iluminada e dá para entrar nela. -->
+      <div class="planet-chrome" id="planet-chrome" hidden>
+        <p class="planet-title">Marte</p>
+        <p class="planet-text">Só a área mapeada está iluminada. Arraste para girar, role para aproximar e entre nela para planejar a saída.</p>
+        <button class="cta planet-enter" id="planet-enter" type="button"><span>Entrar na área mapeada</span><span class="cta-arrow" aria-hidden="true">→</span></button>
+        <p class="planet-source" id="planet-source"></p>
+      </div>
+
       <div class="visor-mount" id="visor-mount" hidden></div>
     </main>
 
     <aside class="panel" id="panel" aria-label="Planejamento da travessia"></aside>
   </div>
+  <!-- Detalhes de aparelho na moldura do tablet (câmera e botões): só aparência. -->
+  <div class="device-hardware" aria-hidden="true"><span class="device-camera"></span><span class="device-buttons"></span></div>
 
   <script type="module" src="./src/main.js"></script>
 </body>

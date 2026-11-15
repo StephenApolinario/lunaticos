@@ -32,14 +32,10 @@ const LOOK = Object.freeze({ degPerPx: 0.18, maxYawDeg: 120, maxPitchDeg: 45, re
 // Onde uma tecla é texto do próprio controle. A barra de posição (range) não entra: nela os atalhos valem.
 const TYPING_SELECTOR = 'select, textarea, input:not([type="range"])';
 // Onde arrastar não vira o olhar: controles, menus e a gaveta do assistente.
-const NO_LOOK_SELECTOR = 'button, select, input, textarea, label, .guardiao-historico, .unificado-gaveta, .unificado-pop, .guardiao-cenarios';
+const NO_LOOK_SELECTOR = 'button, select, input, textarea, label, summary, .guardiao-historico, .unificado-gaveta, .unificado-pop, .cabine-bandeja, .cabine-folha, .cabine-aviso';
 // Alarme sem reconhecimento volta a soar a cada tantos segundos.
 const REPEAT_S = Object.freeze({ emergencia: 3, perigo: 8 });
 const MARK = Object.freeze({ heightM: 3, edge: 1.05, pnrMaxM: 2500 });
-// Larguras do visor.css. No telefone o minimapa e as leituras começam recolhidos, atrás dos botões
-// da doca; em tela média, só as leituras (a coluna da direita não tem altura para os dois).
-const NARROW_QUERY = '(max-width: 820px)';
-const MEDIUM_QUERY = '(max-width: 1180px)';
 
 const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
 
@@ -50,7 +46,7 @@ const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
  *   camera: import('three').PerspectiveCamera,
  *   terrain: { isReal: boolean, heightAt: (x: number, z: number) => number, probe: (x: number, z: number) => { y: number, slopeDeg: number, radiation: number, groundTemp: number } },
  *   overlays: { setNextStop: (id: string|null, label: string) => void },
- *   onExit: () => void,
+ *   onExit: (options?: { focusAstronaut?: boolean }) => void,
  *   onLocalHour?: (hourH: number) => void,
  *   live?: () => { weather?: object | null, dose?: object | null, lsDeg: number },
  *   safety: { walkBackAt: Function, commsAt: Function, nearestShelter: Function, protocolFor: Function, assumptions: object },
@@ -66,7 +62,9 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   let active = false;
   let historyOpen = false;
   let mapOn = true;
-  let readingsOn = true;
+  // Folha de detalhe aberta ('rota', 'traje' ou 'volta') e os blocos do canto tirados a pedido.
+  let sheet = null;
+  let hiddenBlocks = new Set();
   let repeatS = 0;
   let reportedKey = null;
   let alerts = [];
@@ -79,7 +77,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     const voice = field.voiceState();
     hud.syncControls({
       state: session.state, mode: session.plan.mode, soundOn: audio.soundOn, voiceOn: audio.voiceOn, hasVoice: audio.hasVoice, historyOpen,
-      drawerOpen: field.isOpen(), mapOn, readingsOn, zoom: nav.zoomState(), mic: { canListen: voice.canListen, listening: voice.listening === 'chat' },
+      drawerOpen: field.isOpen(), mapOn, sheet, hiddenBlocks, zoom: nav.zoomState(), mic: { canListen: voice.canListen, listening: voice.listening === 'chat' },
       assistantNote: field.assistantNote(), voiceInfo: audio.voiceInfo,
     });
   }
@@ -96,9 +94,9 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   const toggleHistory = () => { historyOpen = !historyOpen; syncControls(); };
   const toggleDrawer = () => (field.isOpen() ? field.closeDrawer() : field.openDrawer(null, !matchMedia('(pointer: coarse)').matches));
   const zoomMap = (delta) => { nav.zoom(delta); syncControls(); };
-  const isNarrow = () => matchMedia(NARROW_QUERY).matches;
-  // No telefone, minimapa e leituras abrem por cima da área livre: um de cada vez.
-  const toggleWidgets = (map, readings) => { mapOn = map; readingsOn = readings; syncControls(); };
+  // Uma folha por vez: pedir a que já está aberta fecha.
+  const toggleSheet = (id) => { sheet = id === sheet ? null : id; syncControls(); };
+  const setSheet = (id, on) => { if (on) sheet = id; else if (sheet === id) sheet = null; syncControls(); };
 
   // Reconhece um alerta. O aviso de perigo relatado não é do Guardião: o reconhecimento dele fica aqui.
   function ack(id) {
@@ -112,7 +110,8 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     pause: () => apply(setPaused, !session.state.paused),
     speed: (value) => apply(setSpeed, value),
     scrub: (fraction) => apply(scrubTo, fraction),
-    exit: onExit,
+    exit: () => onExit(),
+    openMap: () => onExit({ focusAstronaut: true }),
     scenario: (id) => apply(toggleScenario, id),
     clear: () => apply(clearScenarios),
     ack,
@@ -125,15 +124,14 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     talk: () => field.openDrawer('chat', true),
     mic: () => field.listen(),
     report: (type) => field.report(type),
-    map: () => toggleWidgets(!mapOn, readingsOn && (mapOn || !isNarrow())),
-    readings: () => toggleWidgets(mapOn && (readingsOn || !isNarrow()), !readingsOn),
+    sheet: toggleSheet,
     zoom: zoomMap,
   });
   const nav = createNavigation({
     canvases: hud.canvases, edge: hud.edge, camera, terrain, assumptions: safety.assumptions, onProfile: hud.setProfileCaption,
   });
   const field = createField({
-    drawer: hud.drawer, markersLayer: hud.markers, camera, terrain, safety, audio,
+    drawer: hud.drawer, markersLayer: hud.markers, pinsLayer: hud.pins, camera, terrain, safety, audio,
     // Medições lidas da NASA (REMS, RAD) e a estação de hoje em Marte, para a IA de bordo.
     live: live ?? (() => ({ weather: null, dose: null, lsDeg: 0 })),
     // O mesmo plano em outro modo (a pé ou de veículo), para a IA simular.
@@ -145,13 +143,19 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
       decide: (choice) => apply(decideCurrent, choice),
       pause: (paused) => apply(setPaused, paused),
       endScenario: (id) => apply(toggleScenario, id),
-      // A IA pinta uma camada do mapa sobre o terreno e liga ou desliga painéis a pedido do astronauta.
+      // A IA pinta uma camada do mapa sobre o terreno e liga ou desliga peças do visor a pedido do
+      // astronauta: o minimapa, a folha de leituras, o histórico e os blocos do canto.
       setLayer: (layer) => onLayer?.(layer),
       setPanel: (panel, on) => {
-        if (panel === 'mapa') toggleWidgets(on, readingsOn);
-        else if (panel === 'leituras') toggleWidgets(mapOn, on);
+        if (panel === 'mapa') { mapOn = on; syncControls(); }
+        else if (panel === 'leituras') setSheet('traje', on);
         else if (panel === 'historico') { historyOpen = on; syncControls(); }
       },
+      setBlock: (block, on) => {
+        hiddenBlocks = new Set([...hiddenBlocks].filter((other) => other !== block).concat(on ? [] : [block]));
+        syncControls();
+      },
+      flash: (targets) => hud.flash(targets),
       // Chamado quando a gaveta abre ou fecha e quando a voz muda: a gaveta aberta fecha os menus.
       onChange: () => { if (field.isOpen()) hud.closePops(); syncControls(); },
       focusDrawerButton: hud.focusDrawerButton,
@@ -164,8 +168,9 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
     analyzer.invalidate();
     nav.setPlan(plan);
     historyOpen = false;
-    mapOn = !isNarrow();
-    readingsOn = !matchMedia(MEDIUM_QUERY).matches;
+    mapOn = true;
+    sheet = null;
+    hiddenBlocks = new Set();
     repeatS = 0;
     reportedKey = null;
     alerts = [];
@@ -337,6 +342,7 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
       // Com a lista de velocidade em foco, Esc pertence a ela.
       if (event.target.tagName === 'SELECT' || hud.closePops()) return;
       if (historyOpen) toggleHistory();
+      else if (sheet) toggleSheet(sheet);
       else if (field.isOpen()) field.closeDrawer(true);
       else onExit();
       return;
@@ -349,9 +355,9 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
       field.openDrawer('chat', true);
       return;
     }
-    // Barra de espaço em um botão já aciona o botão: só vira pausa fora dele.
+    // Barra de espaço em um botão (ou no título de um detalhe) já aciona o controle: só vira pausa fora dele.
     if (key === ' ') {
-      if (event.target.tagName === 'BUTTON') return;
+      if (event.target.tagName === 'BUTTON' || event.target.tagName === 'SUMMARY') return;
       event.preventDefault();
       apply(setPaused, !session.state.paused);
       return;
@@ -380,5 +386,15 @@ export function createVisor({ mount, stageElement, camera, terrain, overlays, on
   stageElement.addEventListener('pointerup', endDrag);
   stageElement.addEventListener('pointercancel', endDrag);
 
-  return Object.freeze({ start, stop, frame });
+  /**
+   * A saída em andamento, para o tablet marcar no mapa onde o astronauta está. A posição é
+   * simulada: ele anda sobre a rota, não há localização real.
+   * @returns {{ plan: object, x: number, z: number, elapsedH: number } | null} null sem saída aberta ou com ela encerrada.
+   */
+  function outing() {
+    if (!session?.pos || session.state.finished) return null;
+    return Object.freeze({ plan: session.plan, x: session.pos.x, z: session.pos.z, elapsedH: session.r.clockH });
+  }
+
+  return Object.freeze({ start, stop, frame, outing });
 }

@@ -15,10 +15,10 @@ node prototipo/visores/unificado/check.mjs
 | `contexto.js` | Monta o `AssistantContext` do Cientista a partir da sessão do Guardião (`assistantContext`), responde por cima dele (`answerUnified`) e escolhe as perguntas rápidas (`unifiedQuickQuestions`) | Pura, coberta por `check.mjs` |
 | `guia.js` | O que a guia no chão mostra para o estado da sessão (`guideFor`), a frase da linha do assistente (`voiceLine`), o texto do rádio à frente (`radioAheadText`), o perigo relatado dentro da lista de alertas (`withReportedHazard`) e o rótulo do alvo (`targetLabel`) | Pura, coberta por `check.mjs` |
 | `visor.js` | `createVisor` do contrato: câmera, teclado, ponteiro, som e o laço de quadros. Adaptado de `guardiao/visor.js` | Navegador |
-| `hud.js` | Marcação e desenho do HUD, escrevendo só o que mudou. Adaptado de `guardiao/hud.js` para o layout novo | Navegador |
+| `hud.js` | Marcação e desenho do HUD no desenho "cabine escura", escrevendo só o que mudou. Reaproveita os painéis de alerta, protocolo, abrigos e histórico de `guardiao/panels.js` | Navegador |
 | `navegacao.js` | Liga minimapa, perfil, guia no chão, indicador de borda e rádio do Navegador à sessão do Guardião | Navegador |
 | `campo.js` | Liga conversa, ciência da parada, diário, perigos e marcadores do Cientista à sessão do Guardião, com uma voz só | Navegador |
-| `visor.css` | Importa o CSS dos três visores e acrescenta o layout, com prefixo `unificado-` | CSS |
+| `visor.css` | Importa o CSS dos três visores e acrescenta o layout, com os prefixos `cabine-` e `unificado-` | CSS |
 
 Nenhum arquivo dos três visores foi copiado inteiro. Toda a lógica pura é importada das pastas irmãs. Só a cola de navegador do Guardião (`visor.js`, `hud.js`) foi adaptada, porque o layout é outro; `guardiao/panels.js` e `guardiao/audio.js` são usados como estão. Três trechos curtos de texto de tela, que nas origens moram em arquivos de HUD e não são exportados, foram reescritos: o texto do rádio à frente (de `navegador/hud.js`, `renderRadio`), e o resumo de segurança do plano e o estado da parada (de `cientista/visor.js`).
 
@@ -29,9 +29,9 @@ Nenhum arquivo dos três visores foi copiado inteiro. Toda a lógica pura é imp
 **Navegador.** `analyzePlan` roda uma vez por plano. A cada quadro, `navegacao.js` passa `session.pos`, `state.distM` e a leitura `r` para:
 
 - o minimapa (`createMinimap`), no canto inferior direito, com zoom nos botões e nas teclas `+` e `-`;
-- o perfil à frente (`createProfile`), dentro do bloco "Volto a pé ao habitat?", logo acima dos controles;
+- o perfil à frente (`createProfile`), dentro da folha "Próxima parada e terreno à frente";
 - a guia no chão e o indicador de borda (`createWorldGuide`), com os limites calculados em `guideFor`;
-- o rádio à frente (`radioReading`), que aparece na linha "Rádio" das leituras e na resposta do assistente sobre rádio.
+- o rádio à frente (`radioReading`), que aparece na folha da próxima parada e na resposta do assistente sobre rádio.
 
 A instrução passo a passo (`routeInstruction`) é a frase padrão da linha do assistente e a resposta a "para onde eu vou agora?".
 
@@ -58,13 +58,25 @@ Pergunta nunca vira comando: "devo abortar?" devolve a recomendação, sem decid
 
 ### Uma voz só
 
-A linha do assistente no HUD e o histórico da gaveta mostram a mesma fala. Passo de protocolo, alerta e aviso preventivo do Guardião entram no histórico quando o assunto muda; respostas do Cientista ocupam a linha por alguns segundos e voltam para a frase do momento. Um aviso ou alerta repetido só volta ao histórico depois de 45 s. Quem fala em voz alta é o áudio do Guardião, com a prioridade dele; do módulo de voz do Cientista só se usa a escuta. O botão "Voz" da doca, a tecla `V` e o botão do cabeçalho da gaveta mudam o mesmo estado. "Som" (tecla `M`) cala só os tons de alerta.
+A linha do assistente no HUD e o histórico da gaveta mostram a mesma fala. Passo de protocolo, alerta e aviso preventivo do Guardião entram no histórico quando o assunto muda; respostas do Cientista ocupam a linha por alguns segundos e voltam para a frase do momento. Um aviso ou alerta repetido só volta ao histórico depois de 45 s. Quem fala em voz alta é o áudio do Guardião, com a prioridade dele; do módulo de voz do Cientista só se usa a escuta. O botão "Voz" dos controles, a tecla `V` e o botão do cabeçalho da gaveta mudam o mesmo estado. "Som" (tecla `M`) cala só os tons de alerta.
 
 ## Layout
 
-**1440×900.** Esquerda: relógio e a coluna de segurança (alertas, protocolo, abrigos). Centro: bússola, estado de segurança, a área livre com a rota à frente, a linha do assistente e o bloco de retorno com o perfil. Direita: destino, leituras de traje e ambiente em um bloco, minimapa no canto. A gaveta abre por cima da coluna da direita, então alertas, estado e a rota à frente continuam à vista.
+O desenho é a "Opção A · Cabine escura", escolhida pela equipe entre três propostas porque o visor anterior tinha informação demais na tela. A vista do terreno fica livre e só o que se usa o tempo todo aparece.
 
-**375×812.** Bússola, relógio e destino, estado, segurança, área livre, linha do assistente e retorno. Minimapa com perfil e leituras ficam atrás dos botões "Mapa" e "Leituras", um de cada vez, e abrem por cima da área livre sem empurrar os outros blocos. Os cenários viram um menu. A gaveta vira uma folha embaixo e o visor encolhe para caber acima dela.
+**Sempre na tela.** No alto, à esquerda, uma linha com o tempo de saída, a hora local e o modo. No alto, ao centro, o rumo e a pílula da próxima parada (nome, distância e tempo). Embaixo, à esquerda, três blocos: O₂, bateria e volta a pé. Embaixo, ao centro, uma barra só, com o estado de segurança, a frase da IA e os botões de conversar e falar. Embaixo, à direita, o minimapa redondo.
+
+**A pedido.** A pílula abre a folha "Próxima parada e terreno à frente" (distância, chegada, desnível, declive, perfil e rádio à frente). Os blocos de O₂ e bateria abrem "Traje e ambiente" (todas as leituras, com a ressalva de cada uma e a origem). O bloco de volta a pé abre "Volta a pé e abrigo" (o veredito, a faixa da rota com o ponto de não retorno e onde se abrigar). Abre uma folha por vez; `Esc` fecha.
+
+**Alertas e protocolo.** Aparecem sozinhos no alto, ao centro, e não saem. O alerta mais grave abre causa, consequência e ação; do protocolo aparece o passo de agora, com o botão "Passo feito". Um quarto bloco, ao lado dos três, mostra a leitura que explica o alerta (`alertReading`, em `guia.js`).
+
+**O que a IA põe e tira.** Os cartões que a IA fixa entram na mesma fileira dos blocos (até seis) e sobem para uma linha de cima quando falta espaço. Pedir uma leitura que já está na tela (oxigênio, bateria, volta a pé, próxima parada, tempo de saída, hora) não cria cartão repetido: a peça que existe pisca e a IA diz onde ela fica. Os três blocos saem a pedido e voltam sozinhos em qualquer alerta de atenção para cima; essa regra é decisão da equipe. "Leituras" abre e fecha a folha "Traje e ambiente"; "mapa" é o minimapa.
+
+**Volta ao tablet.** Pelo botão "Voltar ao tablet", pela tecla `Esc` ou tocando no minimapa. Pelo minimapa, o mapa do tablet abre centrado no astronauta. Enquanto a saída está em andamento, o tablet mostra um pino no ponto em que ele parou, com o rótulo "posição simulada" (`outing()` em `visor.js`, `setAstronaut` em `src/overlays.js`).
+
+**Controles do protótipo.** Uma barra fina embaixo, com "Voltar ao tablet", pausa, velocidade e a posição na rota. O botão "Controles" abre o resto: assistente, relato de perigo, histórico, som, voz e os cenários de treino.
+
+**375×812.** A mesma ordem, empilhada: linha da saída e rumo, pílula, alertas, área livre, blocos com o minimapa ao lado e a barra. As folhas ocupam a largura toda. A gaveta do assistente vira uma folha embaixo e o visor encolhe para caber acima dela. Em tela larga a gaveta abre à direita e o visor encolhe para a esquerda dela.
 
 ## O que ficou de fora e por quê
 
@@ -95,8 +107,8 @@ Observação, não defeito: `safety.walkBackAt` não é monótono ao longo da ro
 
 - **Divisas só no sentido do plano.** Voltando pela rota ou parado, a guia no chão some; ficam o indicador de borda e a linha tracejada até o abrigo no relevo.
 - **Etiqueta da curva** do Navegador não tem oclusão e pode aparecer por baixo de um bloco do HUD.
-- **Telefone com pouco espaço:** com alerta aberto, minimapa ou leituras ligados podem não aparecer (o botão fica marcado). Em emergência, os dois somem. Passos futuros do protocolo são cortados com reticências, como no Guardião.
-- **Larguras entre 821 e 1180 px** funcionam, mas não foram afinadas: a área livre fica pequena em 1024×768.
+- **Telefone com pouco espaço:** cabe um alerta aberto; os outros ficam no histórico. Em emergência, as folhas e o minimapa somem.
+- **Uma folha aberta pode ficar por baixo de um alerta** em telas baixas: o alerta tem a frente.
 - **Diário** vale por saída; só os perigos persistem.
 - **Perigo relatado** não entra no histórico de alertas do Guardião; fica no diário.
 - **Voz e microfone:** não ouvi a fala nem testei reconhecimento com microfone real.
@@ -110,10 +122,10 @@ Observação, não defeito: `safety.walkBackAt` não é monótono ao longo da ro
 
 Preparação: plano **Veículo** com **extensão**, entrar no visor, velocidade 60×.
 
-1. **0–10 s · Seguro e orientado.** Faixa verde "Seguro", divisas no chão, minimapa no canto e a linha do assistente com a próxima curva. Apontar a faixa de retorno: o trecho vermelho é onde não dá para voltar a pé.
+1. **0–10 s · Seguro e orientado.** Faixa verde "Seguro", divisas no chão, minimapa no canto e a barra com a próxima curva. Abrir o bloco "Volta a pé" e apontar a faixa da rota: o trecho vermelho é onde não dá para voltar a pé.
 2. **10–20 s · Pergunta.** Tecla `/`, "É seguro continuar?" e "Para onde eu vou agora?". Mostrar o rótulo "simulado por regras".
 3. **20–35 s · Parada.** Arrastar a barra até pouco antes da parada 1. A simulação pausa e a aba Ciência abre: digitar uma observação, "Registrar amostra", "Concluir parada e seguir".
-4. **35–50 s · Emergência pela conversa.** Tecla `6` (pane do veículo). Alerta, protocolo na coluna de segurança. Na conversa: "feito", "feito", "abortar". O astronauta dá meia-volta a pé.
+4. **35–50 s · Emergência pela conversa.** Tecla `6` (pane do veículo). Alerta e protocolo no alto da tela. Na conversa: "feito", "feito", "abortar". O astronauta dá meia-volta a pé.
 5. **50–60 s · Memória.** "Relatar perigo" → "Areia fofa". Aba Diário: tudo registrado, exportável. Fecho: recarregar a página mostra o relato de volta e o aviso ao se aproximar.
 
 ## Verificado e não verificado

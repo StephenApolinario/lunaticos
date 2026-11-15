@@ -10,13 +10,13 @@ import { toLocal, toGeo, yToElev, DATA_BOUNDS, clamp } from './geo.js';
 import { buildHeightField, fieldFromElevation, heightAt, probe, slopeDegOf } from './heightfield.js';
 import { fbm, valueNoise, mulberry32 } from './noise.js';
 import { mosaicUv, mosaicCoverage } from './tiles.js';
-import { SLOPE_CLASSES, LAYERS } from './config.js';
+import { SLOPE_CLASSES, LAYERS, OUTSIDE_AREA_BRIGHTNESS } from './config.js';
 
 const DETAIL_TILE_M = 18;
 const DETAIL_TEXTURE_PX = 512;
 const DETAIL_ANISOTROPY = 8;
 const DETAIL_UV_CHANNEL = 1;
-const OUTSIDE_DATA_BRIGHTNESS = 0.34;
+const OUTSIDE_DATA_BRIGHTNESS = OUTSIDE_AREA_BRIGHTNESS;
 const OUTSIDE_FADE_M = 140;
 const LAYER_OPACITY = 0.78;
 const SLOPE_OPACITY = 0.72;

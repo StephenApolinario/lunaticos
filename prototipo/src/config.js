@@ -11,6 +11,11 @@ export const COLORS = Object.freeze({
   tabletBackground: '#0b0f13',
 });
 
+// Brilho do que fica fora da área mapeada no mapa local (o chão em volta e a faixa de relevo sem
+// foto). No planeta a sombra é mais forte, de 75% (globo.js); aqui é mais leve, para as bordas da
+// tela não ficarem pretas.
+export const OUTSIDE_AREA_BRIGHTNESS = 0.55;
+
 // Classes de declive da legenda do artifact original.
 export const SLOPE_CLASSES = Object.freeze([
   { minDeg: 20, color: 'rgb(225,50,50)', label: 'Declive acima de 20°' },
@@ -76,3 +81,16 @@ export const LAYERS = Object.freeze({
     note: 'Areia escura estimada pela equipe: onde a imagem HiRISE é escura e azulada e o chão é pouco inclinado. Não é mapa de areia da NASA. A rota prefere outro caminho, porque a areia fofa cansa quem anda e pode atolar o veículo.',
   },
 });
+
+// Qualidade de renderização. A mínima é o padrão: é a da primeira versão do protótipo e roda em
+// qualquer computador. A alta lê da rede a imagem mais fina e pesa em placas de vídeo modestas.
+// `pixelRatio`: teto de pixels do aparelho por pixel da página. `shadowMapPx`: 0 desliga a sombra
+// projetada (as encostas ainda escurecem pela inclinação). `finePhoto`: usa a foto pronta de 0,69 m
+// (assets/hirise-fina/), carregada uma vez. `liveDetail`: níveis de imagem lidos da rede enquanto a
+// câmera anda (ver detalhe.js); é o que mais pesa.
+export const QUALITY = Object.freeze({
+  minima: Object.freeze({ label: 'Mínima', pixelRatio: 1, shadowMapPx: 0, softShadows: false, finePhoto: false, liveDetail: Object.freeze([]), grain: false, note: 'Foto de 2,5 m por pixel, sem sombra projetada. Leve em qualquer computador.' }),
+  media: Object.freeze({ label: 'Média', pixelRatio: 1.5, shadowMapPx: 2048, softShadows: false, finePhoto: true, liveDetail: Object.freeze([]), grain: true, note: 'Foto de 0,7 m por pixel já pronta (nítida de longe, sem buscar na rede) e sombras do relevo.' }),
+  alta: Object.freeze({ label: 'Alta', pixelRatio: 2, shadowMapPx: 4096, softShadows: true, finePhoto: true, liveDetail: Object.freeze(['25 cm']), grain: true, note: 'Foto de 0,7 m, sombras suaves e, de perto, a imagem de 25 cm lida da rede. Pesa em computadores modestos.' }),
+});
+export const DEFAULT_QUALITY = 'minima';

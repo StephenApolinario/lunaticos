@@ -18,7 +18,7 @@ O visor [unificado/](unificado/NOTAS.md) é o do produto: usa o Guardião como b
 
 ```js
 export function createVisor(context) {
-  return { start(plan), stop(), frame(dtS) };
+  return { start(plan), stop(), frame(dtS) };  // e, opcional, outing()
 }
 ```
 
@@ -40,6 +40,9 @@ Chamadas:
 - `start(plan)`: o usuário entrou no visor. `plan` vem de `buildPlan` em [../src/route.js](../src/route.js): modo, trechos, caminho com distância e tempo acumulados, paradas e estatísticas.
 - `frame(dtS)`: a cada quadro, só enquanto o visor está ativo. `dtS` é o tempo real em segundos desde o quadro anterior.
 - `stop()`: o usuário saiu do visor.
+- `outing()` (opcional): a saída em andamento, `{ plan, x, z, elapsedH }`, ou `null` sem saída aberta. O tablet usa para marcar no mapa onde o astronauta está (posição simulada). Só o visor único implementa.
+
+`onExit` aceita `{ focusAstronaut: true }` para o tablet abrir o mapa centrado no astronauta (o visor único manda isso ao tocar no minimapa).
 
 O plano pode ser a travessia pré-calculada ou uma **rota livre** com pontos escolhidos no mapa (`plan.isCustom === true`, de 1 a 13 paradas com ids `A`, `B`, `C`… sem o `H`, que é o habitat). Não presuma que as paradas são as seis de `data/travessia.js`: use sempre `plan.stops`. `findStop('A')` e `shortName('A')` funcionam para os pontos do plano mais recente.
 

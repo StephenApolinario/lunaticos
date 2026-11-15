@@ -192,4 +192,19 @@ for (const scenario of SCENARIOS) {
   ok('rádio segue a linha de visada do relevo', session.r.radio.state === (visible ? 'ok' : 'shadow'));
 }
 
+// Frio fora do cenário de treino: avisa antes, alerta quando chega e gasta mais bateria.
+{
+  const at = (startClockH) => { const ctx = { session: createSession(Object.freeze({ ...planFor('walk', false), startClockH })), analyzer: createAnalyzer(safety, true) }; return run(ctx, 1); };
+  const noon = at(12);
+  ok('ao meio-dia não há alerta nem aviso de frio', !alertOf(noon, 'frio') && !alertOf(noon, 'frio-a-caminho') && noon.r.coldInH === null);
+  const evening = at(0.75);
+  ok('40 min antes do frio o visor avisa, sem abrir protocolo', alertOf(evening, 'frio-a-caminho')?.level === 'atencao' && evening.r.coldInH > 0.5 && evening.r.coldInH <= 1 && !evening.protocols.some((instance) => instance.id === 'frio'));
+  const lateReturn = (() => { const ctx = { session: createSession(Object.freeze({ ...planFor('walk', false), startClockH: 0.75 })), analyzer: createAnalyzer(safety, true) }; run(ctx, 1); return scrub(ctx, 0.999); })();
+  ok('quem está a minutos de voltar não recebe aviso de frio que só chega depois', !alertOf(lateReturn, 'frio-a-caminho') || lateReturn.r.coldInH <= lateReturn.r.planRemainingH + 1e-6);
+  const dawn = at(5);
+  ok('de madrugada o alerta de frio é de perigo e abre o protocolo', alertOf(dawn, 'frio')?.level === 'perigo' && !alertOf(dawn, 'frio-a-caminho') && dawn.protocols.some((instance) => instance.id === 'frio'));
+  ok('no frio a bateria gasta mais, mesmo sem cenário', dawn.r.batteryRatePctH === noon.r.batteryRatePctH + FAULTS.coldBatteryExtraPctH);
+  ok('a projeção da bateria conta as horas frias à frente', dawn.r.batteryEndPct < noon.r.batteryEndPct);
+}
+
 console.log(`Guardião: ${checks} verificações passaram.`);

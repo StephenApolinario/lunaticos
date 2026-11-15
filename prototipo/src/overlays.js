@@ -10,6 +10,7 @@ import { TRACK, STOPS, HAZARD } from '../data/travessia.js';
 import { toLocal, lerp } from './geo.js';
 import { COLORS } from './config.js';
 import { h } from './dom.js';
+import { fmtDuration } from './format.js';
 
 const DRAPE_STEP_M = 4;
 const LINE_LIFT_M = 0.3;
@@ -161,6 +162,30 @@ export function createOverlays(scene, terrain, handlers) {
     roverPin.position.set(x, terrain.heightAt(x, z), z);
   }
 
+  let astronautPin = null;
+  /**
+   * Marca no mapa do tablet onde o astronauta está na saída em andamento, ou tira a marca (null).
+   * A posição é simulada (ele anda sobre a rota no visor), e o rótulo diz isso.
+   * @param {{ x: number, z: number, elapsedH: number } | null} spot
+   */
+  function setAstronaut(spot) {
+    if (!spot) {
+      if (astronautPin) astronautPin.visible = false;
+      return;
+    }
+    if (!astronautPin) {
+      const element = h('div', { class: 'pin', role: 'img', dataset: { kind: 'astronaut' } }, h('span', { class: 'pin-label' }));
+      astronautPin = new CSS2DObject(element);
+      group.add(astronautPin);
+    }
+    const title = `Astronauta · ${fmtDuration(spot.elapsedH)} de saída · posição simulada`;
+    astronautPin.element.title = title;
+    astronautPin.element.setAttribute('aria-label', title);
+    astronautPin.element.querySelector('.pin-label').textContent = title;
+    astronautPin.position.set(spot.x, terrain.heightAt(spot.x, spot.z), spot.z);
+    astronautPin.visible = true;
+  }
+
   // Cada ponto da rota livre (A, B, C…) ganha um pino próprio, refeito a cada mudança da rota.
   function syncWaypointMarkers(plan) {
     for (const marker of waypointMarkers) {
@@ -224,5 +249,5 @@ export function createOverlays(scene, terrain, handlers) {
     }
   }
 
-  return Object.freeze({ setPlan, setView, setNextStop, setRover });
+  return Object.freeze({ setPlan, setView, setNextStop, setRover, setAstronaut });
 }

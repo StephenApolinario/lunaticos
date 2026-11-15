@@ -6,10 +6,11 @@
 // radiação, clima e panes são SIMULADOS.
 
 import { SPEED_KMH, STOP_HOURS } from '../../data/travessia.js';
-import { SIM } from '../../src/simulation.js';
+import { SIM, localClockOf } from '../../src/simulation.js';
+import { estimatedAirTempC } from '../../src/clima.js';
 import { samplePath } from '../../src/route.js';
 import { clamp } from '../../src/geo.js';
-import { FAULTS } from './catalog.js';
+import { FAULTS, RULES } from './catalog.js';
 
 const SECONDS_PER_HOUR = 3600;
 const M_PER_KM = 1000;
@@ -100,6 +101,12 @@ export function mobility(plan, state) {
   return { here, vehicleM, vehicleDown, inCabin, driving, speedKmh: driving ? here.speedKmh : SPEED_KMH.walk };
 }
 
+/**
+ * O ar está abaixo do mínimo do traje no instante `clockH` da saída? No cenário de treino vale o
+ * tempo todo; fora dele, vale a temperatura estimada para a hora local (de madrugada e à noite).
+ */
+export const isColdAt = (plan, fx, clockH) => fx.tempOffsetC < 0 || estimatedAirTempC(localClockOf(plan, clockH)) < RULES.suitMinTempC;
+
 /** Consumo e dose por hora neste instante. `ground` é a leitura do terreno aqui. */
 export function ratesOf(plan, state, ground) {
   const fx = effects(state);
@@ -109,7 +116,7 @@ export function ratesOf(plan, state, ground) {
   let exposure = 1;
   if (m.inCabin) exposure = FAULTS.exposure.vehicle;
   if (state.sheltered) exposure = state.exposure;
-  const cold = fx.tempOffsetC < 0 && !m.inCabin ? FAULTS.coldBatteryExtraPctH : 0;
+  const cold = isColdAt(plan, fx, state.clockH) && !m.inCabin ? FAULTS.coldBatteryExtraPctH : 0;
   return {
     o2PctH: inHabitat ? 0 : SIM.o2PctPerHour[where] + fx.leakPctH,
     batteryPctH: inHabitat ? 0 : SIM.batteryPctPerHour[where] + cold,

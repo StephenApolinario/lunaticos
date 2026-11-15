@@ -48,3 +48,36 @@ export function airDensity() {
  */
 export const earthEquivalentWindKmh = (windMps) => windMps * Math.sqrt(airDensity() / EARTH_AIR_DENSITY) * 3.6;
 
+// Passo (em horas) ao procurar quando o ar cruza um limite: 5 minutos.
+const SCAN_STEP_H = 1 / 12;
+
+/**
+ * Parte de uma saída em que o ar estimado fica abaixo de `limitC`. Horas solares locais; `endH`
+ * pode passar de 24 quando a saída vira o sol.
+ * @returns {{ firstH: number, lastH: number, coldestC: number } | null} null se nunca fica abaixo.
+ */
+export function coldSpan(startH, endH, limitC) {
+  let firstH = null;
+  let lastH = null;
+  let coldestC = Infinity;
+  for (let hourH = startH; hourH <= endH + 1e-9; hourH += SCAN_STEP_H) {
+    const airC = estimatedAirTempC(hourH);
+    coldestC = Math.min(coldestC, airC);
+    if (airC >= limitC) continue;
+    firstH ??= hourH;
+    lastH = hourH;
+  }
+  return firstH === null ? null : { firstH, lastH, coldestC };
+}
+
+/**
+ * Primeira hora, de `fromH` em diante (até um sol depois), em que o ar estimado volta a ficar em
+ * `limitC` ou acima. É a hora a partir da qual dá para sair sem frio.
+ * @returns {number | null} null se o ar não chega ao limite em nenhuma hora do sol.
+ */
+export function warmAfter(fromH, limitC) {
+  for (let hourH = fromH; hourH <= fromH + HOURS_PER_SOL; hourH += SCAN_STEP_H) {
+    if (estimatedAirTempC(hourH) >= limitC) return hourH;
+  }
+  return null;
+}

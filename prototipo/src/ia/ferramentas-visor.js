@@ -36,9 +36,22 @@ const HAZARD_KINDS = Object.freeze(['rocha', 'areia', 'declive', 'outro']);
 // Onde é seguro parar para descansar: critério da equipe, conferido no relevo real.
 const REST = Object.freeze({ maxSlopeDeg: 5, searchM: 1500, stepM: 20 });
 const SIM_MODES = Object.freeze({ veiculo: 'car', a_pe: 'walk' });
-// O que a IA pode ligar e desligar no visor. Alertas, protocolo e a volta a pé nunca saem: são de segurança.
+// O que a IA pode ligar e desligar no visor: o minimapa, a folha "Traje e ambiente" (leituras) e o
+// histórico de alertas. Alertas e protocolo nunca saem: são de segurança.
 const HUD_PANELS = Object.freeze(['mapa', 'leituras', 'historico']);
 const MAX_PINS = 6;
+// Leituras que o visor mostra sempre. Pedir uma delas não cria cartão repetido: a peça que já está
+// na tela pisca. As de `block` são os blocos do canto: saem a pedido e voltam sozinhas em qualquer
+// alerta (decisão da equipe). As de `spot` fazem parte do visor e não saem.
+const ALWAYS_ON_SCREEN = Object.freeze({
+  oxigenio: Object.freeze({ where: 'no bloco O₂, embaixo à esquerda', block: 'o2' }),
+  bateria: Object.freeze({ where: 'no bloco Bateria, embaixo à esquerda', block: 'bateria' }),
+  volta_a_pe: Object.freeze({ where: 'no bloco Volta a pé, embaixo à esquerda', block: 'volta' }),
+  proxima_parada: Object.freeze({ where: 'no alto da tela, ao centro', spot: 'parada' }),
+  tempo_de_saida: Object.freeze({ where: 'no alto da tela, à esquerda', spot: 'hora' }),
+  hora: Object.freeze({ where: 'no alto da tela, à esquerda', spot: 'hora' }),
+});
+const VISOR_LAYOUT = 'tempo de saída, hora local e modo (no alto, à esquerda); rumo e próxima parada com distância e tempo (no alto, ao centro); oxigênio, bateria e volta a pé (blocos embaixo, à esquerda); estado e a frase da IA (embaixo, ao centro); minimapa (embaixo, à direita)';
 // Camadas do mapa do tablet que a IA pode pintar sobre o terreno do visor: [camada, nome curto, o que mostra].
 const VISOR_LAYERS = Object.freeze({
   nenhuma: ['none', 'Sem camada', 'só a imagem e o relevo'],
@@ -315,6 +328,8 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
     radio: ['Rádio com o habitat', () => (context().comms.lineOfSight === false ? 'sem visada' : 'com visada')],
   });
   let pinned = [];
+  // Blocos do canto (o2, bateria, volta) que o astronauta mandou tirar.
+  let hiddenBlocks = [];
   let visorLayer = 'nenhuma';
   const readPin = (id) => ({ id, rotulo: METRICS[id][0], valor: METRICS[id][1]() });
   /** Cartões fixados no visor agora, com o valor deste instante. */
@@ -350,22 +365,57 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
     return `nenhuma nos próximos ${fmtDistance(REST.searchM)} de rota`;
   }
 
+  // Leitura que o visor já mostra sempre: em vez de um cartão repetido, a peça que existe pisca.
+  // Devolve a frase do que aconteceu e, se for o caso, a peça a destacar.
+  function changeFixed(id, show) {
+    const { where, block } = ALWAYS_ON_SCREEN[id];
+    const [name, read] = METRICS[id];
+    if (!block) {
+      return show
+        ? { note: `${name} já fica ${where}: ${read()}. Não foi criado cartão repetido.`, flash: ALWAYS_ON_SCREEN[id].spot }
+        : { note: `${name} faz parte do visor e não sai da tela.`, flash: null };
+    }
+    const wasHidden = hiddenBlocks.includes(block);
+    if (!show) {
+      if (!wasHidden) {
+        hiddenBlocks = [...hiddenBlocks, block];
+        runAction({ type: 'hud-block', block, on: false });
+      }
+      const alerting = context().alerts.some((alert) => alert.level !== 'info');
+      return {
+        note: alerting ? `${name} continua na tela enquanto houver alerta ativo e sai quando ele acabar.` : `${name} saiu da tela. O bloco volta sozinho em qualquer alerta.`,
+        flash: null,
+      };
+    }
+    if (wasHidden) {
+      hiddenBlocks = hiddenBlocks.filter((other) => other !== block);
+      runAction({ type: 'hud-block', block, on: true });
+    }
+    return { note: `${name} ${wasHidden ? 'voltou para a tela' : 'já está na tela'}, ${where}: ${read()}.${wasHidden ? '' : ' Não foi criado cartão repetido.'}`, flash: block };
+  }
+
   function changeHud(itens, show, question) {
     if (!isOrder(question)) return NOT_AN_ORDER;
     const wanted = (Array.isArray(itens) ? itens : [itens]).map(String);
     const unknown = wanted.filter((id) => id !== 'tudo' && !Object.hasOwn(METRICS, id) && !HUD_PANELS.includes(id));
     if (wanted.length === 0 || unknown.length > 0) {
-      return { erro: `Item que não dá para ${show ? 'mostrar' : 'tirar'}: ${unknown.join(', ') || 'nenhum informado'}. Leituras: ${Object.keys(METRICS).join(', ')}. Painéis: ${HUD_PANELS.join(', ')}. Alertas, protocolo e o quadro de volta a pé não saem da tela: são de segurança.` };
+      return { erro: `Item que não dá para ${show ? 'mostrar' : 'tirar'}: ${unknown.join(', ') || 'nenhum informado'}. Leituras: ${Object.keys(METRICS).join(', ')}. Painéis: ${HUD_PANELS.join(', ')}. Alertas e protocolo não saem da tela: são de segurança.` };
     }
+    const fixed = [];
     for (const id of wanted) {
       if (HUD_PANELS.includes(id)) runAction({ type: 'hud-panel', panel: id, on: show });
       else if (id === 'tudo') pinned = show ? pinned : [];
+      else if (Object.hasOwn(ALWAYS_ON_SCREEN, id)) fixed.push(changeFixed(id, show));
       else pinned = show ? [...pinned.filter((other) => other !== id), id].slice(-MAX_PINS) : pinned.filter((other) => other !== id);
     }
+    const flash = fixed.map((change) => change.flash).filter(Boolean);
+    if (flash.length > 0) runAction({ type: 'hud-flash', targets: flash });
     return {
       feito: true,
+      leituras_que_o_visor_ja_mostra: fixed.length === 0 ? undefined : fixed.map((change) => change.note),
       fixado_no_visor_agora: pinned.length === 0 ? 'nenhuma leitura fixada' : pins().map((pin) => `${pin.rotulo}: ${pin.valor}`),
-      aviso: 'O visor já mudou. Responda em uma frase curta: diga o que mudou na tela e, se mostrou uma leitura, o valor dela.',
+      blocos_tirados_a_pedido: hiddenBlocks.length === 0 ? undefined : hiddenBlocks,
+      aviso: 'O visor já mudou. Responda em uma frase curta: diga o que mudou na tela e, se mostrou uma leitura, o valor dela. Se a leitura já estava na tela, diga onde ela fica e o valor, sem dizer que criou algo novo.',
     };
   }
 
@@ -434,7 +484,14 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
       prioridade: urgent ? 'HÁ ALERTA OU PROTOCOLO ATIVO: em pergunta sobre a situação, comece por ele e pela ação a tomar.' : 'sem alerta ativo',
       alertas_e_protocolo: alerts, volta_e_abrigos: voltaEAbrigos(), parar_aqui: pararAqui(), pontos_para_parar: pontosParaParar(),
       traje: traje(), situacao: situacao(), ambiente: ambiente(), veiculo_da_saida: VEHICLE_INFO, rover_curiosity: roverCuriosity(),
-      visor: { camada_no_terreno: visorLayer, camadas_que_da_para_pintar_no_terreno: Object.keys(VISOR_LAYERS), leituras_fixadas_na_tela: pinned.length === 0 ? 'nenhuma' : pinned, leituras_que_da_para_fixar: Object.keys(METRICS), paineis_que_da_para_ligar_e_desligar: HUD_PANELS },
+      visor: {
+        sempre_na_tela: VISOR_LAYOUT,
+        blocos_tirados_a_pedido: hiddenBlocks.length === 0 ? 'nenhum' : `${hiddenBlocks.join(', ')} (voltam sozinhos em qualquer alerta)`,
+        leituras_fixadas_na_tela: pinned.length === 0 ? 'nenhuma' : pinned,
+        leituras_que_da_para_fixar: Object.keys(METRICS).filter((id) => !Object.hasOwn(ALWAYS_ON_SCREEN, id)),
+        paineis_que_da_para_ligar_e_desligar: 'mapa (o minimapa), leituras (a folha "Traje e ambiente", com todas as leituras do traje e do ambiente), historico (alertas da saída)',
+        camada_no_terreno: visorLayer, camadas_que_da_para_pintar_no_terreno: Object.keys(VISOR_LAYERS),
+      },
     };
   };
 
@@ -460,7 +517,7 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
       parameters: { type: 'object', required: ['acao'], properties: { acao: { type: 'string', enum: Object.keys(PROTOCOL_ACTIONS) } } },
       run: ({ acao } = {}, { question }) => (Object.hasOwn(PROTOCOL_ACTIONS, acao) ? act(PROTOCOL_ACTIONS[acao], question) : { erro: `Ação inválida. Use: ${Object.keys(PROTOCOL_ACTIONS).join(', ')}.` }) },
     { name: 'mostrar_no_visor', action: true, status: 'mudando o visor…',
-      description: 'Ação: põe na tela do visor uma ou mais leituras em número (ficam fixas e se atualizam sozinhas) ou liga um painel. Para uma camada colorida sobre o terreno, use camada_no_visor. Use quando o astronauta pedir para mostrar, colocar, fixar ou trocar o que aparece no visor, por exemplo "me mostra meu oxigênio", "coloca na tela a velocidade média", "altera o visor para mostrar a radiação", "abre o mapa".',
+      description: 'Ação: põe na tela do visor uma ou mais leituras em número (ficam fixas e se atualizam sozinhas) ou liga um painel. Leitura que o visor já mostra sempre (oxigênio, bateria, volta a pé, próxima parada, tempo de saída, hora) não ganha cartão repetido: a peça que já existe pisca e a ferramenta diz onde ela fica. Para uma camada colorida sobre o terreno, use camada_no_visor. Use quando o astronauta pedir para mostrar, colocar, fixar ou trocar o que aparece no visor, por exemplo "me mostra meu oxigênio", "coloca na tela a velocidade média", "altera o visor para mostrar a radiação", "abre o mapa".',
       parameters: { type: 'object', required: ['itens'], properties: { itens: { type: 'array', items: { type: 'string', enum: [...Object.keys(METRICS), ...HUD_PANELS] }, description: 'Leituras ou painéis a mostrar.' } } },
       run: ({ itens } = {}, { question }) => changeHud(itens, true, question) },
     { name: 'camada_no_visor', action: true, status: 'pintando o terreno…',
@@ -468,7 +525,7 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
       parameters: { type: 'object', required: ['camada'], properties: { camada: { type: 'string', enum: Object.keys(VISOR_LAYERS) } } },
       run: ({ camada } = {}, { question }) => changeLayer(camada, question) },
     { name: 'tirar_do_visor', action: true, status: 'mudando o visor…',
-      description: 'Ação: tira da tela do visor uma leitura fixada ou desliga um painel (mapa, leituras, historico). "tudo" tira todas as leituras fixadas. Alertas, protocolo e o quadro de volta a pé não saem: são de segurança.',
+      description: 'Ação: tira da tela do visor uma leitura fixada, um dos blocos do canto (oxigenio, bateria, volta_a_pe) ou desliga um painel (mapa, leituras, historico). "tudo" tira todas as leituras fixadas. Os blocos do canto voltam sozinhos em qualquer alerta. Alertas e protocolo não saem: são de segurança.',
       parameters: { type: 'object', required: ['itens'], properties: { itens: { type: 'array', items: { type: 'string', enum: [...Object.keys(METRICS), ...HUD_PANELS, 'tudo'] }, description: 'Leituras ou painéis a tirar.' } } },
       run: ({ itens } = {}, { question }) => changeHud(itens, false, question) },
     { name: 'pausar', action: true, status: 'ajustando a caminhada…',
@@ -477,5 +534,5 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
       run: ({ pausar } = {}, { question }) => act({ type: pausar === false || pausar === 'false' ? 'resume' : 'pause' }, question) },
   ]);
 
-  return Object.freeze({ tools, snapshot, retrieve: createRetriever(), pins, clearPins: () => { pinned = []; visorLayer = 'nenhuma'; } });
+  return Object.freeze({ tools, snapshot, retrieve: createRetriever(), pins, clearPins: () => { pinned = []; hiddenBlocks = []; visorLayer = 'nenhuma'; } });
 }

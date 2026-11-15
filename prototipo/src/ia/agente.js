@@ -32,7 +32,8 @@ export const IA_DEFAULTS = Object.freeze({
   // Três frases cabem com folga; o teto impede o modelo de escrever sem parar.
   maxAnswerTokens: 400,
   timeoutMs: 60000,
-  healthTimeoutMs: 3000,
+  // Folga para o servidor publicado acordar: com 3 s a primeira visita marcava a IA como fora do ar.
+  healthTimeoutMs: 8000,
 });
 
 // Regras comuns ao visor e ao tablet. Cada um acrescenta quem é e o que as suas ferramentas fazem.
@@ -116,6 +117,8 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
   let history = [];
   // Onde o modelo roda, decidido em `health()`: { where: 'nuvem' | 'local', model }.
   let backend = null;
+  // A última checagem achou um modelo pronto? Se não, a próxima pergunta confere de novo.
+  let isReady = false;
 
   async function postJson(url, body) {
     const response = await fetch(url, {
@@ -186,6 +189,12 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
    * crédito e rede só aparecem na primeira pergunta.
    */
   async function health() {
+    const found = await findBackend();
+    isReady = found.ok;
+    return found;
+  }
+
+  async function findBackend() {
     const cloud = await cloudModel();
     if (cloud) {
       backend = { where: 'nuvem', model: cloud };
@@ -231,7 +240,9 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
   async function ask(rawQuestion) {
     const question = String(rawQuestion ?? '').trim();
     const startedAt = Date.now();
-    if (!backend) await health();
+    // Se a última checagem não achou modelo pronto, confere de novo antes de responder: uma falha na
+    // abertura da página (servidor ainda acordando) não pode deixar a IA fora do ar até recarregar.
+    if (!isReady) await health();
     // Os dados de agora vão colados na pergunta e contam como lastro. No histórico fica só a pergunta,
     // para um dado velho nunca ser reaproveitado.
     const now = snapshot ? JSON.stringify(snapshot()) : null;
