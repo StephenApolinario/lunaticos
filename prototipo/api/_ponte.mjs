@@ -21,24 +21,27 @@ const MAX_CALLS_PER_IP_IN_WINDOW = 60;
 const MAX_TRACKED_IPS = 5000;
 const callsByIp = new Map();
 
-/** Registra uma chamada do visitante e diz se ela cabe no limite. */
-export function allowCall(ip, now = Date.now()) {
-  const recent = (callsByIp.get(ip) ?? []).filter((at) => now - at < RATE_WINDOW_MS);
-  const isAllowed = recent.length < MAX_CALLS_PER_IP_IN_WINDOW;
-  if (callsByIp.size >= MAX_TRACKED_IPS && !callsByIp.has(ip)) callsByIp.clear(); // não cresce sem fim
-  callsByIp.set(ip, isAllowed ? [...recent, now] : recent);
+/**
+ * Registra uma chamada e diz se ela cabe no limite da janela. `key` junta o serviço e o visitante
+ * (ex.: "ia:1.2.3.4"), para a conversa, a fala e a escuta terem cada uma a sua conta.
+ */
+export function allowCall(key, limit = MAX_CALLS_PER_IP_IN_WINDOW, now = Date.now()) {
+  const recent = (callsByIp.get(key) ?? []).filter((at) => now - at < RATE_WINDOW_MS);
+  const isAllowed = recent.length < limit;
+  if (callsByIp.size >= MAX_TRACKED_IPS && !callsByIp.has(key)) callsByIp.clear(); // não cresce sem fim
+  callsByIp.set(key, isAllowed ? [...recent, now] : recent);
   return isAllowed;
 }
 
 // Na Vercel o endereço do visitante vem nestes cabeçalhos, postos pela própria plataforma.
-function clientIp(request) {
+export function clientIp(request) {
   const forwarded = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
   return request.headers.get('x-real-ip') || forwarded || 'desconhecido';
 }
 
 const JSON_HEADERS = Object.freeze({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-const reply = (status, payload) => new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS });
-const refuse = (status, message) => reply(status, { error: { message } });
+export const reply = (status, payload) => new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS });
+export const refuse = (status, message) => reply(status, { error: { message } });
 
 /** GET /ia/saude: a página pergunta se há chave neste servidor. */
 export function health(env) {
@@ -47,12 +50,12 @@ export function health(env) {
 }
 
 // Só a própria página pode gastar o crédito da chave: o pedido tem de vir do mesmo endereço em que
-// a função está (o navegador manda Origin em todo POST) e com corpo JSON, que outro site não
-// consegue mandar sem pedir permissão antes.
-function isFromOwnPage(request) {
+// a função está (o navegador manda Origin em todo POST) e com um tipo de corpo (JSON ou áudio) que
+// outro site não consegue mandar sem pedir permissão antes.
+export const bodyType = (request) => (request.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+export function isFromOwnPage(request, isAllowedType = (type) => type === 'application/json') {
   const origin = request.headers.get('origin');
-  const contentType = (request.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-  if (contentType !== 'application/json') return false;
+  if (!isAllowedType(bodyType(request))) return false;
   if (origin === null) return true;
   const ownHosts = [request.headers.get('x-forwarded-host'), request.headers.get('host')].filter(Boolean);
   try {
@@ -79,7 +82,7 @@ export async function chat(request, env, fetchImpl = fetch) {
   if (request.method !== 'POST') return refuse(405, 'use POST');
   if (!isFromOwnPage(request)) return refuse(403, 'pedido recusado: origem ou tipo de conteúdo não permitidos');
   if (!env.OPENROUTER_API_KEY) return refuse(503, 'sem chave do OpenRouter neste servidor');
-  if (!allowCall(clientIp(request))) return refuse(429, 'muitas perguntas em pouco tempo; espere um pouco');
+  if (!allowCall(`ia:${clientIp(request)}`)) return refuse(429, 'muitas perguntas em pouco tempo; espere um pouco');
   const raw = await request.text();
   const size = new TextEncoder().encode(raw).length;
   if (size === 0 || size > MAX_BODY_BYTES) return refuse(413, 'corpo vazio ou grande demais');

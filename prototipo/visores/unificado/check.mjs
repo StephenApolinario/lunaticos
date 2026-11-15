@@ -25,7 +25,8 @@ import { bindProtocols } from '../cientista/protocolos.js';
 import { createJournal, journalToText } from '../cientista/diario.js';
 import { createHazardStore, locateHazards, hazardWarning, describeHazard } from '../cientista/perigos.js';
 import { assistantContext, answerUnified, unifiedQuickQuestions, alertsForAssistant } from './contexto.js';
-import { guideFor, voiceLine, radioAheadText, withReportedHazard, isReportedHazard, targetLabel, ADVICE_HOLD_S } from './guia.js';
+import { guideFor, voiceLine, radioAheadText, withReportedHazard, isReportedHazard, targetLabel, alertReading, ADVICE_HOLD_S } from './guia.js';
+import { createVisorTools } from '../../src/ia/ferramentas-visor.js';
 
 async function loadField() {
   try {
@@ -273,6 +274,60 @@ for (const scenario of SCENARIOS) {
   const { context, guide, line } = view(ctx);
   ok('fim: contexto marca a saída como concluída', context.finished && answerUnified('Quanto falta?', context).text.includes('terminou'));
   ok('fim: sem guia e com a frase de fim no histórico', !guide.following && guide.point === null && line.key === 'fim' && line.logged);
+}
+
+// ---------- 8. O que a IA põe e tira do visor ----------
+{
+  const ctx = outing(PLANS[0][1]);
+  const actions = [];
+  const tools = createVisorTools({
+    getContext: () => view(ctx).context, getSession: () => ctx.session, safety,
+    live: () => ({ weather: null, dose: null, lsDeg: 0 }), runAction: (action) => actions.push(action), terrain,
+  });
+  const useTool = (name, itens, question) => tools.tools.find((tool) => tool.name === name).run({ itens }, { question });
+  const typesOf = () => actions.map((action) => action.type).join(',');
+
+  const shown = useTool('mostrar_no_visor', ['oxigenio'], 'me mostra meu oxigênio');
+  ok('visor: oxigênio já está na tela, não vira cartão repetido', shown.feito && tools.pins().length === 0 && shown.leituras_que_o_visor_ja_mostra[0].includes('já está na tela'));
+  ok('visor: o bloco que já existe pisca', typesOf() === 'hud-flash' && actions[0].targets.join() === 'o2');
+  ok('visor: a resposta leva o valor do bloco', /\d+%/.test(shown.leituras_que_o_visor_ja_mostra[0]));
+
+  useTool('mostrar_no_visor', ['velocidade_media', 'radiacao'], 'coloca na tela a velocidade média e a radiação');
+  ok('visor: leitura que não está na tela vira cartão fixado', tools.pins().map((pin) => pin.id).join() === 'velocidade_media,radiacao');
+
+  actions.length = 0;
+  const removed = useTool('tirar_do_visor', ['bateria'], 'tira a bateria da tela');
+  ok('visor: bloco do canto sai a pedido', typesOf() === 'hud-block' && actions[0].block === 'bateria' && actions[0].on === false && removed.blocos_tirados_a_pedido.join() === 'bateria');
+  ok('visor: os dados de agora dizem o que foi tirado e o que está fixado', tools.snapshot().visor.blocos_tirados_a_pedido.startsWith('bateria') && tools.snapshot().visor.leituras_fixadas_na_tela.length === 2);
+  ok('visor: leitura dos blocos fixos não aparece como fixável', !tools.snapshot().visor.leituras_que_da_para_fixar.includes('oxigenio'));
+
+  actions.length = 0;
+  useTool('mostrar_no_visor', ['bateria'], 'põe a bateria de volta');
+  ok('visor: o bloco tirado volta a pedido e pisca', typesOf() === 'hud-block,hud-flash' && actions[0].on === true && tools.snapshot().visor.blocos_tirados_a_pedido === 'nenhum');
+
+  actions.length = 0;
+  const fixed = useTool('tirar_do_visor', ['hora'], 'tira a hora da tela');
+  ok('visor: a linha do alto faz parte do visor e não sai', actions.length === 0 && fixed.leituras_que_o_visor_ja_mostra[0].includes('não sai'));
+  ok('visor: pergunta não muda a tela', useTool('tirar_do_visor', ['radiacao'], 'devo tirar a radiação da tela?').feito !== true && tools.pins().length === 2);
+  useTool('tirar_do_visor', ['tudo'], 'tira tudo da tela');
+  ok('visor: "tudo" tira os cartões fixados', tools.pins().length === 0);
+
+  // O bloco de alerta mostra a leitura que explica o alerta mais grave.
+  act(ctx, toggleScenario, 'solar');
+  const top = view(ctx).alerts.find((alert) => alert.level !== 'info');
+  const reading = alertReading(top, ctx.session.r);
+  ok('alerta: evento solar mostra a radiação no bloco de alerta', top.id === 'solar' && reading.label === 'Radiação' && reading.value.includes('µSv/h'));
+  ok('alerta: sem alerta ou com alerta desconhecido, o bloco não aparece', alertReading({ id: 'desconhecido' }, ctx.session.r) === null && alertReading(undefined, ctx.session.r) === null);
+  // Cada cenário de treino a pé abre um alerta, e o alerta mais grave tem a leitura dele.
+  for (const scenario of SCENARIOS.filter((candidate) => !candidate.needsVehicle)) {
+    const drill = outing(PLANS[0][1]);
+    act(drill, scrubTo, 0.3);
+    act(drill, toggleScenario, scenario.id);
+    run(drill, 20);
+    const worst = view(drill).alerts.find((alert) => alert.level !== 'info');
+    const shown = alertReading(worst, drill.session.r);
+    ok(`alerta: cenário "${scenario.label}" tem leitura no bloco de alerta`, Boolean(worst) && Boolean(shown?.label) && Boolean(shown.value) && !/undefined|NaN/.test(`${shown.value} ${shown.note}`));
+  }
 }
 
 console.log(`unificado: ${checks} verificações passaram (${real ? 'relevo real' : 'relevo aproximado'}).`);

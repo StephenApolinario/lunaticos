@@ -2,8 +2,8 @@
 // o que a guia no chão deve mostrar, a frase padrão do assistente, o texto do rádio à frente
 // e o perigo relatado dentro da pilha de alertas do Guardião. Roda no Node (ver check.mjs).
 
-import { fmtDistance, fmtDuration } from '../../src/format.js';
-import { levelOrder } from '../guardiao/catalog.js';
+import { fmtDistance, fmtDuration, fmtNumber } from '../../src/format.js';
+import { levelOrder, RULES } from '../guardiao/catalog.js';
 import { nextManeuver } from '../navegador/analise.js';
 import { routeInstruction } from '../navegador/assistente.js';
 import { NAV } from '../navegador/leitura.js';
@@ -108,3 +108,37 @@ export function withReportedHazard(active, warning, acked, clockH) {
 }
 
 export const isReportedHazard = (id) => id.startsWith('perigo-relatado:');
+
+const minutes = (hours) => `${Math.max(1, Math.round(hours * 60))} min`;
+// A leitura que explica cada alerta do Guardião (../guardiao/rules.js): [rótulo, valor, nota curta].
+const ALERT_READINGS = Object.freeze({
+  solar: (r) => ['Radiação', `${fmtNumber(r.radiationRate)} µSv/h`, `${fmtNumber(r.fx.radFactor)}× o normal`],
+  poeira: (r) => ['Poeira', r.fx.dust.arrived ? 'chegou' : `em ${minutes(r.fx.dust.etaH)}`, 'frente de poeira'],
+  frio: (r) => ['Temperatura', `${fmtNumber(r.airTempC)} °C`, `mínimo do traje ${RULES.suitMinTempC} °C`],
+  'frio-a-caminho': (r) => ['Temperatura', `${fmtNumber(r.airTempC)} °C`, `frio em ${minutes(r.coldInH)}`],
+  vento: (r) => ['Vento', `${fmtNumber(r.windMps)} m/s`, 'rajadas'],
+  radio: (r) => ['Rádio', 'sem resposta', `há ${minutes(r.radio.lostH)}`],
+  veiculo: () => ['Veículo', 'em pane', 'a volta é a pé'],
+  traje: (r) => ['Integridade', `${fmtNumber(r.integrityPct)}%`, `vaza ${fmtNumber(r.leakPctH, 1)} %/h de O₂`],
+  o2: (r) => ['O₂ acaba em', fmtDuration(r.o2AutonomyH), 'neste ritmo'],
+  'o2-plano': (r) => ['O₂ no fim', r.o2EndPct < 0 ? 'não cobre' : `${fmtNumber(Math.round(r.o2EndPct))}%`, 'no fim do plano'],
+  pnr: (r) => (r.pnr.status === 'ahead' ? ['Sem retorno', fmtDistance(r.pnr.aheadM), 'à frente'] : ['Sem retorno', 'passou', 'ponto ultrapassado']),
+  declive: (r) => ['Declive', `${fmtNumber(r.slopeAheadDeg)}°`, 'à frente'],
+  rochas: (r) => ['Rochas', fmtDistance(Math.max(0, r.hazard.edgeM)), r.hazard.side],
+  bateria: (r) => ['Bateria acaba em', fmtDuration(r.batteryPct / r.batteryRatePctH), 'neste ritmo'],
+  dose: (r) => ['Dose', `${fmtNumber(r.doseUsv)} µSv`, `limite de ${fmtNumber(RULES.doseLimitUsv)}`],
+});
+
+/**
+ * A leitura que explica um alerta, para o bloco de alerta do visor.
+ * @param {{ id: string }|undefined} alert O alerta mais grave do momento.
+ * @param {object} r Leitura do quadro do Guardião.
+ * @returns {{ label: string, value: string, note: string }|null} null se o alerta não tem uma leitura só dele.
+ */
+export function alertReading(alert, r) {
+  if (!alert) return null;
+  if (isReportedHazard(alert.id)) return { label: 'Perigo relatado', value: 'por perto', note: 'relato de astronauta' };
+  if (!Object.hasOwn(ALERT_READINGS, alert.id)) return null;
+  const [label, value, note] = ALERT_READINGS[alert.id](r);
+  return { label, value, note };
+}

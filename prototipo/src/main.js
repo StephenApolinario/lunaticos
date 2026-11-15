@@ -10,9 +10,11 @@ import { createTabletPanel } from './tablet.js';
 import { VISORS, DEFAULT_VISOR, visorIdFromUrl, loadVisor } from '../visores/registry.js';
 import { loadImagery } from './imagery.js';
 import { createDetailImagery } from './detalhe.js';
+import { loadFinePhoto } from './foto-fina.js';
+import { loadSurroundings } from './entorno.js';
 import { loadElevation } from './elevation.js';
 import { buildPlan } from './route.js';
-import { toLocal, toGeo, ORIGIN } from './geo.js';
+import { toLocal, toGeo, ORIGIN, DATA_BOUNDS } from './geo.js';
 import { sunAt, solarLongitudeDeg, julianDateTT } from './luz.js';
 import { loadSeasonWeather, loadRecentDose, loadNightThermal, loadRoverPosition } from './nasa.js';
 import { CURIOSITY } from '../data/medicoes.js';
@@ -27,28 +29,57 @@ import { createSafety, ASSUMPTIONS } from './safety.js';
 import { createPlanner, MAX_WAYPOINTS } from './planner.js';
 import { PROTOCOLS, SHELTER_KINDS, protocolFor } from '../data/protocolos.js';
 import { byId } from './dom.js';
+import { fmtClock } from './format.js';
+import { DEFAULT_QUALITY, QUALITY } from './config.js';
 
 const TABLET_CAMERA = Object.freeze({ position: [-700, 4300, -5500], target: [0, 300, -250] });
 const ORBIT_LIMITS = Object.freeze({ minDistanceM: 150, maxDistanceM: 16000, maxPolarRad: Math.PI * 0.47 });
 const FOCUS = Object.freeze({ distanceM: 1300, durationS: 0.9 });
+// Passagem entre o planeta e a área mapeada. Afastar o zoom além de `backAtShare` da distância máxima
+// do mapa local volta ao planeta, que reabre `backOffFactor` vezes mais longe que a distância de
+// entrada. `minPolarRad`: inclinação mínima da câmera local, para o rumo não se perder olhando reto
+// para baixo. `durationS`: descida até a vista de planejamento quando a entrada foi pelo botão.
+const PLANET_HANDOFF = Object.freeze({ durationS: 1.6, backAtShare: 0.985, backOffFactor: 1.05, minPolarRad: 0.001 });
+const AREA_LABEL = 'Cratera Gale · Monte Sharp';
 const MAX_FRAME_S = 0.1;
 // Hora solar local em que o mapa abre, e de quanto em quanto a luz é refeita enquanto o relógio do visor anda.
 const DEFAULT_HOUR_H = 10;
 const SUN_STEP_H = 1 / 60;
 const FOCUS_REFRESH_S = 0.15;
+// No tablet parado, a cena é redesenhada só de vez em quando, como garantia (ver `requestRender`).
+const IDLE_RENDER_S = 0.5;
+const RENDER_BURST_FRAMES = 3;
 // Clique no mapa: até quantos pixels o ponteiro pode andar sem virar arrasto, e o passo da busca do ponto no relevo.
 const PICK = Object.freeze({ clickTolerancePx: 5, stepM: 8, maxM: 40000, refineSteps: 12 });
 const OUTSIDE_DATA_NOTICE = 'Escolha um ponto dentro da área fotografada do mapa.';
 const RAD_TO_DEG = 180 / Math.PI;
+// A qualidade escolhida fica guardada neste navegador.
+const QUALITY_STORAGE_KEY = 'lunaticos:qualidade';
+function storedQuality() {
+  try {
+    const saved = window.localStorage.getItem(QUALITY_STORAGE_KEY);
+    return saved in QUALITY ? saved : DEFAULT_QUALITY;
+  } catch {
+    return DEFAULT_QUALITY; // sem armazenamento (modo privado), vale o padrão
+  }
+}
+function storeQuality(id) {
+  try {
+    window.localStorage.setItem(QUALITY_STORAGE_KEY, id);
+  } catch {
+    // A escolha só não persiste; continua valendo nesta visita.
+  }
+}
 const easeOutCubic = (t) => 1 - (1 - t) ** 3;
 // Selo sobre o mapa: diz o que é real no que está na tela.
-function badgeText({ imagery, relief, detail }) {
+function badgeText({ imagery, relief, detail, fine }) {
   const reliefText = relief === 'real' ? 'relevo real (USGS)' : 'altura do relevo aproximada';
   if (imagery === 'loading') return `Carregando imagem HiRISE… · ${reliefText}`;
   if (imagery === 'ready') {
     const base = relief === 'real' ? 'Imagem HiRISE e relevo reais (USGS)' : `Imagem HiRISE real · ${reliefText}`;
     if (detail === 'offline') return `${base} · sem rede para o detalhe fino`;
-    return detail ? `${base} · detalhe de ${detail} por pixel` : base;
+    if (detail) return `${base} · detalhe de ${detail} por pixel`;
+    return fine ? `${base} · foto de 0,7 m por pixel` : base;
   }
   return `Imagem HiRISE indisponível · ${reliefText}`;
 }
@@ -77,7 +108,7 @@ function boot(elevation, visor, sandBits) {
   stage.camera.position.set(...TABLET_CAMERA.position);
   controls.target.set(...TABLET_CAMERA.target);
   // Com ?debug na URL, expõe a câmera para testes automatizados posicionarem a vista.
-  if (new URLSearchParams(window.location.search).has('debug')) window.lunaticos = { camera: stage.camera, controls };
+  if (new URLSearchParams(window.location.search).has('debug')) window.lunaticos = { camera: stage.camera, controls, renderer: stage.renderer };
 
   // Rotas e segurança calculadas sobre o mesmo campo de altitude do terreno.
   // A areia escura estimada só vale sobre o relevo real, que é a grade em que ela foi calculada.
@@ -114,6 +145,9 @@ function boot(elevation, visor, sandBits) {
     mode: 'walk', includeExtension: false, layer: 'none', view: 'tablet',
     imagery: 'loading', relief: terrain.isReal ? 'real' : 'approx',
     waypoints: Object.freeze([]), notice: null, detail: '', hourH: DEFAULT_HOUR_H,
+    quality: storedQuality(),
+    // A foto fina pronta (0,69 m) está em cena? Só nas qualidades que a usam, depois de carregada.
+    fine: false,
     // Medições lidas da NASA: undefined enquanto carregam, null se a rede falhar.
     weather: undefined, dose: undefined,
   });
@@ -123,6 +157,11 @@ function boot(elevation, visor, sandBits) {
 
   // Estação de hoje em Marte (longitude solar), que define o caminho do Sol no céu.
   const lsDeg = solarLongitudeDeg(julianDateTT(new Date()));
+  // Barra de estado do tablet de missão: a estação de hoje em Marte (calculada) e a hora de partida escolhida.
+  byId('device-season').textContent = `Ls ${Math.round(lsDeg)}° · estação de hoje`;
+  const deviceClock = byId('device-clock');
+  const showDeviceClock = () => { deviceClock.textContent = `Partida ${fmtClock(state.hourH)} · hora solar local`; };
+  showDeviceClock();
   let sunHourH = null;
   // Põe o Sol na posição da hora dada. No visor é chamado a cada quadro, então só refaz a luz a cada minuto.
   function applySun(hourH, force = false) {
@@ -133,8 +172,11 @@ function boot(elevation, visor, sandBits) {
 
   // Leva a câmera do tablet até uma parada, mantendo o ângulo atual.
   function focusOn(stop) {
+    focusOnPoint(toLocal(stop.lat, stop.lon));
+  }
+
+  function focusOnPoint({ x, z }) {
     if (state.view !== 'tablet') return;
-    const { x, z } = toLocal(stop.lat, stop.lon);
     const toTarget = new THREE.Vector3(x, terrain.heightAt(x, z), z);
     const direction = stage.camera.position.clone().sub(controls.target).normalize();
     tween = Object.freeze({
@@ -149,10 +191,11 @@ function boot(elevation, visor, sandBits) {
   function stepTween(dtS) {
     if (!tween) return;
     const elapsedS = tween.elapsedS + dtS;
-    const eased = easeOutCubic(Math.min(1, elapsedS / FOCUS.durationS));
+    const durationS = tween.durationS ?? FOCUS.durationS;
+    const eased = easeOutCubic(Math.min(1, elapsedS / durationS));
     controls.target.lerpVectors(tween.fromTarget, tween.toTarget, eased);
     stage.camera.position.lerpVectors(tween.fromPosition, tween.toPosition, eased);
-    tween = elapsedS >= FOCUS.durationS ? null : Object.freeze({ ...tween, elapsedS });
+    tween = elapsedS >= durationS ? null : Object.freeze({ ...tween, elapsedS });
   }
 
   const overlays = createOverlays(stage.scene, terrain, { onStopClick: focusOn });
@@ -165,7 +208,12 @@ function boot(elevation, visor, sandBits) {
     camera: stage.camera,
     terrain,
     overlays,
-    onExit: () => setState({ view: 'tablet' }),
+    // Sair pelo minimapa do visor abre o mapa já centrado em onde o astronauta está.
+    onExit: (options) => {
+      setState({ view: 'tablet' });
+      const outing = options?.focusAstronaut ? activeVisor.outing?.() : null;
+      if (outing) focusOnPoint(outing);
+    },
     // O visor informa a hora local do relógio da saída, e a luz acompanha.
     onLocalHour: (hourH) => applySun(hourH),
     // Medições do Curiosity lidas da NASA (ou null sem rede) e a estação de hoje, para a IA de bordo.
@@ -198,6 +246,7 @@ function boot(elevation, visor, sandBits) {
     onModeChange: (mode) => setState({ mode }),
     onAskAssistant: (question) => askPlanner(question),
     onHourChange: (hourH) => setState({ hourH }),
+    onQualityChange: (quality) => setState({ quality }),
     onExtensionChange: (includeExtension) => setState({ includeExtension }),
     onLayerChange: (layer) => setState({ layer }),
     onStopFocus: focusOn,
@@ -211,14 +260,16 @@ function boot(elevation, visor, sandBits) {
       url.searchParams.set('visor', id);
       window.location.assign(url);
     },
-  }, { realRelief: terrain.isReal, visors: VISORS, visorId: visor.id, lsDeg });
+  }, { realRelief: terrain.isReal, visors: VISORS, visorId: visor.id, lsDeg, quality: state.quality });
 
   function applyView() {
     const isVisor = state.view === 'visor';
     app.dataset.view = state.view;
     stage.setView(state.view);
     overlays.setView(state.view);
-    controls.enabled = !isVisor;
+    // Entrar no visor a partir do planeta passa antes pela área mapeada, sem a descida animada.
+    if (isVisor && scope === 'planeta') setScope('local');
+    controls.enabled = !isVisor && scope === 'local';
     if (isVisor) {
       savedPose = { position: stage.camera.position.clone(), target: controls.target.clone() };
       tween = null;
@@ -232,8 +283,153 @@ function boot(elevation, visor, sandBits) {
       controls.update();
       applySun(state.hourH, true);
     }
+    syncAstronaut();
     stage.resize();
   }
+
+  // No mapa do tablet, um pino marca onde o astronauta está na saída em andamento. Mudar o plano
+  // tira o pino: a próxima entrada no visor começa outra saída.
+  function syncAstronaut() {
+    const outing = state.view === 'tablet' ? activeVisor.outing?.() : null;
+    overlays.setAstronaut(outing?.plan === plan ? outing : null);
+  }
+
+  // Qualidade de renderização: sombras e pixels na cena, e quantos níveis de imagem fina entram.
+  function applyQuality() {
+    stage.setQuality(QUALITY[state.quality]);
+    globe?.setQuality(state.quality);
+    applyImageryQuality();
+  }
+
+  // Imagem conforme a qualidade: a foto fina pronta (carregada só na primeira vez em que uma
+  // qualidade que a usa é escolhida) e os níveis lidos da rede.
+  let finePhoto = null;
+  let isFinePhotoRequested = false;
+  function applyImageryQuality() {
+    if (!detail) return;
+    const quality = QUALITY[state.quality];
+    detail.setLiveLevels(quality.liveDetail);
+    detail.setFinePhoto(quality.finePhoto ? finePhoto : null);
+    const fine = quality.finePhoto && finePhoto !== null;
+    state = Object.freeze({ ...state, fine, detail: quality.liveDetail.length === 0 ? '' : state.detail });
+    badge.textContent = badgeText(state);
+    requestRender();
+    if (!quality.finePhoto || isFinePhotoRequested) return;
+    isFinePhotoRequested = true;
+    loadFinePhoto()
+      .then((photo) => { finePhoto = photo; applyImageryQuality(); })
+      .catch((error) => console.warn('Foto fina indisponível; fica a foto de 2,5 m.', error));
+  }
+
+  // No tablet a cena só é redesenhada quando algo muda (câmera, plano, camada, hora, imagem que
+  // chegou): parado, o mapa não gasta placa de vídeo. Cada pedido vale por alguns quadros, para
+  // cobrir o que termina de assentar no quadro seguinte.
+  let renderFrames = RENDER_BURST_FRAMES;
+  function requestRender() { renderFrames = RENDER_BURST_FRAMES; }
+
+  // ---------- Marte inteiro (globo) e a área mapeada (modelo local) ----------
+  // O tablet abre no planeta. Aproximar sobre a área mapeada entra no modelo local; afastar o zoom
+  // do modelo local até o limite volta ao planeta. A câmera passa de um para o outro no mesmo
+  // enquadramento (ponto olhado, distância, rumo e inclinação), para a aproximação parecer uma só.
+  // Sem o módulo do globo, fica só o local.
+  let globe = null;
+  let globeEnterM = ORBIT_LIMITS.maxDistanceM;
+  let scope = 'local';
+  // O botão "Entrar na área mapeada" foi usado? Aí, depois da chegada, a câmera desce sozinha até a vista de planejamento.
+  let isFlyingIn = false;
+  const planetChrome = byId('planet-chrome');
+  app.dataset.scope = scope;
+
+  /**
+   * @param {'planeta'|'local'} next
+   * @param {{ view?: object | null, settle?: boolean }} [options] `view`: a vista do globo na entrada
+   *   (ver GlobeView em globo.js); `settle`: desce até a vista de planejamento depois de entrar.
+   */
+  function setScope(next, { view = null, settle = false } = {}) {
+    if (next === scope || (next === 'planeta' && !globe)) return;
+    const cameFromLocal = scope === 'local' && next === 'planeta' && state.view === 'tablet';
+    scope = next;
+    app.dataset.scope = scope;
+    const isPlanet = scope === 'planeta';
+    planetChrome.hidden = !isPlanet;
+    controls.enabled = !isPlanet && state.view === 'tablet';
+    tween = null;
+    if (isPlanet) {
+      // Vindo do mapa local, o planeta reabre no mesmo enquadramento; na abertura do tablet, na vista dele.
+      if (cameFromLocal && canInheritLocalView) globe.setView(globeViewFromCamera());
+      canInheritLocalView = true;
+      globe.show();
+    } else {
+      globe.hide();
+      if (view) placeCameraAt(view);
+      if (settle) settleOnArea();
+    }
+    requestRender();
+  }
+  // Na abertura do tablet a câmera local ainda está na vista de planejamento, que não é de onde o
+  // usuário vem: só depois da primeira troca o planeta passa a herdar o enquadramento do mapa local.
+  let canInheritLocalView = false;
+
+  // Vista do globo -> câmera local equivalente.
+  function placeCameraAt(view) {
+    const { x, z } = toLocal(view.lat, view.lon);
+    const target = new THREE.Vector3(x, terrain.heightAt(x, z), z);
+    const polarRad = Math.max(view.tiltDeg / RAD_TO_DEG, PLANET_HANDOFF.minPolarRad);
+    const distanceM = Math.min(view.distanceM, ORBIT_LIMITS.maxDistanceM);
+    controls.target.copy(target);
+    stage.camera.position.copy(target).add(new THREE.Vector3().setFromSphericalCoords(distanceM, polarRad, -view.headingDeg / RAD_TO_DEG));
+    controls.update();
+  }
+
+  // Câmera local -> vista do globo, um pouco além da distância de entrada para a aproximação valer de novo.
+  function globeViewFromCamera() {
+    const { lat, lon } = toGeo(controls.target.x, controls.target.z);
+    return {
+      lat, lon,
+      distanceM: Math.max(stage.camera.position.distanceTo(controls.target), globeEnterM) * PLANET_HANDOFF.backOffFactor,
+      headingDeg: -controls.getAzimuthalAngle() * RAD_TO_DEG,
+      tiltDeg: controls.getPolarAngle() * RAD_TO_DEG,
+    };
+  }
+
+  // Depois de entrar pelo botão, a câmera desce de onde chegou até a vista de planejamento.
+  function settleOnArea() {
+    tween = Object.freeze({
+      fromTarget: controls.target.clone(), toTarget: new THREE.Vector3(...TABLET_CAMERA.target),
+      fromPosition: stage.camera.position.clone(), toPosition: new THREE.Vector3(...TABLET_CAMERA.position),
+      elapsedS: 0, durationS: PLANET_HANDOFF.durationS,
+    });
+  }
+
+  // Afastar o zoom além do limite do modelo local devolve ao planeta.
+  stage.renderer.domElement.addEventListener('wheel', (event) => {
+    if (!globe || scope !== 'local' || state.view !== 'tablet' || tween || event.deltaY <= 0) return;
+    if (stage.camera.position.distanceTo(controls.target) >= ORBIT_LIMITS.maxDistanceM * PLANET_HANDOFF.backAtShare) setScope('planeta');
+  }, { passive: true });
+  byId('planet-enter').addEventListener('click', () => {
+    isFlyingIn = true;
+    globe?.flyToArea();
+  });
+
+  // O módulo do globo entra depois da cena local: se ele falhar, o tablet abre direto na área mapeada.
+  // Com ?local na URL o tablet abre na área mapeada mesmo com o globo disponível.
+  import('./globo.js')
+    .then(({ createGlobe, GLOBE_SOURCE, ENTER_DISTANCE_M }) => {
+      globeEnterM = ENTER_DISTANCE_M;
+      globe = createGlobe({
+        renderer: stage.renderer, container: stageElement, area: DATA_BOUNDS, label: AREA_LABEL, quality: state.quality,
+        onEnter: (view) => {
+          setScope('local', { view, settle: isFlyingIn });
+          isFlyingIn = false;
+        },
+      });
+      // "Mosaico Viking" sozinho não diz nada a quem não conhece a missão: o crédito na tela explica o que é.
+      byId('planet-source').textContent = `Imagem do planeta: fotos das sondas ${GLOBE_SOURCE.mission} (NASA, anos 1970), reunidas pelo USGS num mosaico de 232 m por pixel e lidas do NASA Mars Trek.`;
+      const opensLocal = new URLSearchParams(window.location.search).has('local');
+      if (state.view === 'tablet' && !opensLocal) setScope('planeta');
+      else canInheritLocalView = true;
+    })
+    .catch((error) => console.warn('Globo de Marte indisponível: o tablet abre direto na área mapeada.', error));
 
   const PLAN_KEYS = ['mode', 'includeExtension', 'waypoints'];
   // Só o que de fato muda o plano: na rota livre a extensão não conta.
@@ -267,6 +463,7 @@ function boot(elevation, visor, sandBits) {
       }
     }
     if (state.hourH !== previous.hourH) {
+      showDeviceClock();
       if (plan.startClockH !== state.hourH) plan = Object.freeze({ ...plan, startClockH: state.hourH });
       applySun(state.hourH, true);
     }
@@ -275,13 +472,20 @@ function boot(elevation, visor, sandBits) {
       // A camada do visor é dele: uma saída nova a zera (onLayer), uma saída retomada a mantém.
       terrain.paint({ layer: isTablet ? state.layer : visorLayer, dimOutsideData: isTablet });
     }
+    if (state.quality !== previous.quality) {
+      storeQuality(state.quality);
+      applyQuality();
+    }
     if (state.view !== previous.view) {
       applyView();
       // Na volta ao tablet o foco retorna ao botão de entrada; no visor, cada variante cuida do próprio foco.
-      if (state.view === 'tablet') document.querySelector('.cta')?.focus();
+      if (state.view === 'tablet') document.querySelector('.panel .cta')?.focus();
     }
+    // Qualquer mudança que troque o plano (rota, modo, hora de partida) tira o pino do astronauta.
+    syncAstronaut();
     badge.textContent = badgeText(state);
     panel.update(plan, state);
+    requestRender();
   }
 
   // Clique (sem arrastar) no mapa acrescenta um ponto à rota livre.
@@ -330,22 +534,20 @@ function boot(elevation, visor, sandBits) {
   let detail = null;
   let tabletFocus = null;
   let focusAgeS = Infinity;
+  /** @returns {boolean} Se a imagem lida da rede mudou neste quadro (ver `detail.update`). */
   function updateDetail(dtS) {
-    if (!detail) return;
-    // O grão do chão de perto só faz sentido na altura dos olhos.
-    detail.setGrain(state.view === 'visor');
+    if (!detail) return false;
+    // O grão do chão de perto só faz sentido na altura dos olhos, e só nas qualidades que o incluem.
+    detail.setGrain(state.view === 'visor' && QUALITY[state.quality].grain);
     const eye = stage.camera.position;
-    if (state.view === 'visor') {
-      detail.update(eye, 0, dtS);
-      return;
-    }
+    if (state.view === 'visor') return detail.update(eye, 0, dtS);
     focusAgeS += dtS;
     if (!tabletFocus || focusAgeS >= FOCUS_REFRESH_S) {
       tabletFocus = groundUnder(0, 0) ?? { x: controls.target.x, z: controls.target.z };
       focusAgeS = 0;
     }
     const { x, z } = tabletFocus;
-    detail.update(tabletFocus, Math.hypot(eye.x - x, eye.y - terrain.heightAt(x, z), eye.z - z), dtS);
+    return detail.update(tabletFocus, Math.hypot(eye.x - x, eye.y - terrain.heightAt(x, z), eye.z - z), dtS);
   }
   // Atualiza só o selo: o painel não depende do detalhe e não precisa ser refeito.
   function setDetailStatus(status) {
@@ -362,7 +564,7 @@ function boot(elevation, visor, sandBits) {
   canvas.addEventListener('pointerup', (event) => {
     const start = press;
     press = null;
-    if (!start || start.id !== event.pointerId || state.view !== 'tablet') return;
+    if (!start || start.id !== event.pointerId || state.view !== 'tablet' || scope !== 'local') return;
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > PICK.clickTolerancePx) return;
     const hit = pickTerrain(event.clientX, event.clientY);
     if (!hit) return;
@@ -371,6 +573,7 @@ function boot(elevation, visor, sandBits) {
   });
 
   overlays.setPlan(plan);
+  applyQuality();
   applySun(state.hourH, true);
   terrain.paint({ layer: state.layer, dimOutsideData: true });
   applyView();
@@ -383,12 +586,21 @@ function boot(elevation, visor, sandBits) {
       terrain.attachImagery(imagery);
       detail = createDetailImagery({ onStatus: setDetailStatus });
       terrain.attachDetail(detail);
+      applyImageryQuality();
       setState({ imagery: 'ready' });
     })
     .catch((error) => {
       console.warn(error);
       setState({ imagery: 'failed' });
     });
+
+  // Chão em volta da área mapeada: a imagem real da região chega da rede; sem ela fica o chão liso.
+  loadSurroundings()
+    .then((surroundings) => {
+      if (surroundings.loaded > 0) scenery.setSurroundings(surroundings);
+      requestRender();
+    })
+    .catch((error) => console.warn('Imagem da região em volta indisponível; fica o chão liso.', error));
 
   // IA de planejamento do tablet (modelo de linguagem, na nuvem ou local). As ações dela passam pelas mesmas
   // funções dos botões do painel, então valem as mesmas regras (limite de pontos, área com dados).
@@ -450,12 +662,20 @@ function boot(elevation, visor, sandBits) {
     })
     .catch((error) => console.warn(error));
 
-  new ResizeObserver(() => stage.resize()).observe(stageElement);
+  new ResizeObserver(() => { stage.resize(); globe?.resize(); requestRender(); }).observe(stageElement);
+  controls.addEventListener('change', requestRender);
 
   let lastMs = performance.now();
+  let idleS = 0;
   function frame(nowMs) {
     const dtS = Math.min((nowMs - lastMs) / 1000, MAX_FRAME_S);
     lastMs = nowMs;
+    if (state.view === 'tablet' && scope === 'planeta') {
+      // O globo tem cena e câmera próprias e só redesenha quando algo muda.
+      globe.render(dtS);
+      requestAnimationFrame(frame);
+      return;
+    }
     if (state.view === 'visor') {
       activeVisor.frame(dtS);
     } else {
@@ -463,8 +683,17 @@ function boot(elevation, visor, sandBits) {
       controls.update();
       north.style.transform = `rotate(${controls.getAzimuthalAngle() * RAD_TO_DEG}deg)`;
     }
-    updateDetail(dtS);
-    stage.render();
+    // A imagem lida da rede (qualidade alta) pede quadros só enquanto chega ou entra em cena.
+    if (updateDetail(dtS)) requestRender();
+    // O visor anda o tempo todo. Fora isso, desenha quando pedido e, parado, um quadro de garantia
+    // a cada IDLE_RENDER_S.
+    idleS += dtS;
+    const isLive = state.view === 'visor' || tween !== null;
+    if (isLive || renderFrames > 0 || idleS >= IDLE_RENDER_S) {
+      stage.render();
+      renderFrames = Math.max(0, renderFrames - 1);
+      idleS = 0;
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

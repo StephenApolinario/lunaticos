@@ -1,85 +1,88 @@
-// HUD do visor único. A base é o HUD do Guardião (estado de segurança, alertas, protocolo,
-// abrigos, retorno a pé), adaptado de ../guardiao/hud.js para um layout novo que também
-// recebe o minimapa, o perfil e a guia do Navegador e a linha e a gaveta do assistente.
+// HUD do visor único no desenho "cabine escura": a vista do terreno fica livre e só o que o
+// astronauta precisa o tempo todo está na tela. No alto, a linha da saída, o rumo e a próxima
+// parada; embaixo, três blocos (O₂, bateria, volta a pé), a barra única do estado com a frase da
+// IA e o minimapa. O resto abre a pedido, em três folhas: próxima parada e terreno, traje e
+// ambiente, volta a pé e abrigo. Alertas e protocolo aparecem sozinhos, no alto, e não saem.
 // Monta a marcação uma vez e, a cada quadro, só escreve o que mudou (sem innerHTML).
 
 import { SIM } from '../../src/simulation.js';
-import { angleDeltaDeg, clamp } from '../../src/geo.js';
+import { clamp } from '../../src/geo.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock, fmtSigned } from '../../src/format.js';
-import { h, setRichText, setText } from '../../src/dom.js';
+import { h, svg, setRichText, setText } from '../../src/dom.js';
 import { RULES, FAULTS, SCENARIOS, SHELTER_NAMES } from '../guardiao/catalog.js';
 import { fmtWalk } from '../guardiao/rules.js';
-import {
-  createAlertStack, createProtocolPanel, createShelterPanel, createHistoryPanel, levelIcon, setLevel, setData, setHidden,
-} from '../guardiao/panels.js';
+import { createAlertStack, createProtocolPanel, createShelterPanel, createHistoryPanel, setData, setHidden } from '../guardiao/panels.js';
 import { createEdgeIndicator } from '../navegador/mundo.js';
 import { HAZARD_TYPES } from '../cientista/perigos.js';
+import { alertReading } from './guia.js';
 
-const COMPASS = Object.freeze({ pxPerDeg: 5, marginDeg: 60, tickDeg: 15, maxTargetDeg: 30 });
-const CARDINALS = Object.freeze({ 0: 'N', 45: 'NE', 90: 'L', 135: 'SE', 180: 'S', 225: 'SO', 270: 'O', 315: 'NO' });
+const CARDINALS = Object.freeze(['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO']);
 const SCRUB_MAX = 1000;
 const O2_WARN_PCT = 35;
 const ZONE_COLOR = Object.freeze({ ok: 'var(--guardiao-ok)', justa: 'var(--guardiao-atencao)', nao: 'var(--guardiao-emergencia)' });
-const RADIO_TEXT = Object.freeze({ ok: 'Visada direta', noise: 'Com ruído', shadow: 'Sem visada' });
+const RADIO_TEXT = Object.freeze({ ok: 'visada direta', noise: 'com ruído', shadow: 'sem visada' });
 const TREND_LABEL = Object.freeze({ up: 'subindo', down: 'caindo', down2: 'caindo rápido', flat: 'estável' });
+const SHEET_TITLES = Object.freeze({ rota: 'Próxima parada e terreno à frente', traje: 'Traje e ambiente', volta: 'Volta a pé e abrigo' });
+const NORMAL_ASSISTANT_NOTE = 'IA de bordo';
+// Um pouco mais que a animação `cabine-pisca` do visor.css.
+const FLASH_MS = 1700;
+const SOURCES_TEXT = 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos medidos pelo REMS. Oxigênio: calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA (não há traje real). Bateria: hipótese da equipe. Pressão: a do traje EMU. Vento: sem medição desde o sol 1491; o cenário usa o mais forte publicado.';
 
 const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
 const pct = (value) => `${fmtNumber(Math.max(0, value))}%`;
+const RESERVE_TEXT = `Reserva de ${fmtNumber(RULES.o2ReservePct, 1)}%.`;
 const minutes = (hours) => `${Math.max(1, Math.round(hours * 60))} min`;
 const below = (value, danger, warn) => (value < danger ? 'danger' : value < warn ? 'warn' : 'ok');
 const above = (value, warn, danger) => (value >= danger ? 'danger' : value >= warn ? 'warn' : 'ok');
-const label = (text, note) => h('span', { class: 'guardiao-rotulo' }, text, note && h('small', {}, ` ${note}`));
 const button = (text, props = {}) => h('button', { type: 'button', ...props }, text);
-// Texto com versão curta para a tela do telefone.
-const wide = (text, short) => [h('span', { class: 'guardiao-so-largo' }, text), h('span', { class: 'guardiao-so-estreito' }, short)];
+const icon = (...paths) => svg('svg', { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, ...paths);
+const micIcon = () => icon(svg('rect', { x: 9, y: 3, width: 6, height: 11, rx: 3 }), svg('path', { d: 'M5 11a7 7 0 0 0 14 0M12 18v3' }));
+const chatIcon = () => icon(svg('path', { d: 'M4 5h16v11H9l-5 4z' }));
 
-function trendArrow() {
-  return h('i', { class: 'guardiao-tendencia', role: 'img' });
-}
 function setTrend(arrow, dir) {
   setData(arrow, 'dir', dir);
   if (arrow.getAttribute('aria-label') !== TREND_LABEL[dir]) arrow.setAttribute('aria-label', TREND_LABEL[dir]);
 }
 
-// Nome de uma leitura. `sim` é true para leitura simulada, ou o texto de outra ressalva.
-function caption(text, short, sim) {
-  return h('span', {}, short ? wide(text, short) : text, sim && h('small', {}, sim === true ? ' sim.' : ` ${sim}`));
-}
-
-// Linha "rótulo · valor", com seta de tendência opcional.
-function row(text, { short = null, sim = false, trend = false } = {}) {
+// Linha "rótulo · valor" de uma folha. `note` é a ressalva da leitura (calc., est., hip., …).
+function row(text, { note = null, trend = false } = {}) {
   const value = h('b');
-  const arrow = trend ? trendArrow() : null;
-  return { value, arrow, node: h('div', { class: 'guardiao-linha' }, caption(text, short, sim), h('span', { class: 'guardiao-valor' }, value, arrow)) };
-}
-
-function meter(text, short = null, note = true) {
-  const value = h('b');
-  const arrow = trendArrow();
-  const node = h('div', { class: 'guardiao-medidor' }, caption(text, short, note), h('i', { class: 'guardiao-barra' }), h('span', { class: 'guardiao-valor' }, value, arrow));
-  return { node, value, arrow };
-}
-function setMeter(target, value, level, trend) {
-  const fill = (clamp(value, 0, 100) / 100).toFixed(3);
-  if (target.fill !== fill) {
-    target.fill = fill;
-    target.node.style.setProperty('--fill', fill);
-  }
-  setData(target.node, 'level', level);
-  setText(target.value, pct(value));
-  setTrend(target.arrow, trend);
+  const arrow = trend ? h('i', { class: 'guardiao-tendencia', role: 'img' }) : null;
+  return { value, arrow, node: h('div', { class: 'guardiao-linha' }, h('span', {}, text, note && h('small', {}, ` ${note}`)), h('span', { class: 'guardiao-valor' }, value, arrow)) };
 }
 function setRow(target, text, level = 'ok') {
   setText(target.value, text);
   setData(target.value, 'level', level);
 }
 
-function buildCompassTape(tape) {
-  const { pxPerDeg, marginDeg, tickDeg } = COMPASS;
-  for (let deg = -marginDeg; deg <= 360 + marginDeg; deg += tickDeg) {
-    const cardinal = CARDINALS[normalizeDeg(deg)] ?? '';
-    tape.append(h('span', { class: cardinal ? 'guardiao-tick guardiao-tick-maior' : 'guardiao-tick', style: `left:${(deg + marginDeg) * pxPerDeg}px` }, cardinal));
+// Bloco do canto: rótulo, valor grande e uma terceira linha (barra ou nota). Abre uma folha.
+function block(id, text, onclick) {
+  const value = h('b');
+  const bar = h('i', { class: 'cabine-bloco-barra' });
+  const note = h('span', { class: 'cabine-bloco-nota' });
+  const node = button([h('span', { class: 'cabine-bloco-rotulo' }, text), value], { class: 'cabine-bloco', 'aria-expanded': 'false', dataset: { bloco: id }, onclick });
+  return { node, value, bar, note };
+}
+function setGauge(target, value, level) {
+  const fill = (clamp(value, 0, 100) / 100).toFixed(3);
+  if (target.fill !== fill) {
+    target.fill = fill;
+    target.bar.style.setProperty('--fill', fill);
   }
+  setData(target.node, 'level', level);
+  setText(target.value, pct(value));
+}
+
+function stat(text) {
+  const value = h('b');
+  return { value, node: h('div', { class: 'cabine-dado' }, h('span', {}, text), value) };
+}
+
+function sheet(id, onClose, ...children) {
+  const title = SHEET_TITLES[id];
+  return h('section', { class: 'cabine-folha', hidden: true, dataset: { folha: id }, 'aria-label': title },
+    h('header', {}, h('span', { class: 'cabine-folha-titulo' }, title), button('Fechar', { class: 'cabine-fechar', 'aria-label': `Fechar: ${title}`, onclick: onClose })),
+    ...children);
 }
 
 function zonesGradient(zones) {
@@ -94,77 +97,88 @@ function zonesGradient(zones) {
 }
 
 function modeText(r) {
-  if (r.finished) return 'No habitat';
-  if (r.sheltered) return `Abrigado · ${SHELTER_NAMES[r.sheltered].toLowerCase()}`;
-  const how = r.m.inCabin ? 'No veículo' : r.offRoute ? 'A pé · fora da rota' : 'A pé';
+  if (r.finished) return 'no habitat';
+  if (r.sheltered) return `abrigado · ${SHELTER_NAMES[r.sheltered].toLowerCase()}`;
+  const how = r.m.inCabin ? 'no veículo' : r.offRoute ? 'a pé · fora da rota' : 'a pé';
   return r.nav.kind === 'hold' ? `${how} · parado` : how;
 }
 
+// O que a pílula diz ao lado do nome do alvo.
 function targetInfo(target) {
-  if (target.kind === 'home') return 'você está no habitat';
-  if (target.kind === 'dwell') return `coleta em andamento · faltam ${fmtDuration(target.etaH)}`;
+  if (target.kind === 'home') return 'você está aqui';
+  if (target.kind === 'dwell') return `coleta · faltam ${fmtDuration(target.etaH)}`;
   if (target.timeOnly) return `${fmtDuration(target.etaH)} a pé`;
-  return `${fmtDistance(target.distM)} · ${fmtDuration(target.etaH)} · ${fmtSigned(target.gainM)} m`;
+  return `${fmtDistance(target.distM)} · ${fmtDuration(target.etaH)}`;
 }
 
 function buildElements(on) {
+  const toggle = (id) => () => on.sheet(id);
   return {
-    elapsed: h('b', { class: 'guardiao-grande' }), mode: h('span', { class: 'guardiao-sub' }),
-    tape: h('div', { class: 'guardiao-fita' }), targetMarker: h('i', { class: 'guardiao-alvo' }), heading: h('b', { class: 'guardiao-rumo' }),
-    nextLabel: label('Próxima parada'), nextName: h('b', { class: 'guardiao-grande' }), nextInfo: h('span', { class: 'guardiao-sub' }),
-    statusIcon: levelIcon(), statusWord: h('b'), statusText: h('span'),
-    o2: meter('O₂', null, 'calc.'), o2Info: h('span', { class: 'guardiao-sub' }), battery: meter('Bateria', 'Bat.', 'hip.'),
-    pressure: row('Pressão', { short: 'Press.', sim: 'EMU', trend: true }), integrity: row('Integridade', { short: 'Integr.', sim: 'treino' }),
-    o2End: row('O₂ ao fim do plano', { short: 'O₂ fim', sim: 'calc.' }),
-    radiation: row('Radiação', { short: 'Rad.', sim: 'RAD', trend: true }), dose: row('Dose da saída', { short: 'Dose', sim: 'est.' }),
-    temperature: row('Temp. do ar', { short: 'Temp.', sim: 'est.', trend: true }), wind: row('Vento'),
-    slope: row('Declive · à frente', { short: 'Decl./frente' }), altitude: row('Altitude', { short: 'Alt.', trend: true }),
-    radio: row('Rádio', { sim: 'calc.' }), radioAhead: h('span', { class: 'guardiao-sub unificado-radio-adiante' }), habitat: row('Habitat'),
-    retLabel: label('Volto a pé ao habitat?', 'caminho no relevo real · O₂ calculado'), retVerdict: h('b', { class: 'guardiao-veredito' }), retOxygen: h('span', { class: 'guardiao-sub' }),
+    clock: h('p', { class: 'cabine-hora' }),
+    heading: h('b'), cardinal: h('span'),
+    stopBadge: h('span', { class: 'cabine-parada-num' }), stopName: h('b'), stopInfo: h('span', { class: 'cabine-parada-info' }),
+    // Folha da rota
+    targetLabel: h('span', { class: 'cabine-folha-sub' }),
+    distance: stat('Distância'), arrival: stat('Chegada'), gain: stat('Desnível'), slope: stat('Declive'),
+    profile: h('canvas', { class: 'navegador-perfil-tela', role: 'img', 'aria-label': 'Perfil de altitude da rota à frente' }),
+    profileCaption: h('span'), radioAhead: h('p', { class: 'cabine-folha-texto' }),
+    // Blocos e folha do traje
+    o2: block('o2', 'O₂', toggle('traje')), battery: block('bateria', 'Bateria', toggle('traje')), ret: block('volta', 'Volta a pé', toggle('volta')),
+    alertLabel: h('span', { class: 'cabine-bloco-rotulo' }), alertValue: h('b'), alertNote: h('span', { class: 'cabine-bloco-nota' }),
+    pins: h('div', { class: 'cabine-pinos' }),
+    o2Row: row('O₂', { note: 'calc.' }), o2Rate: row('Consumo'), o2End: row('O₂ no fim', { note: 'calc.' }),
+    batteryRow: row('Bateria', { note: 'hip.' }), pressure: row('Pressão', { note: 'EMU', trend: true }), integrity: row('Integridade', { note: 'treino' }),
+    radiation: row('Radiação', { note: 'RAD', trend: true }), dose: row('Dose', { note: 'est.' }),
+    temperature: row('Temperatura', { note: 'est.', trend: true }), wind: row('Vento'), radio: row('Rádio', { note: 'calc.' }), altitude: row('Altitude', { trend: true }),
+    // Folha da volta a pé
+    retQuestion: h('span', { class: 'cabine-folha-sub' }), retVerdict: h('b', { class: 'guardiao-veredito' }), retOxygen: h('p', { class: 'cabine-folha-texto' }),
     strip: h('div', { class: 'guardiao-faixa', role: 'img' }), stripDone: h('i', { class: 'guardiao-faixa-feito' }),
     stripHere: h('i', { class: 'guardiao-faixa-aqui' }), stripPnr: h('i', { class: 'guardiao-faixa-pnr' }), pnrText: h('span', { class: 'guardiao-sub guardiao-pnr-texto' }),
-    profile: h('canvas', { class: 'navegador-perfil-tela', role: 'img', 'aria-label': 'Perfil de altitude da rota à frente' }),
-    profileCaption: h('span'),
-    minimap: h('canvas', { class: 'navegador-minimapa', role: 'img', 'aria-label': 'Minimapa: você no centro, rumo para cima, rota, paradas e linha de rádio até o habitat' }),
+    habitat: row('Habitat'),
+    // Barra única
+    statusWord: h('b'), assistant: h('span', { class: 'cabine-fala', role: 'status', 'aria-live': 'polite' }), assistantNote: h('small', { class: 'cabine-fala-nota' }),
+    talk: button(chatIcon(), { class: 'cabine-redondo cabine-conversar', 'aria-label': 'Abrir a conversa com a IA de bordo', title: 'Abrir a conversa (tecla /)', onclick: on.talk }),
+    mic: button(micIcon(), { class: 'cabine-redondo', 'aria-label': 'Falar com a IA de bordo', 'aria-pressed': 'false', hidden: true, onclick: on.mic }),
+    // Minimapa
+    minimap: h('canvas', { class: 'navegador-minimapa', 'aria-hidden': 'true' }),
     zoomIn: button('+', { 'aria-label': 'Aproximar o minimapa (tecla +)', onclick: () => on.zoom(-1) }),
     zoomOut: button('−', { 'aria-label': 'Afastar o minimapa (tecla -)', onclick: () => on.zoom(1) }),
     zoomLabel: h('span', { class: 'guardiao-sub' }),
+    // Cena
     world: h('canvas', { class: 'navegador-mundo', 'aria-hidden': 'true' }), edge: createEdgeIndicator(),
     markers: h('div', { class: 'cientista-markers', 'aria-hidden': 'true' }),
-    // A célula livre do centro da grade, por onde se vê a rota à frente. Só serve para medir essa área.
+    // A faixa livre do meio da tela, por onde se vê a rota à frente. Só serve para medir essa área.
     area: h('i', { class: 'unificado-area', 'aria-hidden': 'true' }),
-    assistant: h('span', { class: 'guardiao-fala', role: 'status', 'aria-live': 'polite' }),
-    assistantNote: h('small', {}, 'IA de bordo · verificando…'),
-    talk: button('Conversar ', { class: 'unificado-botao', title: 'Abrir a conversa (tecla /)', onclick: on.talk }),
-    mic: button('Falar', { class: 'unificado-botao', 'aria-pressed': 'false', hidden: true, onclick: on.mic }),
     announcer: h('p', { class: 'visually-hidden', role: 'alert' }), dust: h('div', { class: 'guardiao-poeira', 'aria-hidden': 'true' }),
     markPnr: h('div', { class: 'guardiao-marca', hidden: true, dataset: { kind: 'pnr' } }), markShelter: h('div', { class: 'guardiao-marca', hidden: true, dataset: { kind: 'abrigo' } }),
     drawer: h('aside', { class: 'unificado-gaveta cientista-panel', 'aria-label': 'Assistente, ciência da parada e diário', hidden: true }),
+    // Controles do protótipo
+    exit: button('← Voltar ao tablet', { class: 'guardiao-primario', title: 'Voltar ao tablet (Esc)', onclick: on.exit }),
     pause: button('Pausar', { onclick: on.pause }),
-    speed: h('select', { onchange: (event) => on.speed(Number(event.target.value)) }, SIM.speeds.map((speed) => h('option', { value: String(speed) }, `${speed}×`))),
+    speed: h('select', { 'aria-label': 'Velocidade da simulação', onchange: (event) => on.speed(Number(event.target.value)) }, SIM.speeds.map((speed) => h('option', { value: String(speed) }, `${speed}×`))),
     scrub: h('input', { type: 'range', min: '0', max: String(SCRUB_MAX), value: '0', 'aria-label': 'Posição na rota', oninput: (event) => on.scrub(Number(event.target.value) / SCRUB_MAX) }),
+    trayButton: button('Controles', { title: 'Assistente, relato de perigo, som e cenários de treino', 'aria-expanded': 'false' }),
     drawerButton: button('Assistente', { title: 'Conversa, ciência da parada e diário (tecla /)', 'aria-expanded': 'false', onclick: on.drawer }),
-    hazardButton: button(wide('Relatar perigo', 'Perigo'), { title: 'Marcar um perigo onde você está', 'aria-expanded': 'false' }),
-    mapButton: button('Mapa', { title: 'Mostrar ou esconder o minimapa e o perfil', onclick: on.map }),
-    readingsButton: button('Leituras', { title: 'Mostrar ou esconder traje e ambiente', onclick: on.readings }),
-    scenarioButton: button('Cenários', { class: 'unificado-so-estreito', title: 'Cenários de emergência para treino', 'aria-expanded': 'false' }),
+    hazardButton: button('Relatar perigo', { title: 'Marcar um perigo onde você está', 'aria-expanded': 'false' }),
+    history: button('Histórico', { title: 'Histórico de alertas (tecla H)', 'aria-expanded': 'false', onclick: on.history }),
     sound: button('Som', { title: 'Som dos alertas (tecla M)', onclick: on.sound }),
     voice: button('Voz', { title: 'Voz do assistente (tecla V)', onclick: on.voice }),
-    history: button(wide('Histórico', 'Hist.'), { title: 'Histórico de alertas (tecla H)', 'aria-expanded': 'false', onclick: on.history }),
-    exit: button(['Voltar', h('span', { class: 'guardiao-so-largo' }, ' ao tablet')], { class: 'guardiao-primario', title: 'Voltar ao tablet (Esc)', onclick: on.exit }),
   };
 }
 
 /**
  * @param {HTMLElement} mount
  * @param {Record<string, Function>} on Ações: pause, speed, scrub, exit, scenario, clear, ack, confirm, decide,
- *   sound, voice, history, drawer, talk, mic, report, map, readings, zoom.
+ *   sound, voice, history, drawer, talk, mic, report, zoom, openMap (volta ao tablet pelo minimapa) e sheet (abre ou
+ *   fecha uma folha: 'rota', 'traje', 'volta' ou null).
  */
 export function createHud(mount, on) {
   const els = buildElements(on);
+  const closeSheet = () => on.sheet(null);
   els.strip.append(els.stripDone, els.stripPnr, els.stripHere);
-  els.talk.append(h('kbd', {}, '/'));
-  buildCompassTape(els.tape);
+  els.o2.node.append(els.o2.bar);
+  els.battery.node.append(els.battery.bar);
+  els.ret.node.append(els.ret.note);
 
   const alertStack = createAlertStack(on.ack);
   const protocolPanel = createProtocolPanel({ onConfirm: on.confirm, onDecide: on.decide });
@@ -172,57 +186,69 @@ export function createHud(mount, on) {
   const historyPanel = createHistoryPanel(on.history);
   const scenarioButtons = SCENARIOS.map((scenario, index) => ({
     scenario,
-    // Em tela estreita os cenários são um menu: escolher um fecha o menu.
-    node: button([h('kbd', {}, String(index + 1)), ` ${scenario.label}`], { 'aria-pressed': 'false', onclick: () => { setScenariosOpen(false); on.scenario(scenario.id); } }),
+    node: button([h('kbd', {}, String(index + 1)), ` ${scenario.label}`], { 'aria-pressed': 'false', onclick: () => { setTrayOpen(false); on.scenario(scenario.id); } }),
   }));
   const popHazard = h('div', { class: 'unificado-pop', role: 'group', 'aria-label': 'Relatar perigo aqui', hidden: true },
     h('b', {}, 'Relatar perigo aqui'),
-    Object.entries(HAZARD_TYPES).map(([type, text]) => button(text, { onclick: () => { closePops(); els.hazardButton.focus(); on.report(type); } })),
+    Object.entries(HAZARD_TYPES).map(([type, text]) => button(text, { onclick: () => { closePops(); els.trayButton.focus(); on.report(type); } })),
     h('span', { class: 'unificado-nota' }, 'Fica guardado neste navegador e avisa nas próximas saídas.'));
-  const dock = h('div', { class: 'guardiao-doca' },
-    h('div', { class: 'guardiao-controles', role: 'toolbar', 'aria-label': 'Controles da simulação e do visor' },
-      els.pause, h('label', {}, 'Velocidade ', els.speed), els.scrub,
-      els.drawerButton, els.hazardButton, els.mapButton, els.readingsButton, els.scenarioButton, els.sound, els.voice, els.history, els.exit),
-    h('div', { class: 'guardiao-cenarios', role: 'toolbar', 'aria-label': 'Cenários de emergência para demonstração' },
-      label('Cenários', 'de treino'), scenarioButtons.map((entry) => entry.node),
-      button([h('kbd', {}, '0'), ' Limpar'], { class: 'guardiao-limpar', onclick: () => { setScenariosOpen(false); on.clear(); } })));
 
-  const root = h('div', { class: 'guardiao unificado', dataset: { level: 'seguro', gaveta: 'fechada', mapa: 'on', leituras: 'on', cenarios: 'fechado' } },
+  const stop = button([els.stopBadge, els.stopName, els.stopInfo], { class: 'cabine-parada', 'aria-expanded': 'false', title: SHEET_TITLES.rota, onclick: () => on.sheet('rota') });
+  const alertBlock = h('div', { class: 'cabine-bloco', hidden: true, dataset: { bloco: 'alerta' } }, els.alertLabel, els.alertValue, els.alertNote);
+  const sheets = {
+    rota: sheet('rota', closeSheet, els.targetLabel,
+      h('div', { class: 'cabine-dados' }, els.distance.node, els.arrival.node, els.gain.node, els.slope.node),
+      els.profile, h('p', { class: 'cabine-folha-texto' }, els.profileCaption, ' · faixa de baixo: rádio'), els.radioAhead),
+    traje: sheet('traje', closeSheet,
+      h('div', { class: 'cabine-colunas' },
+        h('div', {}, h('b', {}, 'Traje'), els.o2Row.node, els.o2Rate.node, els.o2End.node, els.batteryRow.node, els.pressure.node, els.integrity.node),
+        h('div', {}, h('b', {}, 'Ambiente'), els.radiation.node, els.dose.node, els.temperature.node, els.wind.node, els.radio.node, els.altitude.node)),
+      h('p', { class: 'cabine-legenda' }, 'calc. = calculado · est. = estimado · hip. = hipótese. A lista completa de fontes fica no tablet.'),
+      h('details', { class: 'cabine-fontes' }, h('summary', {}, 'De onde vem cada leitura'), h('p', {}, SOURCES_TEXT))),
+    volta: sheet('volta', closeSheet, els.retQuestion, els.retVerdict, els.retOxygen, els.strip, els.pnrText, els.habitat.node, shelterPanel.root),
+  };
+  const tray = h('div', { class: 'cabine-bandeja', hidden: true },
+    h('div', { class: 'guardiao-controles', role: 'toolbar', 'aria-label': 'Assistente, perigos, som e voz' }, els.drawerButton, els.hazardButton, els.history, els.sound, els.voice),
+    h('div', { class: 'guardiao-cenarios', role: 'toolbar', 'aria-label': 'Cenários de emergência para demonstração' },
+      h('span', { class: 'guardiao-rotulo' }, 'Cenários de treino'), scenarioButtons.map((entry) => entry.node),
+      button([h('kbd', {}, '0'), ' Limpar'], { class: 'guardiao-limpar', onclick: () => { setTrayOpen(false); on.clear(); } })));
+  const dock = h('div', { class: 'guardiao-doca cabine-doca' },
+    h('div', { class: 'cabine-doca-linha', role: 'toolbar', 'aria-label': 'Controles da simulação' }, els.exit, els.pause, els.speed, els.scrub, els.trayButton),
+    tray);
+  const bar = h('div', { class: 'cabine-barra', dataset: { kind: 'guia' } },
+    h('span', { class: 'cabine-estado' }, h('i', { 'aria-hidden': 'true' }), els.statusWord),
+    h('span', { class: 'cabine-fala-caixa' }, els.assistant, els.assistantNote), els.talk, els.mic);
+
+  const root = h('div', { class: 'guardiao unificado cabine', dataset: { level: 'seguro', gaveta: 'fechada', mapa: 'on', folha: 'nenhuma' } },
     els.dust, els.world, els.markers,
     h('div', { class: 'guardiao-moldura', 'aria-hidden': 'true' }),
     els.markPnr, els.markShelter, els.edge,
-    h('div', { class: 'guardiao-vista' },
-      h('section', { class: 'guardiao-bloco guardiao-relogio', 'aria-label': 'Tempo de saída' }, label('Tempo de saída'), els.elapsed, els.mode),
-      h('section', { class: 'guardiao-bussola', 'aria-label': 'Bússola' },
-        h('div', { class: 'guardiao-janela' }, els.tape, h('i', { class: 'guardiao-agulha' }), els.targetMarker), els.heading),
-      h('section', { class: 'guardiao-bloco guardiao-destino', 'aria-label': 'Destino' }, els.nextLabel, els.nextName, els.nextInfo, els.habitat.node),
-      h('section', { class: 'guardiao-status', 'aria-label': 'Estado de segurança' }, els.statusIcon, els.statusWord, els.statusText),
-      h('div', { class: 'unificado-seguranca' }, alertStack.root, protocolPanel.root, shelterPanel.root),
+    h('div', { class: 'cabine-vista' },
+      h('div', { class: 'cabine-alto' }, els.clock,
+        h('section', { class: 'cabine-rumo', 'aria-label': 'Rumo' }, els.heading, els.cardinal), h('span', { 'aria-hidden': 'true' })),
       els.area,
-      // Em tela larga este grupo não tem caixa (display: contents) e cada peça vai para a sua área da
-      // grade; no telefone ele é a área livre, e minimapa e leituras abrem por cima dela.
-      h('div', { class: 'unificado-livre' },
-        h('i', { class: 'guardiao-mira', 'aria-hidden': 'true' }),
-        h('section', { class: 'guardiao-bloco unificado-leituras', 'aria-label': 'Traje e ambiente' }, label('Traje e ambiente', 'calc. = calculado · est. = estimado · hip. = hipótese'),
-          els.o2.node, els.o2Info, els.battery.node,
-          h('div', { class: 'unificado-grade' }, els.pressure.node, els.integrity.node, els.o2End.node, els.radiation.node, els.dose.node,
-            els.temperature.node, els.wind.node, els.slope.node, els.altitude.node),
-          els.radio.node, els.radioAhead,
-          h('span', { class: 'guardiao-fonte' }, 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos medidos pelo REMS. Oxigênio: calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA (não há traje real). Bateria: hipótese da equipe. Pressão: a do traje EMU. Vento: sem medição desde o sol 1491; o cenário usa o mais forte publicado.')),
-        h('section', { class: 'unificado-mapa', 'aria-label': 'Minimapa' }, els.minimap,
-          h('div', { class: 'unificado-zoom' }, els.zoomOut, els.zoomLabel, els.zoomIn))),
-      h('div', { class: 'guardiao-assistente unificado-fala', dataset: { kind: 'guia' } },
-        h('span', { class: 'guardiao-rotulo' }, 'Assistente ', els.assistantNote), els.assistant, h('span', { class: 'unificado-fala-acoes' }, els.talk, els.mic)),
-      h('section', { class: 'guardiao-bloco guardiao-retorno unificado-rota', 'aria-label': 'Retorno a pé e perfil à frente' },
-        els.retLabel, h('div', { class: 'unificado-veredito' }, els.retVerdict, els.retOxygen), els.strip, els.pnrText,
-        h('div', { class: 'unificado-perfil' }, els.profile,
-          h('span', { class: 'guardiao-sub unificado-perfil-legenda' }, els.profileCaption, h('span', { class: 'guardiao-so-largo' }, ' · faixa de baixo: rádio'))))),
+      h('div', { class: 'cabine-centro' }, stop,
+        h('div', { class: 'cabine-aviso' }, alertStack.root, protocolPanel.root), sheets.rota),
+      h('div', { class: 'cabine-base' },
+        h('div', { class: 'cabine-blocos' }, els.o2.node, els.battery.node, els.ret.node, alertBlock, els.pins),
+        bar,
+        h('section', { class: 'cabine-mapa', 'aria-label': 'Minimapa' },
+          // Tocar no minimapa abre o mapa inteiro, no tablet, centrado no astronauta.
+          button(els.minimap, {
+            class: 'cabine-mapa-botao', title: 'Abrir o mapa no tablet', onclick: on.openMap,
+            'aria-label': 'Minimapa: você no centro, rumo para cima, rota, paradas e linha de rádio até o habitat. Abrir o mapa no tablet',
+          }),
+          h('div', { class: 'unificado-zoom' }, els.zoomOut, els.zoomLabel, els.zoomIn)),
+        sheets.traje, sheets.volta)),
     historyPanel.root, els.drawer, popHazard, dock, els.announcer);
-  const fala = els.assistant.parentElement;
   mount.replaceChildren(root);
 
+  const flashTargets = { o2: els.o2.node, bateria: els.battery.node, volta: els.ret.node, parada: stop, hora: els.clock };
+  const flashTimers = new Map();
+  const sheetOpeners = { rota: stop, traje: els.o2.node, volta: els.ret.node };
+  const blocks = { o2: els.o2.node, bateria: els.battery.node, volta: els.ret.node };
   let gradient = '';
-  let scenariosOpen = false;
+  let hiddenBlocks = new Set();
   let layout = { width: 0, height: 0, free: { left: 0, top: 0, width: 0, height: 0 } };
 
   // Tamanho do palco e a área livre no centro, para as marcas no terreno e o indicador de borda.
@@ -234,13 +260,15 @@ export function createHud(mount, on) {
   const resized = new ResizeObserver(measure);
   resized.observe(mount);
   resized.observe(els.area);
-  // A doca muda de altura com a largura da tela: o visor acompanha o tamanho real dela.
+  // A barra de controles muda de altura com a largura da tela: o visor acompanha o tamanho real dela.
   new ResizeObserver(() => root.style.setProperty('--guardiao-doca', `${dock.offsetHeight}px`)).observe(dock);
 
-  function setScenariosOpen(open) {
-    scenariosOpen = open;
-    setData(root, 'cenarios', open ? 'aberto' : 'fechado');
-    els.scenarioButton.setAttribute('aria-expanded', String(open));
+  function setTrayOpen(open) {
+    // Fechar a bandeja com o foco dentro dela devolve o foco ao botão que a abre.
+    const hadFocus = !open && tray.contains(document.activeElement);
+    tray.hidden = !open;
+    els.trayButton.setAttribute('aria-expanded', String(open));
+    if (hadFocus) els.trayButton.focus();
   }
   function setHazardOpen(open) {
     popHazard.hidden = !open;
@@ -249,65 +277,82 @@ export function createHud(mount, on) {
   }
   /** Fecha os menus abertos. @returns {boolean} true se havia algum aberto. */
   function closePops() {
-    const wasOpen = !popHazard.hidden || scenariosOpen;
+    const wasOpen = !popHazard.hidden || !tray.hidden;
     setHazardOpen(false);
-    setScenariosOpen(false);
+    setTrayOpen(false);
     return wasOpen;
   }
-  els.hazardButton.addEventListener('click', () => { const open = popHazard.hidden; closePops(); setHazardOpen(open); });
-  els.scenarioButton.addEventListener('click', () => { const open = !scenariosOpen; closePops(); setScenariosOpen(open); });
+  els.trayButton.addEventListener('click', () => { const open = tray.hidden; closePops(); setTrayOpen(open); });
+  els.hazardButton.addEventListener('click', () => { closePops(); setHazardOpen(true); });
 
-  function renderCompass(viewHeading, targetBearing) {
-    const { pxPerDeg, marginDeg, maxTargetDeg } = COMPASS;
-    els.tape.style.transform = `translateX(${(-(viewHeading + marginDeg) * pxPerDeg).toFixed(1)}px)`;
-    setHidden(els.targetMarker, targetBearing === null);
-    if (targetBearing !== null) {
-      const delta = angleDeltaDeg(viewHeading, targetBearing);
-      const shown = clamp(delta, -maxTargetDeg, maxTargetDeg);
-      els.targetMarker.style.transform = `translateX(${(shown * pxPerDeg).toFixed(1)}px)`;
-      setData(els.targetMarker, 'off', shown !== delta);
-    }
-    setText(els.heading, `${String(Math.round(viewHeading) % 360).padStart(3, '0')}°`);
+  function renderTop(r, viewHeading) {
+    setText(els.clock, `${fmtDuration(r.clockH)} de saída · ${fmtClock(r.localClockH)} hora local · ${modeText(r)}`);
+    const heading = Math.round(viewHeading) % 360;
+    setText(els.heading, `${String(heading).padStart(3, '0')}°`);
+    setText(els.cardinal, CARDINALS[Math.round(normalizeDeg(viewHeading) / 45) % 8]);
+    setText(els.stopBadge, r.target.stopId ?? '');
+    setHidden(els.stopBadge, !r.target.stopId);
+    setText(els.stopName, r.target.name);
+    setText(els.stopInfo, targetInfo(r.target));
   }
 
-  function renderSuit(r) {
-    setMeter(els.o2, r.o2Pct, below(r.o2Pct, RULES.o2ReservePct, O2_WARN_PCT), r.o2Trend);
-    setText(els.o2Info, r.o2RatePctH > 0 ? `resta ${fmtDuration(r.o2AutonomyH)} · ${fmtNumber(r.o2RatePctH, 1)} %/h` : 'consumo parado no habitat');
-    setMeter(els.battery, r.batteryPct, below(r.batteryPct, RULES.batteryDangerPct, RULES.batteryCautionPct), r.batteryTrend);
+  // `radio`: { ahead: string, soon: boolean }, a leitura do Navegador de quando o sinal muda seguindo a rota.
+  function renderRoute(r, radio) {
+    const { target } = r;
+    const still = target.kind === 'home' || target.kind === 'dwell';
+    setText(els.targetLabel, `${target.label}: ${target.name}`);
+    setText(els.distance.value, still ? 'aqui' : target.timeOnly ? 'sem medida' : fmtDistance(target.distM));
+    setText(els.arrival.value, target.kind === 'home' ? 'chegou' : fmtDuration(target.etaH));
+    setText(els.gain.value, still || target.timeOnly ? 'sem medida' : `${fmtSigned(target.gainM)} m`);
+    setText(els.slope.value, `${fmtSigned(r.slopeDeg)}° · ${fmtNumber(r.slopeAheadDeg)}° à frente`);
+    setData(els.slope.value, 'level', above(r.slopeAheadDeg, RULES.slopeCautionDeg, RULES.slopeDangerDeg));
+    const lost = r.radio.state === 'lost';
+    setText(els.radioAhead, lost || r.finished ? '' : `Rádio: ${RADIO_TEXT[r.radio.state]}. Seguindo a rota, o sinal ${radio.ahead}.`);
+    setData(els.radioAhead, 'soon', radio.soon && !lost);
+  }
+
+  function renderSuit(r, trends) {
+    setGauge(els.o2, r.o2Pct, below(r.o2Pct, RULES.o2ReservePct, O2_WARN_PCT));
+    setGauge(els.battery, r.batteryPct, below(r.batteryPct, RULES.batteryDangerPct, RULES.batteryCautionPct));
+    setRow(els.o2Row, r.o2RatePctH > 0 ? `${pct(r.o2Pct)} · resta ${fmtDuration(r.o2AutonomyH)}` : pct(r.o2Pct), els.o2.node.dataset.level);
+    setRow(els.o2Rate, r.o2RatePctH > 0 ? `${fmtNumber(r.o2RatePctH, 1)} %/h` : 'parado no habitat');
+    setRow(els.o2End, `${fmtNumber(Math.round(r.o2EndPct))}%`, below(r.o2EndPct, 0, RULES.o2ReservePct));
+    setRow(els.batteryRow, pct(r.batteryPct), els.battery.node.dataset.level);
     setRow(els.pressure, `${fmtNumber(r.pressureKpa, 1)} kPa`, below(r.pressureKpa, RULES.pressureNominalKpa * 0.9, RULES.pressureNominalKpa * 0.98));
     let integrity = 'ok';
     if (r.integrityPct < 100) integrity = r.patched ? 'warn' : 'danger';
     setRow(els.integrity, pct(r.integrityPct), integrity);
-    setRow(els.o2End, `${fmtNumber(Math.round(r.o2EndPct))}%`, below(r.o2EndPct, 0, RULES.o2ReservePct));
+    setTrend(els.pressure.arrow, trends.pressure ?? 'flat');
   }
 
-  // `radio`: { ahead: string, soon: boolean }, a leitura do Navegador de quando o sinal muda seguindo a rota.
-  function renderEnvironment(r, trends, radio) {
+  function renderEnvironment(r, trends) {
     setRow(els.radiation, `${fmtNumber(r.radiationRate)} µSv/h`, r.fx.radFactor > 1 ? 'danger' : 'ok');
-    setRow(els.dose, `${fmtNumber(r.doseUsv)}/${fmtNumber(RULES.doseLimitUsv)} µSv`, above(r.doseUsv / RULES.doseLimitUsv, RULES.doseCautionFrac, 1));
+    setRow(els.dose, `${fmtNumber(r.doseUsv)} de ${fmtNumber(RULES.doseLimitUsv)} µSv`, above(r.doseUsv / RULES.doseLimitUsv, RULES.doseCautionFrac, 1));
     setRow(els.temperature, `${fmtNumber(r.airTempC)} °C`, r.airTempC < RULES.suitMinTempC ? 'danger' : 'ok');
     setRow(els.wind, r.windMps === null ? 'sem medição' : `${fmtNumber(r.windMps)} m/s`, above(r.windMps ?? 0, RULES.windCautionMps, RULES.windDangerMps));
-    setRow(els.slope, `${fmtSigned(r.slopeDeg)}° · ${fmtNumber(r.slopeAheadDeg)}°`, above(r.slopeAheadDeg, RULES.slopeCautionDeg, RULES.slopeDangerDeg));
-    setRow(els.altitude, `${fmtNumber(r.altitudeM)} m`);
     const lost = r.radio.state === 'lost';
-    setRow(els.radio, lost ? `Sem resposta · ${minutes(r.radio.lostH)}` : RADIO_TEXT[r.radio.state], lost ? 'danger' : r.radio.state === 'ok' ? 'ok' : 'warn');
-    setText(els.radioAhead, lost || r.finished ? '' : `seguindo a rota, o sinal ${radio.ahead}`);
-    setData(els.radioAhead, 'soon', radio.soon && !lost);
-    setTrend(els.pressure.arrow, trends.pressure ?? 'flat');
+    setRow(els.radio, lost ? `sem resposta · ${minutes(r.radio.lostH)}` : RADIO_TEXT[r.radio.state], lost ? 'danger' : r.radio.state === 'ok' ? 'ok' : 'warn');
+    setRow(els.altitude, `${fmtNumber(r.altitudeM)} m`);
     setTrend(els.radiation.arrow, trends.radiation ?? 'flat');
     setTrend(els.temperature.arrow, trends.temperature ?? 'flat');
     setTrend(els.altitude.arrow, trends.altitude ?? 'flat');
   }
 
   function renderReturn(r) {
+    const level = r.ret.ok || r.finished ? 'ok' : r.ret.reaches ? 'warn' : 'danger';
+    const walk = Number.isFinite(r.ret.timeH) ? fmtDuration(r.ret.timeH) : 'sem caminho';
+    setText(els.ret.value, r.finished ? 'chegou' : walk);
+    setText(els.ret.note, r.finished ? 'no habitat' : r.ret.ok ? 'garantida' : r.ret.reaches ? 'só com a reserva' : 'O₂ não alcança');
+    setData(els.ret.node, 'level', level);
+
     const vehicleQuestion = r.m.vehicleM !== null && !r.m.vehicleDown;
-    setText(els.retLabel.firstChild, vehicleQuestion ? 'Se o veículo quebrar aqui, volto a pé?' : 'Volto a pé ao habitat?');
+    setText(els.retQuestion, vehicleQuestion ? 'Se o veículo quebrar aqui, volto a pé? Caminho no relevo real, O₂ calculado.' : 'Volto a pé ao habitat? Caminho no relevo real, O₂ calculado.');
     let verdict = 'Não';
     if (r.ret.reaches) verdict = 'Só com a reserva';
     if (r.ret.ok) verdict = 'Sim';
-    setText(els.retVerdict, r.finished ? 'Você está no habitat' : `${verdict} · ${Number.isFinite(r.ret.timeH) ? `${fmtDuration(r.ret.timeH)} de caminhada` : 'sem caminho a pé conhecido'}`);
-    setData(els.retVerdict, 'level', r.ret.ok || r.finished ? 'ok' : r.ret.reaches ? 'warn' : 'danger');
-    setText(els.retOxygen, r.ret.reaches ? `gasta ${pct(r.ret.o2NeedPct)} de O₂ · chega com ${pct(r.ret.o2AfterPct)} · reserva de ${RULES.o2ReservePct}%` : `o O₂ não alcança · reserva de ${RULES.o2ReservePct}%`);
+    setText(els.retVerdict, r.finished ? 'Você está no habitat' : `${verdict} · ${Number.isFinite(r.ret.timeH) ? `${walk} de caminhada` : 'sem caminho a pé conhecido'}`);
+    setData(els.retVerdict, 'level', level);
+    setText(els.retOxygen, r.ret.reaches ? `Gasta ${pct(r.ret.o2NeedPct)} de O₂ e chega com ${pct(r.ret.o2AfterPct)}. ${RESERVE_TEXT}` : `O O₂ não alcança. ${RESERVE_TEXT}`);
 
     const nextGradient = zonesGradient(r.zones);
     if (nextGradient !== gradient) {
@@ -328,6 +373,21 @@ export function createHud(mount, on) {
     setData(els.pnrText, 'status', r.finished ? 'none' : r.pnr.status);
     const stripLabel = `Rota: ${pct(r.progress * 100)} percorrida. ${pnrText}`;
     if (els.strip.getAttribute('aria-label') !== stripLabel) els.strip.setAttribute('aria-label', stripLabel);
+    const habitat = r.shelters.find((option) => option.kind === 'habitat');
+    setRow(els.habitat, r.finished ? 'você está nele' : `${habitat.distM === null ? '' : `${fmtDistance(habitat.distM)} · `}${fmtWalk(habitat.timeH)} ${habitat.dirText}`);
+  }
+
+  // O bloco de alerta mostra a leitura que explica o alerta mais grave. Com alerta na tela, os
+  // blocos que o astronauta mandou tirar voltam.
+  function renderAlertBlock(r, alerts, alerting) {
+    const reading = alerting ? alertReading(alerts.find((alert) => alert.level !== 'info'), r) : null;
+    setHidden(alertBlock, !reading);
+    if (reading) {
+      setText(els.alertLabel, reading.label);
+      setText(els.alertValue, reading.value);
+      setText(els.alertNote, reading.note);
+    }
+    for (const [id, node] of Object.entries(blocks)) setHidden(node, hiddenBlocks.has(id) && !alerting);
   }
 
   function renderMark(node, mark) {
@@ -344,31 +404,23 @@ export function createHud(mount, on) {
    *   viewHeading: number, marks: object, historyOpen: boolean }} view
    */
   function render({ r, alerts, trends, proto, status, line, radio, viewHeading, marks, historyOpen }) {
-    setText(els.elapsed, fmtDuration(r.clockH));
-    setText(els.mode, `${modeText(r)} · hora local ${fmtClock(r.localClockH)}`);
-    renderCompass(viewHeading, r.targetBearing);
-    setText(els.nextLabel.firstChild, r.target.label);
-    setText(els.nextName, r.target.name);
-    setText(els.nextInfo, targetInfo(r.target));
-    const habitat = r.shelters.find((option) => option.kind === 'habitat');
-    setRow(els.habitat, r.finished ? 'você está nele' : `${habitat.distM === null ? '' : `${fmtDistance(habitat.distM)} · `}${fmtWalk(habitat.timeH)} ${habitat.dirText}`);
-
+    renderTop(r, viewHeading);
+    renderRoute(r, radio);
     setData(root, 'level', status.level);
     setData(root, 'pending', alerts.active.some((alert) => !alert.ack));
     setData(root, 'protocol', Boolean(proto));
-    setLevel(els.statusIcon, status.level);
     setText(els.statusWord, status.word);
-    setText(els.statusText, status.text);
 
     alertStack.update(alerts.active);
     protocolPanel.update(proto);
     shelterPanel.update(r.shelters, proto ? proto.pick : r.nearestShelter);
     historyPanel.update(alerts.history, historyOpen, r.startClockH);
-    renderSuit(r);
-    renderEnvironment(r, trends, radio);
+    renderSuit(r, trends);
+    renderEnvironment(r, trends);
     renderReturn(r);
+    renderAlertBlock(r, alerts.active, status.level !== 'seguro');
     setRichText(els.assistant, line.text);
-    setData(fala, 'kind', line.kind);
+    setData(bar, 'kind', line.kind);
 
     let haze = 0;
     if (r.fx.dust) haze = r.fx.dust.arrived ? 1 : 0.15 + 0.45 * (1 - r.fx.dust.etaH / FAULTS.dustEtaH);
@@ -383,15 +435,31 @@ export function createHud(mount, on) {
     }
   }
 
+  function syncSheets(open) {
+    setData(root, 'folha', open ?? 'nenhuma');
+    // Fechar uma folha com o foco dentro dela devolve o foco à peça que a abre.
+    const closing = Object.keys(sheets).find((id) => id !== open && sheets[id].contains(document.activeElement));
+    for (const [id, node] of Object.entries(sheets)) node.hidden = id !== open;
+    if (closing) sheetOpeners[closing].focus();
+    stop.setAttribute('aria-expanded', String(open === 'rota'));
+    els.o2.node.setAttribute('aria-expanded', String(open === 'traje'));
+    els.battery.node.setAttribute('aria-expanded', String(open === 'traje'));
+    els.ret.node.setAttribute('aria-expanded', String(open === 'volta'));
+  }
+
   /**
-   * Estado dos botões, que só muda por ação do usuário.
+   * Estado dos botões, que só muda por ação do usuário ou da IA.
    * @param {{ state: object, mode: string, soundOn: boolean, voiceOn: boolean, hasVoice: boolean, historyOpen: boolean,
-   *   drawerOpen: boolean, mapOn: boolean, readingsOn: boolean, zoom: { text: string, canIn: boolean, canOut: boolean },
-   *   mic: { canListen: boolean, listening: boolean } }} controls
+   *   drawerOpen: boolean, mapOn: boolean, sheet: 'rota'|'traje'|'volta'|null, hiddenBlocks: ReadonlySet<string>,
+   *   zoom: { text: string, canIn: boolean, canOut: boolean }, mic: { canListen: boolean, listening: boolean },
+   *   assistantNote: string, voiceInfo: string }} controls
    */
-  function syncControls({ state, mode, soundOn, voiceOn, hasVoice, historyOpen, drawerOpen, mapOn, readingsOn, zoom, mic, assistantNote, voiceInfo }) {
-    setText(els.assistantNote, assistantNote);
-    // O botão de voz diz qual voz está em uso (a neural local ou a do sistema).
+  function syncControls({ state, mode, soundOn, voiceOn, hasVoice, historyOpen, drawerOpen, mapOn, sheet: openSheet, hiddenBlocks: hidden, zoom, mic, assistantNote, voiceInfo }) {
+    hiddenBlocks = hidden;
+    syncSheets(openSheet);
+    // A nota só aparece quando há o que dizer: a IA verificando ou fora do ar.
+    setText(els.assistantNote, assistantNote === NORMAL_ASSISTANT_NOTE ? '' : assistantNote);
+    // O botão de voz diz qual voz está em uso (a neural ou a do sistema).
     if (voiceInfo && els.voice.title !== voiceInfo) els.voice.title = voiceInfo;
     // O rótulo já diz o estado; aria-pressed junto com rótulo que muda seria contraditório.
     setText(els.pause, state.paused ? 'Continuar' : 'Pausar');
@@ -404,16 +472,13 @@ export function createHud(mount, on) {
     els.drawerButton.setAttribute('aria-expanded', String(drawerOpen));
     els.drawer.hidden = !drawerOpen;
     setData(root, 'gaveta', drawerOpen ? 'aberta' : 'fechada');
-    els.mapButton.setAttribute('aria-pressed', String(mapOn));
     setData(root, 'mapa', mapOn ? 'on' : 'off');
-    els.readingsButton.setAttribute('aria-pressed', String(readingsOn));
-    setData(root, 'leituras', readingsOn ? 'on' : 'off');
     setText(els.zoomLabel, zoom.text);
     els.zoomIn.disabled = !zoom.canIn;
     els.zoomOut.disabled = !zoom.canOut;
     els.mic.hidden = !mic.canListen;
-    setText(els.mic, mic.listening ? 'Ouvindo…' : 'Falar');
     els.mic.setAttribute('aria-pressed', String(mic.listening));
+    els.mic.setAttribute('aria-label', mic.listening ? 'Ouvindo. Toque para parar' : 'Falar com a IA de bordo');
     for (const { scenario, node } of scenarioButtons) {
       const unavailable = Boolean(scenario.needsVehicle) && mode !== 'car';
       node.disabled = unavailable;
@@ -422,18 +487,33 @@ export function createHud(mount, on) {
     }
   }
 
+  /** Destaca por um instante peças que já estão na tela ('o2', 'bateria', 'volta', 'parada', 'hora'). */
+  function flash(targets) {
+    for (const node of targets.map((id) => flashTargets[id]).filter(Boolean)) {
+      node.classList.remove('cabine-pisca');
+      // Ler o tamanho obriga o navegador a recomeçar a animação quando a classe volta.
+      node.getBoundingClientRect();
+      node.classList.add('cabine-pisca');
+      // Um temporizador por peça: pedir de novo só recomeça o destaque.
+      clearTimeout(flashTimers.get(node));
+      flashTimers.set(node, setTimeout(() => node.classList.remove('cabine-pisca'), FLASH_MS));
+    }
+  }
+
   return Object.freeze({
     canvases: Object.freeze({ minimap: els.minimap, profile: els.profile, world: els.world }),
     edge: els.edge,
     markers: els.markers,
     drawer: els.drawer,
+    pins: els.pins,
     render,
     syncControls,
     closePops,
+    flash,
     layout: () => layout,
     setProfileCaption: (text) => setText(els.profileCaption, text),
     announce: (text) => { els.announcer.textContent = text; },
     focus: () => els.pause.focus(),
-    focusDrawerButton: () => els.drawerButton.focus(),
+    focusDrawerButton: () => els.talk.focus(),
   });
 }

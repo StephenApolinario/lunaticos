@@ -73,6 +73,12 @@ export function detect(r) {
     add('frio', level('perigo', ['habitat', 'vehicle']), 'Frio abaixo da faixa do traje',
       `Ar a ${fmtNumber(r.airTempC)} °C${r.fx.tempOffsetC < 0 ? ', o mais frio já medido pelo REMS' : ''}. O mínimo do traje é ${RULES.suitMinTempC} °C.`,
       `Aquecimento no máximo: a bateria cai ${fmtNumber(r.batteryRatePctH)} %/h.`, action);
+  } else if (r.coldInH !== null) {
+    // Aviso antes do problema: o frio ainda não chegou, mas chega dentro do prazo de `coldAdviseH`.
+    add('frio-a-caminho', level('atencao', ['habitat', 'vehicle']), 'Frio chegando',
+      `Em ${minutes(r.coldInH)} o ar cai abaixo do mínimo do traje (${RULES.suitMinTempC} °C).`,
+      'Com o frio o aquecimento vai ao máximo e a bateria cai mais rápido.',
+      r.sheltered ? 'Fique abrigado.' : `Esteja abrigado até lá. ${shelterLine(r.picks.frio)}`);
   }
 
   if (r.windMps >= RULES.windCautionMps) {

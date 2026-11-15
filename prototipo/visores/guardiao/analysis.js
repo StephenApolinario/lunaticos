@@ -10,7 +10,7 @@ import { SPEED_KMH, STOP_HOURS } from '../../data/travessia.js';
 import { SIM } from '../../src/simulation.js';
 import { samplePath } from '../../src/route.js';
 import { RULES, FAULTS, PROTOCOLS, SHELTER_NAMES } from './catalog.js';
-import { effects, mobility, o2PctOf, batteryPctOf, indexAt } from './engine.js';
+import { effects, mobility, o2PctOf, batteryPctOf, indexAt, isColdAt } from './engine.js';
 
 const M_PER_KM = 1000;
 const REFRESH_S = 0.25;
@@ -24,12 +24,14 @@ function projectPlan(plan, state, fx, safety) {
   const here = samplePath(path, state.distM);
   const o2Now = o2PctOf(state);
   const walkRate = SIM.o2PctPerHour.foot + fx.leakPctH;
-  const cold = fx.tempOffsetC < 0 ? FAULTS.coldBatteryExtraPctH : 0;
   const allFoot = plan.mode === 'walk' || fx.vehicleDown;
 
   let dwellH = state.dwellRemainingH;
   let stopIndex = state.stopsReached;
   let end = { spentH: 0, o2Pct: o2Now, batteryPct: batteryPctOf(state) };
+  // Horas a pé em que o ar previsto está abaixo do mínimo do traje: é nelas que o aquecimento pesa.
+  let coldFootH = 0;
+  let lastFootH = 0;
   const samples = [];
   for (let i = indexAt(path, state.distM) + 1; i < path.points.length; i++) {
     const point = path.points[i];
@@ -42,10 +44,12 @@ function projectPlan(plan, state, fx, safety) {
     const footH = (allFoot ? travelH : point.footH - here.footH) + dwellH;
     const cabinH = travelH + dwellH - footH;
     const spentH = travelH + dwellH;
+    if (isColdAt(plan, fx, state.clockH + spentH)) coldFootH += footH - lastFootH;
+    lastFootH = footH;
     end = {
       spentH,
       o2Pct: o2Now - SIM.o2PctPerHour.foot * footH - SIM.o2PctPerHour.cabin * cabinH - fx.leakPctH * spentH,
-      batteryPct: batteryPctOf(state) - (SIM.batteryPctPerHour.foot + cold) * footH - SIM.batteryPctPerHour.cabin * cabinH,
+      batteryPct: batteryPctOf(state) - SIM.batteryPctPerHour.foot * footH - FAULTS.coldBatteryExtraPctH * coldFootH - SIM.batteryPctPerHour.cabin * cabinH,
     };
     // Sem caminho a pé conhecido (Infinity), a folga fica negativa: conta como ponto sem volta.
     samples.push({ distM: point.distM, spentH, marginPct: end.o2Pct - walkRate * safety.walkBackAt(point.x, point.z) - RULES.o2ReservePct });

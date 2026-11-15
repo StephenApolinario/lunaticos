@@ -61,35 +61,33 @@ function scienceStatus(context) {
 
 /**
  * @param {{
- *   drawer: HTMLElement, markersLayer: HTMLElement, camera: import('three').PerspectiveCamera,
+ *   drawer: HTMLElement, markersLayer: HTMLElement, pinsLayer: HTMLElement, camera: import('three').PerspectiveCamera,
  *   terrain: { heightAt: (x: number, z: number) => number },
  *   safety: { protocolFor: (id: string) => object, assumptions: object },
  *   audio: ReturnType<typeof import('../guardiao/audio.js').createAudio>,
  *   live: () => { weather?: object | null, dose?: object | null, lsDeg: number },
  *   host: { session: () => object, confirm: () => void, decide: (choice: 'abortar'|'seguir') => void,
  *     pause: (paused: boolean) => void, endScenario: (id: string) => void, onChange: () => void,
+ *     setPanel: (panel: string, on: boolean) => void, setLayer: (layer: string) => void,
+ *     setBlock: (block: string, on: boolean) => void, flash: (targets: string[]) => void,
  *     focusDrawerButton: () => void },
  * }} deps `host` dá a sessão atual do Guardião e liga as ações da conversa a ela; `onChange` pede
  *   ao visor para atualizar os botões (gaveta aberta, voz, microfone).
  */
 const PINS_REFRESH_S = 0.5;
 
-export function createField({ drawer, markersLayer, camera, terrain, safety, audio, host, live, planIn = null, tripTo = null }) {
+export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, safety, audio, host, live, planIn = null, tripTo = null }) {
   const store = createHazardStore();
   const markers = createSceneMarkers(markersLayer, camera, terrain);
-  // Leituras que a IA fixa no visor a pedido ("me mostra meu oxigênio"): cartões no alto da tela.
-  const pinsBox = document.createElement('div');
-  pinsBox.className = 'ia-pinos';
-  pinsBox.hidden = true;
-  markersLayer.parentElement.append(pinsBox);
+  // Leituras que a IA fixa no visor a pedido ("coloca na tela a velocidade média"): cartões na
+  // mesma fileira dos blocos do canto (`pinsLayer`, do HUD).
   let pinsKey = '';
   let pinsWaitS = 0;
   function renderPins(pins) {
     const key = pins.map((pin) => `${pin.id}=${pin.valor}`).join('|');
     if (key === pinsKey) return;
     pinsKey = key;
-    pinsBox.hidden = pins.length === 0;
-    pinsBox.replaceChildren(...pins.map((pin) => {
+    pinsLayer.replaceChildren(...pins.map((pin) => {
       const card = document.createElement('div');
       const label = document.createElement('small');
       const value = document.createElement('strong');
@@ -248,6 +246,8 @@ export function createField({ drawer, markersLayer, camera, terrain, safety, aud
     resume: () => { host.pause(false); say('Simulação retomada.'); },
     'hud-panel': (action) => host.setPanel(action.panel, action.on),
     'hud-layer': (action) => host.setLayer(action.layer),
+    'hud-block': (action) => host.setBlock(action.block, action.on),
+    'hud-flash': (action) => host.flash(action.targets),
   });
 
   // A ação vem do motor do assistente (amanhã, de um modelo): só roda se for conhecida.

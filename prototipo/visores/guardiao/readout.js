@@ -6,7 +6,21 @@ import { SIM, localClockOf } from '../../src/simulation.js';
 import { headingDeg, yToElev } from '../../src/geo.js';
 import { samplePath, maxSlopeAheadDeg } from '../../src/route.js';
 import { RULES, FAULTS, SHELTER_NAMES } from './catalog.js';
-import { effects, mobility, ratesOf, o2PctOf, batteryPctOf } from './engine.js';
+import { effects, mobility, ratesOf, o2PctOf, batteryPctOf, isColdAt } from './engine.js';
+
+// Passo (em horas) ao procurar o frio à frente: 5 minutos.
+const COLD_SCAN_STEP_H = 1 / 12;
+
+// Horas até o ar cair abaixo do mínimo do traje, olhando até `horizonH` à frente (a antecedência do
+// aviso, sem passar do fim previsto da saída: frio que só chega depois da volta não é problema).
+// null se já está frio (aí vale o alerta de frio) ou se não esfria nesse prazo.
+function coldAhead(plan, state, fx, horizonH) {
+  if (isColdAt(plan, fx, state.clockH)) return null;
+  for (let aheadH = COLD_SCAN_STEP_H; aheadH <= horizonH + 1e-9; aheadH += COLD_SCAN_STEP_H) {
+    if (isColdAt(plan, fx, state.clockH + aheadH)) return aheadH;
+  }
+  return null;
+}
 
 const AT_TARGET_M = 1;
 const M_PER_KM = 1000;
@@ -107,6 +121,7 @@ export function buildReadout({ plan, state, pos, ground, base, analysis }) {
     doseEtaH: doseLeftUsv > 0 ? doseLeftUsv / rates.doseUsvH : 0,
     // No cenário de frio, o ar vai ao mínimo já medido pelo REMS; fora dele, a estimativa da hora.
     airTempC: fx.tempOffsetC < 0 ? REMS.recordAirMinC : estimatedAirTempC(localClockH),
+    coldInH: state.finished ? null : coldAhead(plan, state, fx, Math.min(RULES.coldAdviseH, analysis.planRemainingH)),
     windMps: fx.windMps, radio, comms: analysis.comms,
     slopeDeg, slopeAheadDeg, altitudeM: state.off ? yToElev(ground.y) : m.here.elev,
     hazard: base.hazard,

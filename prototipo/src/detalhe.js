@@ -13,6 +13,7 @@ import { toLocal, toGeo } from './geo.js';
 import { MOSAIC_METERS_PER_PX } from './tiles.js';
 import { createOrthophoto } from './ortofoto.js';
 import { createTrekMosaic } from './trek.js';
+import { FINE_BANDS } from './foto-fina.js';
 
 // Escala em que as duas imagens se encontram: formas maiores que isto vêm da foto colorida,
 // menores vêm do detalhe. Folgada o bastante para um desalinhamento de poucos metros não aparecer.
@@ -45,6 +46,8 @@ function createLevel(spec) {
   let failed = false;
   let retryAtS = 0;
   let clockS = 0;
+  // Chegou uma janela nova desde o último `update`: a cena mudou mesmo com a presença já em 1.
+  let isFresh = false;
 
   // Canto noroeste da janela centrada no foco, alinhado à grade de ladrilhos da fonte.
   function originFor(focus) {
@@ -70,6 +73,7 @@ function createLevel(spec) {
       rect.set(northWest.x, northWest.z, 1 / (southEast.x - northWest.x), 1 / (southEast.z - northWest.z));
       origin = wanted;
       failed = false;
+      isFresh = true;
     } catch (error) {
       if (controller.signal.aborted) return;
       failed = true;
@@ -80,6 +84,16 @@ function createLevel(spec) {
     }
   }
 
+  // Pede outra janela quando o nível compensa a esta distância e o foco andou o bastante.
+  function follow(focus, rangeM) {
+    if (rangeM > spec.maxRangeM || clockS < retryAtS) return;
+    const wanted = originFor(focus);
+    const reference = pending?.origin ?? origin;
+    if (reference && !isFar(wanted, reference)) return;
+    pending?.controller.abort();
+    load(wanted);
+  }
+
   return Object.freeze({
     label: spec.label,
     maxRangeM: spec.maxRangeM,
@@ -87,20 +101,25 @@ function createLevel(spec) {
     rect,
     params,
     hasFailed: () => failed,
+    /** Tira o nível de cena (a qualidade escolhida não o usa): some do terreno e para de carregar. */
+    disable() {
+      params.x = 0;
+      pending?.controller.abort();
+    },
     covers(focus) {
       const u = (focus.x - rect.x) * rect.z;
       const v = (focus.z - rect.y) * rect.w;
       return origin !== null && u > 0 && u < 1 && v > 0 && v < 1;
     },
+    /** @returns {boolean} Se o que o nível mostra mudou neste quadro (janela nova ou ainda entrando em cena). */
     update(focus, rangeM, dtS) {
       clockS += dtS;
-      if (origin) params.x = Math.min(1, params.x + dtS / FADE_IN_S);
-      if (rangeM > spec.maxRangeM || clockS < retryAtS) return;
-      const wanted = originFor(focus);
-      const reference = pending?.origin ?? origin;
-      if (reference && !isFar(wanted, reference)) return;
-      pending?.controller.abort();
-      load(wanted);
+      const presence = params.x;
+      if (origin) params.x = Math.min(1, presence + dtS / FADE_IN_S);
+      const hasChanged = isFresh || params.x !== presence;
+      isFresh = false;
+      follow(focus, rangeM);
+      return hasChanged;
     },
   });
 }
@@ -118,6 +137,24 @@ uniform vec2 uDetailParams0;
 uniform sampler2D uDetailMap1;
 uniform vec4 uDetailRect1;
 uniform vec2 uDetailParams1;
+uniform float uFineOn;
+uniform vec4 uFineBounds;
+uniform sampler2D uFineMap0;
+uniform vec4 uFineRect0;
+uniform sampler2D uFineMap1;
+uniform vec4 uFineRect1;
+uniform sampler2D uFineMap2;
+uniform vec4 uFineRect2;
+
+// Foto fina pronta (0,69 m por pixel), em faixas de norte a sul. Devolve a cor e 1 em w quando o
+// ponto cai na faixa. As derivadas vêm de fora porque a leitura fica dentro de um desvio.
+vec4 fineBand(sampler2D image, vec4 rect, vec2 dx, vec2 dy) {
+  vec2 at = (vTerrainXZ - rect.xy) * rect.zw;
+  if (at.x <= 0.0 || at.x >= 1.0 || at.y < 0.0 || at.y >= 1.0) return vec4(0.0);
+  // A imagem tem o norte em cima e a textura guarda a imagem de cabeça para baixo.
+  vec2 scale = vec2(rect.z, -rect.w);
+  return vec4(textureGrad(image, vec2(at.x, 1.0 - at.y), dx * scale, dy * scale).rgb, 1.0);
+}
 
 // Ruído suave para o grão do chão. O módulo mantém os números pequenos longe da origem do mapa.
 float grainHash(vec2 cell) {
@@ -145,7 +182,18 @@ vec2 detailLevel(sampler2D image, vec4 rect, vec2 params) {
 `;
 const FRAGMENT_BODY = /* glsl */ `
 #ifdef USE_MAP
-{
+if (uFineOn > 0.5) {
+  vec2 fineDx = dFdx(vTerrainXZ);
+  vec2 fineDy = dFdy(vTerrainXZ);
+  vec4 fine = fineBand(uFineMap0, uFineRect0, fineDx, fineDy) + fineBand(uFineMap1, uFineRect1, fineDx, fineDy) + fineBand(uFineMap2, uFineRect2, fineDx, fineDy);
+  // Some aos poucos na borda da área, para não aparecer um degrau contra a foto de 2,5 m.
+  vec2 inside = (vTerrainXZ - uFineBounds.xy) * uFineBounds.zw;
+  float fade = smoothstep(0.0, 0.003, min(min(inside.x, 1.0 - inside.x), min(inside.y, 1.0 - inside.y)));
+  diffuseColor.rgb = mix(diffuseColor.rgb, fine.rgb / max(fine.a, 1.0), min(fine.a, 1.0) * fade);
+}
+// Sem nível de detalhe em cena (qualidades mínima e média), a mistura inteira é pulada: são quatro
+// leituras de textura a menos por pixel.
+if (uDetailEnabled > 0.0 && uDetailParams0.x + uDetailParams1.x > 0.0) {
   vec2 wide = detailLevel(uDetailMap0, uDetailRect0, uDetailParams0);
   vec2 close = detailLevel(uDetailMap1, uDetailRect1, uDetailParams1);
   float ratio = mix(mix(1.0, wide.y, wide.x), close.y, close.x);
@@ -175,13 +223,24 @@ export function createDetailImagery({ onStatus }) {
     uDetailEnabled: { value: 1 },
     uDetailBaseLod: { value: Math.log2(BLEND_SCALE_M / MOSAIC_METERS_PER_PX) },
     uGrain: { value: 0 },
+    uFineOn: { value: 0 },
+    uFineBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
   };
+  // Até a foto fina chegar (ou nas qualidades que não a usam), as três faixas apontam para um pixel vazio.
+  const blank = new THREE.DataTexture(new Uint8Array(4), 1, 1);
+  blank.needsUpdate = true;
+  for (let band = 0; band < FINE_BANDS; band++) {
+    uniforms[`uFineMap${band}`] = { value: blank };
+    uniforms[`uFineRect${band}`] = { value: new THREE.Vector4(0, 0, 0, 0) };
+  }
   levels.forEach((level, i) => {
     uniforms[`uDetailMap${i}`] = { value: level.texture };
     uniforms[`uDetailRect${i}`] = { value: level.rect };
     uniforms[`uDetailParams${i}`] = { value: level.params };
   });
   let status = '';
+  // Quantos níveis entram, do mais largo ao mais fino: decidido pela qualidade (QUALITY em config.js).
+  let active = levels;
 
   return Object.freeze({
     // Para usar em `material.onBeforeCompile` de um material com `map` (a foto colorida).
@@ -201,18 +260,40 @@ export function createDetailImagery({ onStatus }) {
     setEnabled(isEnabled) {
       uniforms.uDetailEnabled.value = isEnabled ? 1 : 0;
     },
+    /** @param {string[]} labels Níveis lidos da rede que entram em cena ('64 cm', '25 cm'); vazio = nenhum. */
+    setLiveLevels(labels) {
+      active = levels.filter((level) => labels.includes(level.label));
+      for (const level of levels) if (!active.includes(level)) level.disable();
+    },
+    /**
+     * Liga a foto fina pronta (ver foto-fina.js) ou desliga com null.
+     * @param {{ textures: THREE.Texture[], rects: THREE.Vector4[], bounds: THREE.Vector4 } | null} photo
+     */
+    setFinePhoto(photo) {
+      uniforms.uFineOn.value = photo ? 1 : 0;
+      if (!photo) return;
+      uniforms.uFineBounds.value.copy(photo.bounds);
+      photo.textures.forEach((texture, band) => {
+        uniforms[`uFineMap${band}`].value = texture;
+        uniforms[`uFineRect${band}`].value.copy(photo.rects[band]);
+      });
+    },
     /**
      * @param {{ x: number, z: number }} focus Ponto do chão em foco, em metros locais.
      * @param {number} rangeM Distância da câmera até o foco.
+     * @returns {boolean} Se a imagem em cena mudou neste quadro; parado e sem mudança, não há o que redesenhar.
      */
     update(focus, rangeM, dtS) {
-      for (const level of levels) level.update(focus, rangeM, dtS);
-      const inRange = levels.filter((level) => rangeM <= level.maxRangeM);
+      // Sem atalho: todos os níveis avançam, cada um consome o próprio aviso de janela nova.
+      const hasChanged = active.map((level) => level.update(focus, rangeM, dtS)).includes(true);
+      const inRange = active.filter((level) => rangeM <= level.maxRangeM);
       const finest = inRange.findLast((level) => level.covers(focus));
       const next = finest ? finest.label : inRange.some((level) => level.hasFailed()) ? 'offline' : '';
-      if (next === status) return;
-      status = next;
-      onStatus(status);
+      if (next !== status) {
+        status = next;
+        onStatus(status);
+      }
+      return hasChanged;
     },
   });
 }

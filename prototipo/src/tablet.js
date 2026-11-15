@@ -6,7 +6,8 @@ import { shortName } from './route.js';
 import { fmtKm, fmtDuration, fmtDistance, fmtNumber, fmtClock } from './format.js';
 import { ORIGIN } from './geo.js';
 import { sunAt, daylightHours, localSolarHour, compassName, EARTH_HOURS_PER_MARS_HOUR } from './luz.js';
-import { estimatedAirTempC, estimatedGroundTempC } from './clima.js';
+import { coldSpan, estimatedAirTempC, estimatedGroundTempC, warmAfter } from './clima.js';
+import { SUIT } from '../data/traje.js';
 import { REMS, RAD } from '../data/medicoes.js';
 import { loadSurfaceImages } from './nasa.js';
 import { TABLET_EXAMPLES } from './ia/ferramentas-tablet.js';
@@ -14,7 +15,7 @@ import { MAX_WAYPOINTS } from './planner.js';
 import { ASSUMPTIONS } from './safety.js';
 import { PROTOCOLS, SHELTER_KINDS } from '../data/protocolos.js';
 import { OPPORTUNITIES, trackPositionAtSol } from '../data/oportunidades.js';
-import { LAYERS, SLOPE_CLASSES } from './config.js';
+import { LAYERS, QUALITY, SLOPE_CLASSES } from './config.js';
 import { emphasized, h, svg } from './dom.js';
 import { KINDS, SOURCE_GROUPS, CHALLENGE_RESOURCES } from '../data/fontes.js';
 
@@ -32,6 +33,7 @@ const PROFILE = Object.freeze({ width: 380, height: 150, left: 40, right: 10, to
 const STOP_MINUTES = STOP_HOURS * 60;
 
 function buildHeader(handlers, options) {
+  const qualityNote = h('p', { class: 'note' }, QUALITY[options.quality].note);
   return h('header', { class: 'panel-header' },
     h('p', { class: 'eyebrow' }, 'Cratera Gale · Monte Sharp · Marte'),
     h('h1', {}, 'Das argilas ao enxofre'),
@@ -49,6 +51,16 @@ function buildHeader(handlers, options) {
         options.visors.map((visor) => h('option', { value: visor.id, selected: visor.id === options.visorId }, visor.name)),
       ),
     ),
+    // Qualidade de renderização: a mínima é o padrão, para rodar em qualquer computador.
+    h('label', { class: 'visor-pick' }, 'Qualidade da imagem',
+      h('select', {
+        onchange: (event) => {
+          handlers.onQualityChange(event.target.value);
+          qualityNote.textContent = QUALITY[event.target.value].note;
+        },
+      }, Object.entries(QUALITY).map(([id, quality]) => h('option', { value: id, selected: id === options.quality }, quality.label))),
+    ),
+    qualityNote,
   );
 }
 
@@ -330,6 +342,8 @@ function buildDaylight(handlers, options) {
   const clock = h('output', { class: 'hour-clock', for: 'hour' });
   const sunText = h('span', { class: 'meta' });
   const margin = h('p', { class: 'daylight', role: 'status' });
+  const cold = h('p', { class: 'daylight', role: 'status' });
+  const shadowNote = h('span', {});
   const temperature = h('span', { class: 'meta' });
   const node = h('section', {},
     h('h2', {}, 'Hora do dia'),
@@ -338,7 +352,8 @@ function buildDaylight(handlers, options) {
     sunText,
     temperature,
     margin,
-    h('p', { class: 'note' }, `Sol calculado para a estação de hoje em Marte (Ls ${Math.round(options.lsDeg)}°) com o algoritmo Mars24 da NASA: nasce às ${fmtClock(sunriseH)} e se põe às ${fmtClock(sunsetH)}, sem contar a poeira. As sombras são as do relevo real.`),
+    cold,
+    h('p', { class: 'note' }, `Sol calculado para a estação de hoje em Marte (Ls ${Math.round(options.lsDeg)}°) com o algoritmo Mars24 da NASA: nasce às ${fmtClock(sunriseH)} e se põe às ${fmtClock(sunsetH)}, sem contar a poeira. `, shadowNote),
   );
 
   // Texto e gravidade da folga de luz: começa `startH`, dura `hours` (horas da Terra) e precisa acabar antes do pôr do Sol.
@@ -348,6 +363,21 @@ function buildDaylight(handlers, options) {
     const spareH = (sunsetH - endH) * EARTH_HOURS_PER_MARS_HOUR;
     if (spareH < 0) return { level: 'alert', text: `Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)}, ${fmtDuration(-spareH)} depois do pôr do Sol.` };
     return { level: spareH < LOW_DAYLIGHT_H ? 'warn' : 'ok', text: `Saindo às ${fmtClock(startH)}, a saída termina às ${fmtClock(endH)} e sobram ${fmtDuration(spareH)} de luz.` };
+  }
+
+  // Frio: em que parte da saída o ar estimado fica abaixo do mínimo do traje. Avisa no planejamento,
+  // antes de a tripulação sair, e diz para quando mudar a partida.
+  function coldOf(startH, hours) {
+    const limit = `${SUIT.minTempC} °C, hipótese da equipe`;
+    const span = coldSpan(startH, localSolarHour(startH, hours), SUIT.minTempC);
+    if (!span) return { level: 'ok', text: `O ar fica acima do mínimo do traje (${limit}) a saída inteira.` };
+    const coldest = `chega a ${Math.round(span.coldestC)} °C`;
+    const fromStart = span.firstH - startH < 1e-6;
+    if (!fromStart) return { level: 'alert', text: `Frio abaixo do mínimo do traje (${limit}) a partir das ${fmtClock(span.firstH)}, antes do fim da saída: ${coldest}. Saia mais cedo ou encurte a rota.` };
+    // A hora boa para sair é quando o ar volta a passar do mínimo, que pode ser depois do fim desta saída.
+    const warmH = warmAfter(startH, SUIT.minTempC);
+    const advice = warmH === null ? 'Hoje o ar não chega a esse mínimo.' : `O ar só passa do mínimo às ${fmtClock(warmH)}: saia depois desse horário.`;
+    return { level: 'alert', text: `Frio abaixo do mínimo do traje (${limit}) desde a partida: ${coldest}. ${advice}` };
   }
 
   const render = (plan, state) => {
@@ -361,6 +391,12 @@ function buildDaylight(handlers, options) {
     const { level, text } = marginOf(state.hourH, plan.stats.hours);
     margin.dataset.level = level;
     margin.textContent = text;
+    shadowNote.textContent = QUALITY[state.quality].shadowMapPx > 0
+      ? 'As sombras são as do relevo real.'
+      : 'Na qualidade mínima as encostas escurecem conforme o Sol, sem sombra projetada.';
+    const chill = coldOf(state.hourH, plan.stats.hours);
+    cold.dataset.level = chill.level;
+    cold.textContent = chill.text;
   };
   return { node, render };
 }

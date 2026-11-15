@@ -24,6 +24,7 @@ export const RULES = Object.freeze({
   doseLimitUsv: 1000, // limite de dose de uma saída
   doseCautionFrac: 0.6,
   suitMinTempC: SUIT.minTempC, // hipótese da equipe (data/traje.js)
+  coldAdviseH: 1, // avisa do frio com esta antecedência (hipótese da equipe)
   windCautionMps: 15,
   windDangerMps: 25,
   slopeCautionDeg: SIM.slopeWarnDeg,
