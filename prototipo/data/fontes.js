@@ -2,8 +2,9 @@
 // e `node prototipo/tools/gerar-fontes.mjs` escreve docs/fontes.md a partir dela.
 //
 // Tipos:
-// - medido: medição ou produto de uma missão, com a fonte;
-// - publicado: fato relatado pela missão ou em artigo, conferido na página de origem;
+// - medido: dado de uma sonda ou rover (MRO, Odyssey, Curiosity), com a fonte. "Missão" aqui seria ambíguo:
+//   no projeto, missão é a nossa saída em Marte;
+// - publicado: fato relatado em página da NASA ou em artigo científico, conferido na página de origem;
 // - calculado: conta feita pela equipe sobre um dado medido;
 // - estimado: curva ou proporção nossa apoiada em uma medição;
 // - hipotese: escolha da equipe, sem medição por trás;
@@ -11,8 +12,8 @@
 // - ilustrativo: só aparência.
 
 export const KINDS = Object.freeze({
-  medido: 'Medição de missão',
-  publicado: 'Fato publicado pela missão',
+  medido: 'Dado de sonda ou rover',
+  publicado: 'Fato publicado',
   calculado: 'Cálculo sobre dado real',
   estimado: 'Estimativa a partir de medição',
   hipotese: 'Hipótese da equipe',

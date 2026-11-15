@@ -2,30 +2,30 @@
 
 Gerado por `node prototipo/tools/gerar-fontes.mjs` a partir de `prototipo/data/fontes.js`. Para corrigir, edite aquele arquivo e gere de novo.
 
-Cada item diz o tipo: medição de missão, cálculo sobre dado real, estimativa a partir de medição, hipótese da equipe, simulado ou ilustrativo.
+Cada item diz o tipo: dado de sonda ou rover, cálculo sobre dado real, estimativa a partir de medição, hipótese da equipe, simulado ou ilustrativo.
 
-Resumo: 12 medição de missão · 2 fato publicado pela missão · 8 cálculo sobre dado real · 2 estimativa a partir de medição · 7 hipótese da equipe · 5 simulado · 1 ilustrativo.
+Resumo: 12 dado de sonda ou rover · 2 fato publicado · 8 cálculo sobre dado real · 2 estimativa a partir de medição · 7 hipótese da equipe · 5 simulado · 1 ilustrativo.
 
 ## Mapa e terreno
 
-1. **Relevo e altitude** — Medição de missão. Modelo de elevação MSL Gale Merged DEM 1 m v3, feito com pares estéreo da câmera HiRISE (sonda MRO), de Calef & Parker, USGS. A equipe reamostrou para uma grade de 8 m. [fonte](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_dem_1m)
-2. **Imagem colorida do mapa (2,5 m por pixel)** — Medição de missão. Mosaico colorido da HiRISE (MRO) usado pela equipe do Curiosity, NASA/JPL-Caltech/UArizona. Os ladrilhos vieram do artifact original da equipe; o identificador do produto de origem não foi registrado.
-3. **Detalhe de 64 cm por pixel** — Medição de missão. NASA Mars Trek, camada curiosity_hirise_mosaic (HiRISE, MRO). Lido da rede ao aproximar. [fonte](https://trek.nasa.gov/mars/)
-4. **Detalhe de 25 cm por pixel** — Medição de missão. MSL Gale Merged Orthophoto Mosaic 25 cm v3 (HiRISE, MRO), de Calef & Parker, USGS. Lido da rede ao aproximar. [fonte](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_orthophoto_mosaic_25cm)
+1. **Relevo e altitude** — Dado de sonda ou rover. Modelo de elevação MSL Gale Merged DEM 1 m v3, feito com pares estéreo da câmera HiRISE (sonda MRO), de Calef & Parker, USGS. A equipe reamostrou para uma grade de 8 m. [fonte](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_dem_1m)
+2. **Imagem colorida do mapa (2,5 m por pixel)** — Dado de sonda ou rover. Mosaico colorido da HiRISE (MRO) usado pela equipe do Curiosity, NASA/JPL-Caltech/UArizona. Os ladrilhos vieram do artifact original da equipe; o identificador do produto de origem não foi registrado.
+3. **Detalhe de 64 cm por pixel** — Dado de sonda ou rover. NASA Mars Trek, camada curiosity_hirise_mosaic (HiRISE, MRO). Lido da rede ao aproximar. [fonte](https://trek.nasa.gov/mars/)
+4. **Detalhe de 25 cm por pixel** — Dado de sonda ou rover. MSL Gale Merged Orthophoto Mosaic 25 cm v3 (HiRISE, MRO), de Calef & Parker, USGS. Lido da rede ao aproximar. [fonte](https://astrogeology.usgs.gov/search/map/mars_msl_gale_merged_orthophoto_mosaic_25cm)
 5. **Declividade** — Cálculo sobre dado real. Classes de declive sobre o DEM de 1 m do USGS. A imagem veio pronta do artifact original; o programa que a gerou não está no repositório.
-6. **Térmico (noite)** — Medição de missão. Infravermelho térmico noturno do THEMIS (sonda Mars Odyssey), mosaico de 100 m servido pelo NASA Mars Trek. É brilho relativo da imagem, não temperatura em graus. [fonte](https://trek.nasa.gov/mars/)
-7. **Unidade geológica** — Medição de missão. Mapa geológico global de Marte, USGS SIM 3292 (Tanaka et al. 2014), 1:20.000.000: a área inteira é a unidade Htu. Consultado em 14/11/2026. [fonte](https://doi.org/10.3133/sim3292)
-8. **Trajeto do Curiosity** — Medição de missão. Mapa oficial da missão (MMGIS, NASA/JPL), sols 2300 a 4893. Os pontos vieram do artifact original; a data da cópia não foi registrada. [fonte](https://mars.nasa.gov/maps/location/?mission=MSL)
+6. **Térmico (noite)** — Dado de sonda ou rover. Infravermelho térmico noturno do THEMIS (sonda Mars Odyssey), mosaico de 100 m servido pelo NASA Mars Trek. É brilho relativo da imagem, não temperatura em graus. [fonte](https://trek.nasa.gov/mars/)
+7. **Unidade geológica** — Dado de sonda ou rover. Mapa geológico global de Marte, USGS SIM 3292 (Tanaka et al. 2014), 1:20.000.000: a área inteira é a unidade Htu. Consultado em 14/11/2026. [fonte](https://doi.org/10.3133/sim3292)
+8. **Trajeto do Curiosity** — Dado de sonda ou rover. Mapa oficial da missão (MMGIS, NASA/JPL), sols 2300 a 4893. Os pontos vieram do artifact original; a data da cópia não foi registrada. [fonte](https://mars.nasa.gov/maps/location/?mission=MSL)
 9. **Sombras do relevo** — Cálculo sobre dado real. Sombra projetada pelo relevo do DEM para a posição calculada do Sol.
 
 ## Sol, clima e radiação
 
 10. **Posição do Sol, nascer e pôr** — Cálculo sobre dado real. Algoritmo Mars24 (Allison & McEwen 2000), do NASA GISS, para a estação de hoje em Marte. Não conta poeira nem refração. [fonte](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html)
 11. **Luz do dia que sobra para a saída** — Cálculo sobre dado real. Hora do pôr do Sol (Mars24) menos a duração do plano.
-12. **Temperatura e pressão da estação** — Medição de missão. REMS (Curiosity): média dos sols medidos na mesma estação do ano, lida do feed público da NASA. Sem rede, vale o sol típico de 2012 (JPL). [fonte](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json)
+12. **Temperatura e pressão da estação** — Dado de sonda ou rover. REMS (Curiosity): média dos sols medidos na mesma estação do ano, lida do feed público da NASA. Sem rede, vale o sol típico de 2012 (JPL). [fonte](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json)
 13. **Temperatura por hora** — Estimativa a partir de medição. Curva nossa entre a mínima (nascer do Sol) e a máxima (começo da tarde) medidas pelo REMS.
-14. **Radiação agora** — Medição de missão. RAD (Curiosity): dose absorvida, média dos últimos 30 dias, lida da série msl_rad_dosimetry do NASA CCMC iSWA. [fonte](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry)
-15. **Taxa de radiação do visor e do mapa** — Medição de missão. RAD (Curiosity): 0,67 mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013 (cerca de 27,9 µSv/h). [fonte](https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/)
+14. **Radiação agora** — Dado de sonda ou rover. RAD (Curiosity): dose absorvida, média dos últimos 30 dias, lida da série msl_rad_dosimetry do NASA CCMC iSWA. [fonte](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/info?id=msl_rad_dosimetry)
+15. **Taxa de radiação do visor e do mapa** — Dado de sonda ou rover. RAD (Curiosity): 0,67 mSv por dia de dose equivalente, média de agosto de 2012 a junho de 2013 (cerca de 27,9 µSv/h). [fonte](https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/)
 16. **Radiação menor onde o relevo protege** — Estimativa a partir de medição. Céu tapado pelo relevo (calculado no DEM) na proporção medida pelo RAD em Murray Buttes: 4% a menos com 19% do céu tapado (Ehresmann et al. 2021). Acima de 19% é extrapolação em linha reta. [fonte](https://doi.org/10.1029/2021JE006851)
 17. **Evento solar (cenário)** — Simulado. O disparo é um botão de cenário. No evento de 11/09/2017 o RAD mediu mais que o dobro de qualquer valor anterior; aplicar 2 vezes sobre a média é simplificação da equipe. [fonte](https://www.jpl.nasa.gov/news/large-solar-storm-sparks-global-aurora-and-doubles-radiation-levels-on-the-martian-surface/)
 18. **Vento** — Simulado. 5 m/s no normal e 28 m/s no cenário, sem fonte. O sensor de vento do REMS parou no sol 1491.
@@ -46,11 +46,11 @@ Resumo: 12 medição de missão · 2 fato publicado pela missão · 8 cálculo s
 
 ## Ciência e visor
 
-30. **Posição e altitude das paradas** — Medição de missão. Pontos do trajeto do Curiosity (MMGIS, NASA/JPL). [fonte](https://mars.nasa.gov/maps/location/?mission=MSL)
-31. **Textos científicos das paradas** — Fato publicado pela missão. Conferidos em 14/11/2026 contra páginas da NASA e do JPL e artigos científicos; a fonte de cada parada aparece no cartão. A parada 2 fica no furo Sequoia, a cerca de 300 m da crista de Gediz Vallis.
+30. **Posição e altitude das paradas** — Dado de sonda ou rover. Pontos do trajeto do Curiosity (MMGIS, NASA/JPL). [fonte](https://mars.nasa.gov/maps/location/?mission=MSL)
+31. **Textos científicos das paradas** — Fato publicado. Conferidos em 14/11/2026 contra páginas da NASA e do JPL e artigos científicos; a fonte de cada parada aparece no cartão. A parada 2 fica no furo Sequoia, a cerca de 300 m da crista de Gediz Vallis.
 32. **Perguntas e tarefas das paradas** — Hipótese da equipe. Roteiro escrito pela equipe.
-33. **Fotos nas paradas** — Medição de missão. Navcam do Curiosity no sol da parada, do acervo de imagens brutas da missão (NASA/JPL-Caltech). [fonte](https://mars.nasa.gov/msl/multimedia/raw-images/)
-34. **Coletas que deram trabalho ao rover** — Fato publicado pela missão. Relatos da missão Curiosity, conferidos em 14/11/2026; o link de cada caso está no cartão. Em quatro dos sete casos a missão conseguiu amostra depois, ali perto.
+33. **Fotos nas paradas** — Dado de sonda ou rover. Navcam do Curiosity no sol da parada, do acervo de imagens brutas da missão (NASA/JPL-Caltech). [fonte](https://mars.nasa.gov/msl/multimedia/raw-images/)
+34. **Coletas que deram trabalho ao rover** — Fato publicado. Relatos da missão Curiosity, conferidos em 14/11/2026; o link de cada caso está no cartão. Em quatro dos sete casos a missão conseguiu amostra depois, ali perto.
 35. **Objetivo da missão e local do habitat** — Hipótese da equipe. Proposta da equipe. O objetivo científico e o local seguem como decisões em aberto no README.
 36. **Assistente do visor** — Simulado. Motor de regras local. Não é IA e não consulta nenhum dado externo.
 37. **Céu, chão além da área com dados e modelo do habitat** — Ilustrativo. Só aparência. Rochas soltas e montanhas desenhadas foram retiradas.
