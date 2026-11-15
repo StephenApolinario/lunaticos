@@ -90,3 +90,12 @@ export const CHALLENGE_RESOURCES = Object.freeze([
   Object.freeze({ name: 'NASA Worldview', url: 'https://worldview.earthdata.nasa.gov/', use: 'Usado só como referência de interface em camadas. Os dados são da Terra e não se aplicam a Marte.' }),
   Object.freeze({ name: 'Mars Perseverance Raw Images', url: 'https://mars.nasa.gov/mars2020/multimedia/raw-images/', use: 'Não usado como dado: o Perseverance está na cratera Jezero, não em Gale. Para Gale usamos o acervo equivalente do Curiosity, do mesmo serviço de imagens brutas da NASA.' }),
 ]);
+
+// Endereços dos dados que o protótipo lê ou copiou, além das páginas de cada fonte (conferidos em 14/11/2026).
+export const DATA_ENDPOINTS = Object.freeze([
+  Object.freeze({ label: 'DEM de 1 m de Gale (arquivo GeoTIFF de 3,6 GB, USGS)', url: 'https://planetarymaps.usgs.gov/mosaic/Mars/MSL/MSL_Gale_DEM_Mosaic_1m_v3.tif' }),
+  Object.freeze({ label: 'Ortofoto de 25 cm de Gale (arquivo GeoTIFF de 24 GB, USGS)', url: 'https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/Mars/MSL/MSL_Gale_Orthophoto_Mosaic_25cm_v3.tif' }),
+  Object.freeze({ label: 'Mars Trek: catálogo da camada HiRISE do Curiosity (WMTS)', url: 'https://trek.nasa.gov/tiles/Mars/EQ/curiosity_hirise_mosaic/1.0.0/WMTSCapabilities.xml' }),
+  Object.freeze({ label: 'Mars Trek: catálogo da camada THEMIS noturna (WMTS)', url: 'https://trek.nasa.gov/tiles/Mars/EQ/THEMIS_NightIR_ControlledMosaics_100m_v2_oct2018/1.0.0/WMTSCapabilities.xml' }),
+  Object.freeze({ label: 'RAD: série de dose do Curiosity (dados em CSV, NASA CCMC)', url: 'https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/data?id=msl_rad_dosimetry&format=csv' }),
+]);
