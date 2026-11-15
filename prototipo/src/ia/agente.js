@@ -11,13 +11,15 @@
 //
 // Usa só `fetch`: roda no navegador e no Node.
 
+import { IS_LOCAL_PAGE } from '../local.js';
 import { ungroundedNumbers } from './conferencia.js';
 
 export const IA_DEFAULTS = Object.freeze({
   // Rota do servidor do protótipo que repassa a conversa ao OpenRouter. Fora do navegador, passe a
   // URL inteira (por exemplo http://localhost:5183/ia).
   proxyUrl: '/ia',
-  baseUrl: 'http://localhost:11434',
+  // Ollama deste computador. Com a página publicada não há modelo local (ver ../local.js).
+  baseUrl: IS_LOCAL_PAGE ? 'http://localhost:11434' : null,
   // Modelo local, escolhido em teste neste projeto (tools/testar-ia.mjs): o de 7B inventava detalhes; este não.
   model: 'qwen3:14b',
   // Sem o raciocínio longo do modelo: a resposta cai de dezenas de segundos para poucos, e os dados já vêm prontos.
@@ -151,6 +153,7 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
         calls: toolCalls.map((call) => ({ id: call.id, name: call.function?.name, args: parseArguments(call.function?.arguments) })),
       };
     }
+    if (!settings.baseUrl) throw new Error('sem modelo local nesta página');
     const { response, data } = await postJson(`${settings.baseUrl}/api/chat`, {
       model: settings.model, messages, tools: offered, stream: false, keep_alive: settings.keepAlive, think: settings.think,
       options: { temperature: settings.temperature, num_ctx: settings.contextTokens, num_predict: settings.maxAnswerTokens },
@@ -189,6 +192,7 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
       return { ok: true, ...backend };
     }
     backend = { where: 'local', model: settings.model };
+    if (!settings.baseUrl) return { ok: false, reason: 'fora-do-ar', ...backend };
     try {
       const response = await fetch(`${settings.baseUrl}/api/tags`, { signal: AbortSignal.timeout(settings.healthTimeoutMs) });
       const { models = [] } = await response.json();

@@ -2,6 +2,8 @@
 // reconhecimento de fala. Tudo opcional: sem suporte, as funções apenas não fazem nada.
 // Independente do HUD: só usa as APIs de voz do navegador (`toSpeech` é pura).
 
+import { IS_LOCAL_PAGE } from '../../src/local.js';
+
 const LANG = 'pt-BR';
 
 function durationWords(_match, hours, minutes) {
@@ -40,18 +42,22 @@ export const toSpeech = (text) => SPEECH_FIXES
   .replace(/\s+,/g, ',')
   .replace(/\s{2,}/g, ' ');
 
+// Servidor de voz deste computador (tools/voz/servidor.py): fala neural e escuta. Com a página
+// publicada ele não existe (ver src/local.js), e valem a voz e a escuta do navegador.
+export const VOICE_SERVER = IS_LOCAL_PAGE ? 'http://127.0.0.1:5184' : null;
+
 // Escuta local: o microfone é gravado aqui e transcrito pelo servidor de voz deste computador
 // (tools/voz/servidor.py, Whisper). O áudio não vai para a internet e funciona em qualquer navegador.
 const LOCAL_LISTEN = Object.freeze({
-  url: 'http://127.0.0.1:5184',
   healthTimeoutMs: 1500,
   // A gravação para sozinha depois de um silêncio, ou no tempo máximo.
   maxMs: 14000, silenceMs: 1300, checkMs: 100, speechLevel: 0.02,
 });
 
 async function localListenReady() {
+  if (!VOICE_SERVER) return false;
   try {
-    const response = await fetch(`${LOCAL_LISTEN.url}/saude`, { signal: AbortSignal.timeout(LOCAL_LISTEN.healthTimeoutMs) });
+    const response = await fetch(`${VOICE_SERVER}/saude`, { signal: AbortSignal.timeout(LOCAL_LISTEN.healthTimeoutMs) });
     return (await response.json()).ouvir === true;
   } catch {
     return false;
@@ -133,7 +139,7 @@ export function createVoice() {
         if (discarded) return;
         if (!heard) { onError('no-speech'); return; }
         const audio = new Blob(chunks, { type: recorder.mimeType });
-        const response = await fetch(`${LOCAL_LISTEN.url}/ouvir`, { method: 'POST', headers: { 'Content-Type': audio.type.split(';')[0] || 'audio/webm' }, body: audio });
+        const response = await fetch(`${VOICE_SERVER}/ouvir`, { method: 'POST', headers: { 'Content-Type': audio.type.split(';')[0] || 'audio/webm' }, body: audio });
         const { texto } = await response.json();
         if (texto) onText(texto);
         else onError('no-speech');

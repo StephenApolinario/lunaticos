@@ -86,6 +86,28 @@ node prototipo/tools/testar-ia.mjs --nuvem
 
 Com `--nuvem` o teste usa o modelo da nuvem pelo servidor do protótipo, que precisa estar no ar; sem a opção, usa o modelo local.
 
+### Publicar num servidor
+
+O `Dockerfile` da raiz monta o protótipo para rodar fora deste computador: a página e a ponte da IA de bordo, só com a biblioteca padrão do Python. A voz neural e a escuta locais não vão junto; publicada, a página usa a voz e a escuta do navegador e não procura nada no computador de quem visita.
+
+```bash
+docker build -t lunaticos .
+```
+
+```bash
+docker run --rm -p 5183:5183 --env-file .env -e SITE_ORIGINS=https://endereco-publico lunaticos
+```
+
+- `OPENROUTER_API_KEY`: a chave da IA, guardada como segredo no servidor. Sem ela o mapa e o visor funcionam e a IA aparece fora do ar.
+- `SITE_ORIGINS`: o endereço público da página (mais de um, separados por vírgula). A IA só aceita pedidos vindos dele.
+- Quem tem o endereço usa o crédito da chave. O servidor segura o abuso com 60 chamadas por visitante a cada 5 minutos e 1500 por dia (valores escolhidos pela equipe, em `prototipo/tools/servir.py`); o teto em dinheiro fica na própria chave, no OpenRouter.
+
+Para conferir essas proteções:
+
+```bash
+python3 prototipo/tools/check_servir.py
+```
+
 O que ele faz hoje:
 
 - **Tablet:** mapa 3D com relevo e imagem reais, camadas (declive, volta a pé, rádio, radiação, térmico), a travessia do Monte Sharp com as paradas científicas e o painel "Segurança da saída".

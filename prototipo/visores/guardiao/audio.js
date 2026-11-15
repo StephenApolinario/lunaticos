@@ -2,12 +2,11 @@
 // desliga. A preferência fica guardada no navegador. A voz vem do servidor local
 // (prototipo/tools/voz, Kokoro) quando ele responde; senão, do speechSynthesis do navegador.
 
-import { toSpeech } from '../cientista/voz.js';
+import { toSpeech, VOICE_SERVER } from '../cientista/voz.js';
 
 const STORAGE = Object.freeze({ sound: 'guardiao:som', voice: 'guardiao:voz' });
 const VOLUME = 0.09;
 const ATTACK_S = 0.012;
-const VOICE_SERVER = 'http://127.0.0.1:5184';
 const PROBE_TIMEOUT_MS = 1500;
 const PROBE_RETRY_MS = 10000;
 const SYNTH_RATE = 1.1;
@@ -65,6 +64,7 @@ export function createAudio() {
   /** Pergunta ao servidor local se está de pé. Sem ele, fica a voz do navegador. */
   async function probe() {
     lastProbe = performance.now();
+    if (!VOICE_SERVER) return;
     try {
       const response = await fetch(`${VOICE_SERVER}/saude`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
       const health = await response.json();
