@@ -1,0 +1,12 @@
+{
+  "name": "prototipo-tools",
+  "private": true,
+  "type": "module",
+  "description": "Ferramentas de preparo de dados do protótipo (não fazem parte da página).",
+  "scripts": {
+    "extrair-dem": "node extrair-dem.mjs"
+  },
+  "dependencies": {
+    "geotiff": "2.1.3"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "prototipo",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "exec python3 prototipo/tools/servir.py \"${PORT:-5183}\""],
+      "port": 5183
+    }
+  ]
+}

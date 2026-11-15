@@ -1,0 +1,221 @@
+/* Visor único: o Guardião como base, com as peças do Navegador e do Cientista.
+   O estilo dos blocos vem dos três visores de origem; aqui ficam só o layout novo e as peças
+   que só existem neste visor, com o prefixo unificado-.
+
+   Hierarquia em tela larga: à esquerda, a coluna de segurança (alertas, protocolo, abrigos);
+   no centro, bússola, estado, a vista livre, a linha do assistente e a rota à frente (retorno a
+   pé e perfil); à direita, destino, leituras e o minimapa no canto. A gaveta do assistente abre
+   por cima da coluna da direita: alertas, estado e a rota à frente continuam à vista. */
+
+@import url('../guardiao/visor.css');
+@import url('../navegador/componentes.css');
+@import url('../cientista/componentes.css');
+
+.unificado {
+  /* Largura da gaveta: a coluna da direita mais a margem, para não cobrir a coluna do centro. */
+  --unificado-gaveta: 372px;
+  --unificado-voz: #cdbcff;
+  --unificado-voz-fraca: rgba(205, 188, 255, 0.34);
+  --navegador-minimapa-lado: 164px;
+  --navegador-perfil-altura: 48px;
+}
+
+/* ---------- Grade ---------- */
+/* Os blocos do HUD ficam acima do indicador de borda do Navegador (que tem z-index 2). */
+.unificado .guardiao-vista {
+  z-index: 2;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(280px, 330px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "relogio   bussola destino"
+    "seguranca status  leituras"
+    "seguranca mira    leituras"
+    "seguranca fala    mapa"
+    "seguranca rota    mapa";
+}
+
+/* A área livre do centro: a vista da rota à frente, com a mira no meio. `unificado-area` ocupa
+   a célula só para o HUD medir; em tela larga `unificado-livre` não tem caixa e a mira, as
+   leituras e o minimapa entram direto na grade. */
+.unificado-area { grid-area: mira; min-width: 0; min-height: 0; }
+.unificado-livre { display: contents; }
+
+/* ---------- Coluna de segurança: alertas, protocolo e abrigos ---------- */
+.unificado-seguranca { grid-area: seguranca; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; overflow: hidden; }
+/* Faltando altura, quem cede é a pilha de alertas (os de menor prioridade); protocolo e abrigos não são cortados. */
+.unificado-seguranca .guardiao-alertas { flex: 0 1 auto; align-self: stretch; max-height: none; }
+.unificado-seguranca .guardiao-protocolo, .unificado-seguranca .guardiao-abrigos { flex: none; }
+.unificado-seguranca .guardiao-protocolo { border-left-color: var(--guardiao-atencao); gap: 6px; background: rgba(6, 12, 16, 0.9); }
+.unificado-seguranca .guardiao-abrigos { border-left-color: var(--guardiao-ok); }
+/* Com protocolo em condução o espaço é dele: da lista de abrigos fica só o indicado. */
+.unificado[data-protocol="true"] .guardiao-abrigo:not([data-pick="true"]) { display: none; }
+
+/* ---------- Leituras: traje e ambiente em um bloco só ---------- */
+.unificado-leituras {
+  grid-area: leituras; align-self: start;
+  background: linear-gradient(270deg, var(--guardiao-placa), rgba(4, 10, 14, 0.3));
+  border-left: 0; border-right: 2px solid var(--route);
+}
+.unificado .guardiao-medidor { grid-template-columns: 84px minmax(0, 1fr) 62px; }
+.unificado-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1px 14px; margin-top: 2px; }
+.unificado-grade .guardiao-so-largo { display: none; }
+.unificado-grade .guardiao-so-estreito { display: inline; }
+.unificado-grade .guardiao-linha { gap: 4px; }
+.unificado-grade .guardiao-tendencia { width: 10px; }
+.unificado-radio-adiante { text-align: right; }
+.unificado-radio-adiante:empty { display: none; }
+.unificado-radio-adiante[data-soon="true"] { color: var(--guardiao-atencao); }
+
+/* ---------- Minimapa, no canto ---------- */
+.unificado-mapa { grid-area: mapa; align-self: end; justify-self: end; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.unificado-zoom { display: flex; align-items: center; gap: 8px; }
+.unificado-zoom button {
+  width: 24px; height: 24px; padding: 0; border: 1px solid var(--hud-dim); border-radius: 50%; cursor: pointer;
+  background: rgba(4, 10, 14, 0.72); color: var(--guardiao-claro); font: 600 14px/1 var(--display);
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+.unificado-zoom button:hover:not(:disabled) { border-color: var(--guardiao-claro); background: rgba(22, 194, 213, 0.22); }
+.unificado-zoom button:disabled { opacity: 0.35; cursor: not-allowed; }
+.unificado[data-mapa="off"] :is(.unificado-mapa, .unificado-perfil) { display: none; }
+.unificado[data-leituras="off"] .unificado-leituras { display: none; }
+
+/* ---------- Linha do assistente: uma voz só ---------- */
+.unificado-fala {
+  justify-self: stretch; align-self: end; max-width: none; padding: 8px 12px 8px 14px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; text-align: left;
+  border-top: 0; border-left: 2px solid var(--route);
+}
+.unificado-fala[data-kind="aviso"] { border-left-color: var(--nivel); }
+.unificado-fala[data-kind="resposta"] { border-left-color: var(--unificado-voz); }
+.unificado-fala .guardiao-fala { grid-column: 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.unificado-fala-acoes { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
+.unificado-botao {
+  flex: none; padding: 6px 11px; border: 1px solid var(--unificado-voz-fraca); border-radius: 999px; cursor: pointer;
+  background: rgba(205, 188, 255, 0.08); color: #ece6ff; font: 500 12px var(--display); white-space: nowrap;
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+.unificado-botao:hover { border-color: var(--unificado-voz); background: rgba(205, 188, 255, 0.18); }
+.unificado-botao[aria-pressed="true"] { border-color: var(--hazard); color: #ff8a8d; background: rgba(60, 8, 10, 0.6); }
+
+/* ---------- Rota à frente: retorno a pé e perfil ---------- */
+.unificado-rota { grid-area: rota; justify-self: stretch; width: auto; gap: 3px; padding-bottom: 7px; }
+.unificado-veredito { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 1px 12px; }
+.unificado-rota .guardiao-faixa { margin: 9px 0 1px; }
+.unificado-perfil { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; padding-top: 5px; border-top: 1px solid rgba(191, 243, 250, 0.14); }
+.unificado-perfil-legenda { font-size: 10px; }
+
+/* ---------- Gaveta do assistente (conversa, ciência, diário) ---------- */
+.unificado-gaveta {
+  position: absolute; z-index: 3; top: 22px; right: 22px; bottom: calc(var(--guardiao-doca) + 22px);
+  width: min(var(--unificado-gaveta), calc(100% - 44px));
+  animation: unificado-entra 180ms var(--ease-out);
+}
+@keyframes unificado-entra { from { opacity: 0; transform: translateX(18px); } }
+@keyframes unificado-sobe { from { opacity: 0; transform: translateY(18px); } }
+/* A regra `.guardiao small` (ressalvas do HUD) não vale dentro do painel do Cientista. */
+.unificado-gaveta .cientista-sim { font: 400 10px var(--mono); letter-spacing: 0.04em; color: var(--vehicle); }
+
+/* O histórico de alertas abre sobre a coluna de segurança, sem invadir a rota à frente. */
+.unificado .guardiao-historico { left: 46px; width: min(336px, calc(100% - 92px)); }
+
+/* ---------- Menu de relatar perigo ---------- */
+.unificado-pop {
+  position: absolute; z-index: 4; left: 50%; bottom: calc(var(--guardiao-doca) + 10px); translate: -50% 0;
+  display: grid; gap: 6px; width: min(290px, calc(100% - 24px)); padding: 12px; pointer-events: auto;
+  border: 1px solid var(--line); border-radius: var(--radius); background: rgba(9, 14, 18, 0.97);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55); font: 500 13px var(--display); color: var(--fg);
+}
+.unificado-pop b { color: var(--heading); }
+.unificado-pop button {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; text-align: left;
+  background: var(--surface); transition: border-color var(--duration-fast) var(--ease-out);
+}
+.unificado-pop button:hover { border-color: var(--vehicle); }
+.unificado-nota { font-size: 11px; line-height: 1.35; color: var(--muted); }
+
+/* ---------- Doca ---------- */
+/* A altura é a do conteúdo; hud.js mede e publica em --guardiao-doca. */
+.unificado .guardiao-doca { height: auto; grid-template-rows: auto; }
+@media (min-width: 1181px) {
+  .unificado .unificado-so-estreito { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unificado-gaveta { animation: none; }
+}
+
+/* ---------- Telas médias: colunas mais estreitas e os cenários viram menu ---------- */
+@media (max-width: 1180px) {
+  .unificado { --unificado-gaveta: 306px; --navegador-minimapa-lado: 140px; }
+  .unificado .guardiao-vista { padding: 20px 26px 32px; gap: 8px 12px; grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) minmax(230px, 280px); }
+  .unificado-grade { grid-template-columns: minmax(0, 1fr); }
+  .unificado .guardiao-controles { flex-wrap: wrap; }
+  .unificado .guardiao-controles input[type="range"] { order: -1; flex-basis: 100%; }
+  .unificado .guardiao-cenarios {
+    position: absolute; left: 10px; right: 10px; bottom: calc(100% + 8px); flex-wrap: wrap; overflow: visible;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: rgba(9, 14, 18, 0.97); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  }
+  .unificado[data-cenarios="fechado"] .guardiao-cenarios { display: none; }
+}
+/* Tela média e baixa: a coluna da direita não comporta leituras e minimapa juntos. */
+@media (min-width: 821px) and (max-width: 1180px) and (max-height: 860px) {
+  .unificado[data-leituras="on"] .unificado-mapa { display: none; }
+}
+
+/* ---------- Telefone: o que é secundário fica recolhido atrás dos botões da doca ---------- */
+@media (max-width: 820px) {
+  .unificado { --navegador-minimapa-lado: 112px; --navegador-perfil-altura: 36px; }
+  .unificado .guardiao-moldura, .unificado .guardiao-vista { inset: 6px 6px calc(var(--guardiao-doca) + 2px); }
+  .unificado .guardiao-vista {
+    padding: 8px 10px 12px; gap: 5px 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "bussola   bussola"
+      "relogio   destino"
+      "status    status"
+      "seguranca seguranca"
+      "mira      mira"
+      "fala      fala"
+      "rota      rota";
+  }
+  /* O protocolo nunca é cortado: os botões precisam ficar ao alcance do dedo. */
+  .unificado-seguranca { overflow: visible; gap: 5px; }
+  /* Minimapa e leituras, quando ligados, abrem por cima da área livre (um de cada vez, ver visor.js).
+     Ficam fora do fluxo da grade: nunca empurram nem cortam os outros blocos, e somem sozinhos
+     quando a área livre não tem altura para eles (alertas e protocolo têm a preferência). */
+  .unificado-livre { display: block; grid-area: mira; position: relative; min-width: 0; min-height: 0; container-type: size; }
+  .unificado-livre .guardiao-mira { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
+  .unificado-mapa { position: absolute; left: 0; bottom: 0; }
+  .unificado-leituras { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(6, 12, 16, 0.9); border-right: 0; border-left: 2px solid var(--route); }
+  @container (max-height: 146px) { .unificado-mapa { display: none; } }
+  @container (max-height: 204px) { .unificado-leituras { display: none; } }
+  .unificado-zoom .guardiao-sub { display: none; }
+  .unificado .guardiao-destino .guardiao-grande { white-space: normal; font-size: 13px; line-height: 1.15; }
+  /* O estado de segurança é o que não pode ser cortado: até quatro linhas em vez de duas. */
+  .unificado .guardiao-status span { -webkit-line-clamp: 4; }
+  .unificado-grade { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 10px; }
+  .unificado .guardiao-medidor { grid-template-columns: 62px minmax(0, 1fr) 50px; }
+  .unificado-fala { padding: 5px 8px 5px 10px; gap: 1px 8px; }
+  .unificado-fala .guardiao-rotulo small { display: inline; }
+  .unificado-botao { padding: 5px 9px; }
+  .unificado-rota { padding-bottom: 5px; gap: 1px; }
+  .unificado-rota .guardiao-faixa { margin: 7px 0 1px; }
+  /* Em emergência, o telefone mostra só a segurança. */
+  .unificado[data-protocol="true"] :is(.unificado-mapa, .unificado-leituras, .unificado-perfil) { display: none; }
+
+  /* A gaveta vira uma folha embaixo; o visor encolhe para caber acima dela. */
+  .unificado-gaveta {
+    z-index: 4; top: auto; left: 6px; right: 6px; bottom: 6px; width: auto; height: 48%;
+    border-radius: 18px; animation-name: unificado-sobe; background: #0c0e17;
+  }
+  .unificado[data-gaveta="aberta"] .guardiao-moldura, .unificado[data-gaveta="aberta"] .guardiao-vista { bottom: calc(48% + 10px); }
+  .unificado[data-gaveta="aberta"] :is(.unificado-rota, .unificado-fala, .unificado-leituras, .unificado-mapa, .guardiao-relogio, .guardiao-destino) { display: none; }
+  /* A doca fica sob a folha: some da vista, mas guarda o lugar (a altura dela define o visor). */
+  .unificado[data-gaveta="aberta"] .guardiao-doca { visibility: hidden; }
+  /* As perguntas rápidas quebram em linhas em vez de rolar para o lado. */
+  .unificado-gaveta .cientista-quick { flex-wrap: wrap; overflow-x: visible; overflow-y: auto; max-height: 62px; }
+  .unificado-pop { z-index: 5; }
+  .unificado .guardiao-historico { left: 8px; width: calc(100% - 16px); }
+}

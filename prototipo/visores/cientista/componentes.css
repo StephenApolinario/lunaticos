@@ -1,0 +1,148 @@
+/* Componentes do visor cientista que funcionam fora do HUD dele: conversa, ciência da
+   parada, diário, painel com abas e marcadores na cena. Quem hospeda só precisa deste
+   arquivo e de ../../styles.css (variáveis de cor, espaço e fonte).
+   Toda tela tem a classe cientista-ui na raiz; o lilás é a cor da fala do assistente. */
+
+.cientista-hud, .cientista-ui {
+  --cientista-voice: #cdbcff;
+  --cientista-voice-dim: rgba(205, 188, 255, 0.34);
+  --cientista-voice-wash: rgba(205, 188, 255, 0.08);
+  --cientista-danger: #ff8a8d;
+}
+.cientista-ui { pointer-events: auto; user-select: text; color: var(--fg); font: 400 13px/1.45 var(--display); }
+
+/* ---------- Botões e campos ---------- */
+.cientista-ui :where(button, select),
+.cientista-hud :where([data-ui]) :where(button, select) {
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer;
+  background: var(--surface); color: var(--fg); font: 500 13px var(--display); white-space: nowrap;
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+.cientista-ui :where(button, select):hover,
+.cientista-hud :where([data-ui]) :where(button, select):hover { border-color: var(--muted); }
+.cientista-ui :where(button):active,
+.cientista-hud :where([data-ui]) :where(button):active { transform: translateY(1px); }
+.cientista-ui :where(button):disabled,
+.cientista-hud :where([data-ui]) :where(button):disabled { opacity: 0.5; cursor: not-allowed; }
+.cientista-ui :where(button)[data-active="true"],
+.cientista-hud :where([data-ui]) :where(button)[data-active="true"] { border-color: var(--vehicle); color: var(--vehicle); }
+
+.cientista-chip {
+  border-radius: 999px; padding: 5px 12px; font-size: 12px;
+  border-color: var(--cientista-voice-dim); background: var(--cientista-voice-wash); color: #ece6ff;
+}
+.cientista-chip:hover { border-color: var(--cientista-voice); background: rgba(205, 188, 255, 0.16); }
+.cientista-chip[aria-pressed="true"] { background: var(--cientista-voice); border-color: var(--cientista-voice); color: #17112b; font-weight: 600; }
+.cientista-send { background: var(--cientista-voice); border-color: var(--cientista-voice); color: #17112b; font-weight: 800; }
+.cientista-send:hover { border-color: #fff; background: #ddd1ff; }
+.cientista-mic[aria-pressed="true"] { border-color: var(--hazard); color: var(--cientista-danger); background: rgba(60, 8, 10, 0.6); }
+.cientista-fine { margin: 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
+
+/* ---------- Painel com abas ---------- */
+.cientista-panel {
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden;
+  background: linear-gradient(180deg, rgba(16, 17, 30, 0.95), rgba(8, 12, 18, 0.92));
+  border: 1px solid var(--cientista-voice-dim); border-radius: 22px 22px 44px 22px;
+  box-shadow: 0 30px 70px -30px #000, inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.cientista-panel-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2);
+  padding: 14px 14px 10px 18px;
+}
+.cientista-panel-head strong { display: block; font: 800 17px/1.1 var(--display); letter-spacing: -0.01em; color: var(--heading); }
+.cientista-sim { display: block; margin-top: 3px; font: 400 10px var(--mono); letter-spacing: 0.04em; color: var(--vehicle); }
+.cientista-close { width: 32px; height: 32px; padding: 0; border-radius: 50%; font-size: 18px; line-height: 1; }
+
+.cientista-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin: 0 14px; padding: 3px; border-radius: var(--radius); background: rgba(0, 0, 0, 0.35); }
+.cientista-tabs button { border-color: transparent; background: transparent; color: var(--muted); padding: 7px 8px; }
+.cientista-tabs button:hover { color: var(--fg); border-color: transparent; }
+.cientista-tabs button[aria-pressed="true"] { background: var(--surface-raised); color: var(--heading); box-shadow: inset 0 -2px 0 var(--cientista-voice); }
+
+.cientista-pane { min-height: 0; padding: 12px 14px 16px 18px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.cientista-pane h3 { margin: 0; font: 800 19px/1.15 var(--display); letter-spacing: -0.01em; color: var(--heading); text-wrap: balance; }
+.cientista-pane h4 { margin: 6px 0 0; font: 500 10px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cientista-pane h4 small { letter-spacing: 0.04em; text-transform: none; color: var(--vehicle); }
+.cientista-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.cientista-actions h4 { margin: 0; }
+
+/* Conversa */
+.cientista-pane-chat { overflow: hidden; }
+.cientista-log {
+  flex: 1; min-height: 0; margin: 0; padding: 2px 6px 2px 0; list-style: none; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin;
+}
+.cientista-msg { max-width: 94%; padding: 7px 11px 8px; border-left: 2px solid var(--cientista-voice); border-radius: 0 10px 10px 0; background: var(--cientista-voice-wash); }
+.cientista-msg p, .cientista-entries p, .cientista-hazards p { margin: 0; overflow-wrap: anywhere; }
+.cientista-msg[data-from="user"] { align-self: flex-end; border-left: 0; border-right: 2px solid var(--route); border-radius: 10px 0 0 10px; background: rgba(22, 194, 213, 0.12); }
+.cientista-msg[data-from="alert"] { border-left-color: var(--hazard); background: rgba(239, 74, 79, 0.12); }
+.cientista-msg-meta { display: block; margin-bottom: 2px; font: 400 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cientista-quick { flex: none; display: flex; flex-wrap: wrap; gap: 6px; max-height: 100px; overflow-y: auto; scrollbar-width: thin; }
+.cientista-ask { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
+.cientista-ask:has(.cientista-mic[hidden]) { grid-template-columns: minmax(0, 1fr) auto; }
+.cientista-input, .cientista-note {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px;
+  background: var(--bg); color: var(--fg); font: 400 14px/1.4 var(--display); user-select: text;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.cientista-input:hover, .cientista-note:hover { border-color: var(--muted); }
+.cientista-input:focus-visible, .cientista-note:focus-visible { outline: 2px solid var(--cientista-voice); outline-offset: 1px; }
+.cientista-note { resize: vertical; min-height: 64px; }
+
+/* Ciência */
+.cientista-eyebrow { margin: 0; font: 600 11px var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.cientista-status { margin: 0; font: 400 11px var(--mono); color: var(--route); }
+.cientista-facts { margin: 0; display: grid; gap: 2px; }
+.cientista-facts dt { margin-top: 6px; font: 500 10px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cientista-facts dd { margin: 0; }
+.cientista-checklist { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.cientista-check { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; cursor: pointer; }
+.cientista-check input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--cientista-voice); cursor: pointer; }
+.cientista-check input:disabled { cursor: default; }
+.cientista-check input:checked + span { color: var(--ok); }
+.cientista-pane-science > .cientista-chip { align-self: flex-start; }
+.cientista-sample { display: grid; gap: 6px; }
+.cientista-sample .cientista-actions { justify-content: flex-end; }
+.cientista-resume { align-self: stretch; background: var(--accent); border-color: var(--accent); color: #1a0d06; }
+.cientista-resume:hover { background: #f58d5c; }
+
+/* Diário */
+.cientista-entries, .cientista-hazards { margin: 0; padding: 0 6px 0 0; list-style: none; display: grid; gap: 6px; align-content: start; scrollbar-width: thin; }
+.cientista-entries { flex: 1 1 auto; min-height: 90px; overflow-y: auto; }
+.cientista-entries li, .cientista-hazards li { padding: 6px 10px; border-left: 2px solid var(--line); background: rgba(255, 255, 255, 0.03); }
+.cientista-entries li[data-kind="amostra"] { border-left-color: var(--ok); }
+.cientista-entries li[data-kind="perigo"] { border-left-color: var(--vehicle); }
+.cientista-entries li[data-kind="emergencia"] { border-left-color: var(--hazard); }
+.cientista-entries li[data-kind="chegada"] { border-left-color: var(--route); }
+.cientista-hazards li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; border-left-color: var(--vehicle); }
+.cientista-hazards strong { color: var(--heading); }
+li.cientista-empty { display: block; border-left-color: var(--line); color: var(--muted); }
+
+/* ---------- Marcadores na cena (marcadores.js) ---------- */
+.cientista-markers { position: absolute; inset: 0; overflow: hidden; }
+.cientista-marker { position: absolute; left: 0; top: 0; will-change: transform; }
+.cientista-marker p {
+  position: relative; margin: 0; transform: translate(-50%, calc(-100% - 16px));
+  display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px;
+  font: 500 11px var(--mono); white-space: nowrap; color: #fff3d6;
+  background: rgba(40, 22, 4, 0.88); border: 1px solid var(--vehicle);
+  box-shadow: 0 0 14px -2px rgba(245, 192, 74, 0.6);
+}
+.cientista-marker p::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 16px; background: var(--vehicle); }
+.cientista-marker p[data-type="abrigo"] { color: #dcffee; background: rgba(4, 30, 18, 0.88); border-color: var(--ok); box-shadow: 0 0 14px -2px rgba(95, 211, 154, 0.6); }
+.cientista-marker p[data-type="abrigo"]::after, .cientista-marker p[data-type="abrigo"] i { background: var(--ok); }
+.cientista-marker i {
+  width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--vehicle); color: #1a1205; font: 800 11px var(--display);
+}
+
+/* ---------- Telas menores ---------- */
+@media (max-width: 900px) {
+  .cientista-wide { display: none; }
+  .cientista-panel-head { padding: 8px 10px 6px 14px; }
+  .cientista-panel-head strong { font-size: 15px; }
+  .cientista-tabs { margin: 0 10px; }
+  .cientista-tabs button { padding: 5px 8px; }
+  .cientista-pane { padding: 10px 10px 12px 14px; }
+  .cientista-input, .cientista-note { font-size: 16px; }
+  .cientista-quick { flex-wrap: nowrap; overflow-x: auto; max-height: none; scrollbar-width: none; }
+}
