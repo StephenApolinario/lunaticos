@@ -92,7 +92,8 @@ body:has(.app[data-view="tablet"]) {
 }
 .device-bar p { margin: 0; display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .device-brand { color: var(--fg); white-space: nowrap; }
-.device-team { color: var(--accent); }
+.device-team { color: var(--accent); text-decoration: none; }
+a.device-team:hover, a.device-team:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .device-led { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px rgba(95, 211, 154, 0.7); }
 .device-status span { white-space: nowrap; }
 .device-status span + span { padding-left: var(--space-3); border-left: 1px solid var(--line); }

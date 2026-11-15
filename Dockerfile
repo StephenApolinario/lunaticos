@@ -9,7 +9,8 @@
 FROM python:3.13-alpine
 
 WORKDIR /app
-COPY prototipo/index.html prototipo/styles.css ./prototipo/
+COPY prototipo/index.html prototipo/demo.html prototipo/styles.css ./prototipo/
+COPY prototipo/apresentacao ./prototipo/apresentacao
 COPY prototipo/src ./prototipo/src
 COPY prototipo/data ./prototipo/data
 COPY prototipo/visores ./prototipo/visores

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travessia Monte Sharp · protótipo 3D</title>
+  <link rel="icon" href="data:,">
+  <meta name="description" content="Protótipo em Three.js: mapa de planejamento em tablet e visor de capacete para uma travessia humana no Monte Sharp, em Marte.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="app" id="app" data-view="tablet">
+    <header class="device-bar" id="device-bar">
+      <p class="device-brand"><span class="device-led" aria-hidden="true"></span>Tablet de missão <a class="device-team" href="./" title="Voltar à apresentação do projeto">Lunáticos</a></p>
+      <p class="device-status">
+        <span>Cratera Gale · Monte Sharp</span>
+        <span id="device-season"></span>
+        <span id="device-clock"></span>
+      </p>
+    </header>
+    <main class="stage" id="stage" aria-label="Mapa 3D da travessia no Monte Sharp">
+      <p class="loading" id="loading" role="status">Gerando relevo…</p>
+
+      <div class="map-chrome">
+        <div class="north" id="north" aria-hidden="true"><span>N</span></div>
+        <p class="badge" id="map-badge">Carregando imagem HiRISE…</p>
+        <p class="hint">Arrastar gira · botão direito ou Shift + arrastar move · rolagem aproxima</p>
+      </div>
+
+      <!-- Tela de abertura: Marte inteiro. Só a área mapeada fica iluminada e dá para entrar nela. -->
+      <div class="planet-chrome" id="planet-chrome" hidden>
+        <p class="planet-title">Marte</p>
+        <p class="planet-text">Só a área mapeada está iluminada. Arraste para girar, role para aproximar e entre nela para planejar a saída.</p>
+        <button class="cta planet-enter" id="planet-enter" type="button"><span>Entrar na área mapeada</span><span class="cta-arrow" aria-hidden="true">→</span></button>
+        <p class="planet-source" id="planet-source"></p>
+      </div>
+
+      <div class="visor-mount" id="visor-mount" hidden></div>
+    </main>
+
+    <aside class="panel" id="panel" aria-label="Planejamento da travessia"></aside>
+  </div>
+  <!-- Detalhes de aparelho na moldura do tablet (câmera e botões): só aparência. -->
+  <div class="device-hardware" aria-hidden="true"><span class="device-camera"></span><span class="device-buttons"></span></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
