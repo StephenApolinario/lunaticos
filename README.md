@@ -86,7 +86,21 @@ node prototipo/tools/testar-ia.mjs --nuvem
 
 Com `--nuvem` o teste usa o modelo da nuvem pelo servidor do protótipo, que precisa estar no ar; sem a opção, usa o modelo local.
 
-### Publicar num servidor
+### Publicar na Vercel
+
+O site publicado é a pasta `prototipo/` (arquivos estáticos, sem etapa de build) mais duas funções em `prototipo/api/`, que fazem na Vercel o papel do `servir.py`: `/ia/saude` e `/ia/chat`. No projeto da Vercel, a pasta raiz (Root Directory) é `prototipo`; o `vercel.json` de lá liga os endereços `/ia/...` às funções.
+
+- A chave da IA fica em Settings → Environment Variables do projeto, como `OPENROUTER_API_KEY`. Depois de criar ou trocar a variável é preciso publicar de novo. Sem ela o mapa e o visor funcionam e a IA aparece fora do ar.
+- A IA só aceita pedidos vindos da própria página. O limite de chamadas por visitante não está no código: na Vercel ele é uma regra do firewall do projeto. O teto em dinheiro fica na própria chave, no OpenRouter.
+- A voz neural e a escuta locais não existem no site publicado: a página usa a voz e a escuta do navegador e não procura nada no computador de quem visita.
+
+Para conferir a ponte da IA sem rede:
+
+```bash
+node prototipo/api/_check.mjs
+```
+
+### Publicar num servidor próprio
 
 O `Dockerfile` da raiz monta o protótipo para rodar fora deste computador: a página e a ponte da IA de bordo, só com a biblioteca padrão do Python. A voz neural e a escuta locais não vão junto; publicada, a página usa a voz e a escuta do navegador e não procura nada no computador de quem visita.
 
