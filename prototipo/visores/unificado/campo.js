@@ -6,6 +6,7 @@
 import { fmtDistance, fmtDuration, fmtKm } from '../../src/format.js';
 import { clamp } from '../../src/geo.js';
 import { plainText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { PROTOCOLS } from '../guardiao/catalog.js';
 import { protocolView } from '../guardiao/protocols.js';
 import { goStepText } from '../guardiao/rules.js';
@@ -21,7 +22,19 @@ import { assistantContext, unifiedQuickQuestions } from './contexto.js';
 import { createAssistantEngine } from './ia.js';
 import { voiceLine } from './guia.js';
 
-const MODE_TEXT = Object.freeze({ walk: 'a pé', car: 'de veículo' });
+// As frases que dizem o modo do plano, inteiras por modo. `size` vem de `planSize`.
+const PLAN_TEXT = Object.freeze({
+  walk: Object.freeze({
+    summary: (size) => t`a pé, ${size}`,
+    started: (size) => t`Início da saída: plano a pé, ${size}.`,
+    briefing: (size, distance, duration) => t`Plano a pé: ${size}, ${distance}, cerca de ${duration}.`,
+  }),
+  car: Object.freeze({
+    summary: (size) => t`de veículo, ${size}`,
+    started: (size) => t`Início da saída: plano de veículo, ${size}.`,
+    briefing: (size, distance, duration) => t`Plano de veículo: ${size}, ${distance}, cerca de ${duration}.`,
+  }),
+});
 // Prioridade de fala (a mesma escala do Guardião, 0 a 3): resposta a uma pergunta fica acima do
 // aviso de rotina e abaixo de perigo e emergência.
 const ANSWER_PRIORITY = 2;
@@ -35,8 +48,8 @@ const REPEAT_COOLDOWN_S = 45;
 const HOLD = Object.freeze({ perCharS: 0.07, minS: 6, maxS: 16 });
 
 const planSize = (plan) => {
-  if (plan.isCustom) return 'rota livre com pontos escolhidos no mapa';
-  return plan.stopCount === 1 ? '1 parada' : `${plan.stopCount} paradas`;
+  if (plan.isCustom) return t`rota livre com pontos escolhidos no mapa`;
+  return plan.stopCount === 1 ? t`1 parada` : t`${plan.stopCount} paradas`;
 };
 
 // Resumo de segurança do plano, calculado sobre o relevo real (plan.safety).
@@ -44,19 +57,20 @@ function safetyBriefing(plan) {
   const assessed = plan.safety;
   if (!assessed) return '';
   const gaps = assessed.commsGaps.length;
-  const comms = gaps
-    ? `${fmtDistance(assessed.commsLostM)} da rota ficam sem visada de rádio com o habitat, em ${gaps === 1 ? '1 trecho' : `${gaps} trechos`}`
-    : 'há visada de rádio com o habitat em toda a rota';
-  const noReturn = assessed.noReturn ? `o ponto de não retorno a pé fica a ${fmtDistance(assessed.noReturn.distM)} do início` : 'não há ponto de não retorno a pé';
-  return ` Pelo relevo real (antenas e reserva de O₂ são hipóteses da equipe): ${comms}; ${noReturn}.`;
+  const lost = fmtDistance(assessed.commsLostM);
+  let comms = t`há visada de rádio com o habitat em toda a rota`;
+  if (gaps === 1) comms = t`${lost} da rota ficam sem visada de rádio com o habitat, em 1 trecho`;
+  if (gaps > 1) comms = t`${lost} da rota ficam sem visada de rádio com o habitat, em ${gaps} trechos`;
+  const noReturn = assessed.noReturn ? t`o ponto de não retorno a pé fica a ${fmtDistance(assessed.noReturn.distM)} do início` : t`não há ponto de não retorno a pé`;
+  return t`Pelo relevo real (antenas e reserva de O₂ são hipóteses da equipe): ${comms}; ${noReturn}.`;
 }
 
 function scienceStatus(context) {
   const { target } = context;
-  if (context.finished) return 'Saída concluída · de volta ao habitat';
-  if (context.atStop) return context.paused ? 'Em coleta · simulação pausada para o registro' : `Em coleta · faltam ${fmtDuration(target.etaH)}`;
-  if (target.kind === 'return') return `${target.name} a ${fmtDistance(target.distM)}`;
-  return `Próxima parada · ${fmtDistance(target.distM)} · chegada em ${fmtDuration(target.etaH)}`;
+  if (context.finished) return t`Saída concluída · de volta ao habitat`;
+  if (context.atStop) return context.paused ? t`Em coleta · simulação pausada para o registro` : t`Em coleta · faltam ${fmtDuration(target.etaH)}`;
+  if (target.kind === 'return') return t`${target.name} a ${fmtDistance(target.distM)}`;
+  return t`Próxima parada · ${fmtDistance(target.distM)} · chegada em ${fmtDuration(target.etaH)}`;
 }
 
 /**
@@ -147,7 +161,7 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     onVoiceToggle: () => conversation.toggleSpeaking(),
     onRecordSample: recordSample,
     onContinue: () => { host.pause(false); closeDrawer(true); },
-    onSuggest: () => { openDrawer('chat'); conversation.ask('O que observar aqui?'); },
+    onSuggest: () => { openDrawer('chat'); conversation.ask(t`O que observar aqui?`); },
     onExport: exportJournal,
     onDeleteHazard: deleteHazard,
     onClose: () => closeDrawer(true),
@@ -227,12 +241,12 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
   function endProtocol() {
     const protocol = getContext()?.guardiao.protocol;
     if (!protocol) {
-      say('Não há protocolo de emergência em andamento.');
+      say(t`Não há protocolo de emergência em andamento.`);
     } else if (protocol.simulated) {
       host.endScenario(protocol.id);
-      say(`Fim da simulação: “${protocol.name}”. O protocolo fecha e o plano é retomado.`);
+      say(t`Fim da simulação: “${protocol.name}”. O protocolo fecha e o plano é retomado.`);
     } else {
-      say(`Não dá para encerrar: a condição que abriu o protocolo “${protocol.name}” continua ativa. Passo ${protocol.stepNumber} de ${protocol.stepCount}: ${protocol.stepText}`);
+      say(t`Não dá para encerrar: a condição que abriu o protocolo “${protocol.name}” continua ativa. Passo ${protocol.stepNumber} de ${protocol.stepCount}: ${protocol.stepText}`);
     }
   }
 
@@ -242,8 +256,8 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     'protocol-advance': () => host.confirm(),
     'protocol-decide': (action) => { if (action.choice === 'abortar' || action.choice === 'seguir') host.decide(action.choice); },
     'protocol-end': endProtocol,
-    pause: () => { host.pause(true); say('Simulação pausada.'); },
-    resume: () => { host.pause(false); say('Simulação retomada.'); },
+    pause: () => { host.pause(true); say(t`Simulação pausada.`); },
+    resume: () => { host.pause(false); say(t`Simulação retomada.`); },
     'hud-panel': (action) => host.setPanel(action.panel, action.on),
     'hud-layer': (action) => host.setLayer(action.layer),
     'hud-block': (action) => host.setBlock(action.block, action.on),
@@ -275,8 +289,9 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     const stopId = moment.atStop ? moment.focusStop.id : null;
     const note = journal.recordSample(rawNote, moment, stopId);
     refreshJournal();
-    const where = stopId ? `na parada ${stopId}` : 'fora de parada';
-    say(`Amostra registrada no diário ${where}, com ${fmtDuration(moment.elapsedH)} de saída.${note ? '' : ' Ficou sem observação: vale ditar uma antes de sair daqui.'}`);
+    const elapsed = fmtDuration(moment.elapsedH);
+    const logged = stopId ? t`Amostra registrada no diário na parada ${stopId}, com ${elapsed} de saída.` : t`Amostra registrada no diário fora de parada, com ${elapsed} de saída.`;
+    say(note ? logged : `${logged} ${t`Ficou sem observação: vale ditar uma antes de sair daqui.`}`);
   }
 
   function report(type, rawNote = '') {
@@ -287,9 +302,12 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     journal.record('perigo', `${HAZARD_TYPES[hazard.type]}${hazard.note ? `: ${hazard.note}` : ''}`, moment);
     refreshJournal();
     const kept = saved
-      ? 'Fica guardado neste navegador e gera aviso nas próximas saídas.'
-      : 'Não consegui gravar no armazenamento local: o relato vale só para esta saída.';
-    say(`Relato registrado: ${HAZARD_TYPES[hazard.type].toLowerCase()}${hazard.note ? ` (“${hazard.note}”)` : ''} em ${fmtPosition(moment.position)}. ${kept}`);
+      ? t`Fica guardado neste navegador e gera aviso nas próximas saídas.`
+      : t`Não consegui gravar no armazenamento local: o relato vale só para esta saída.`;
+    const what = HAZARD_TYPES[hazard.type].toLowerCase();
+    const where = fmtPosition(moment.position);
+    const logged = hazard.note ? t`Relato registrado: ${what} (“${hazard.note}”) em ${where}.` : t`Relato registrado: ${what} em ${where}.`;
+    say(`${logged} ${kept}`);
   }
 
   function deleteHazard(id) {
@@ -301,7 +319,7 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
   function exportJournal() {
     if (!snapshot) return;
     const { plan } = host.session();
-    downloadText(EXPORT_FILE, journalToText(`${MODE_TEXT[plan.mode]}, ${planSize(plan)}`, journal.entries(), store.list().map(describeHazard)));
+    downloadText(EXPORT_FILE, journalToText(PLAN_TEXT[plan.mode].summary(planSize(plan)), journal.entries(), store.list().map(describeHazard)));
   }
 
   // ---------- Gaveta ----------
@@ -378,9 +396,19 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     const { plan } = host.session();
     const first = plan.stops[0];
     const known = store.list().length;
-    const reports = known ? ` Há ${known === 1 ? '1 perigo relatado' : `${known} perigos relatados`} guardados neste navegador: aviso quando você chegar perto.` : '';
-    log('saida', `Início da saída: plano ${MODE_TEXT[plan.mode]}, ${planSize(plan)}.`);
-    announce(`${assistant.intro()} Plano ${MODE_TEXT[plan.mode]}: ${planSize(plan)}, ${fmtKm(plan.stats.totalKm)}, cerca de ${fmtDuration(plan.stats.hours)}. Primeira parada: ${stopShortName(first.stop)}, a ${fmtDistance(first.distM)}.${safetyBriefing(plan)}${reports}`, 0);
+    let reports = '';
+    if (known === 1) reports = t`Há 1 perigo relatado guardado neste navegador: aviso quando você chegar perto.`;
+    if (known > 1) reports = t`Há ${known} perigos relatados guardados neste navegador: aviso quando você chegar perto.`;
+    const text = PLAN_TEXT[plan.mode];
+    const size = planSize(plan);
+    log('saida', text.started(size));
+    announce([
+      assistant.intro(),
+      text.briefing(size, fmtKm(plan.stats.totalKm), fmtDuration(plan.stats.hours)),
+      t`Primeira parada: ${stopShortName(first.stop)}, a ${fmtDistance(first.distM)}.`,
+      safetyBriefing(plan),
+      reports,
+    ].filter(Boolean).join(' '), 0);
   }
 
   /** Perigos relatados em volta da posição do quadro e o aviso de aproximação, se houver. */
@@ -391,8 +419,14 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
   }
 
   function onArrival(stop, conducting) {
-    log('chegada', `Chegada: ${stop.name}.`, stop.id);
-    say(`Chegamos à parada ${stop.id}, ${stopShortName(stop)}. Pergunta científica: ${stop.q} Tarefa: ${stop.task}${stop.risk ? ` Risco do local: ${stop.risk}.` : ''} Pausei a simulação para a coleta: a lista de verificação está na aba Ciência.`);
+    log('chegada', t`Chegada: ${stop.name}.`, stop.id);
+    say([
+      t`Chegamos à parada ${stop.id}, ${stopShortName(stop)}.`,
+      t`Pergunta científica: ${stop.q}`,
+      t`Tarefa: ${stop.task}`,
+      stop.risk ? t`Risco do local: ${stop.risk}.` : '',
+      t`Pausei a simulação para a coleta: a lista de verificação está na aba Ciência.`,
+    ].filter(Boolean).join(' '));
     // Com um protocolo em curso, a conversa fica na frente: os passos não podem sumir da tela.
     openDrawer(conducting ? 'chat' : 'science');
   }
@@ -404,18 +438,18 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     for (const [id, instance] of now) {
       const { name } = PROTOCOLS[id];
       if (!seenProtocols.has(id)) {
-        log('emergencia', `Protocolo aberto: ${name}.`);
+        log('emergencia', t`Protocolo aberto: ${name}.`);
       } else if (instance.done && !seenProtocols.get(id).done) {
         if (instance.decision === 'seguir') {
-          log('emergencia', `Decisão no protocolo “${name}”: seguir a missão.`);
+          log('emergencia', t`Decisão no protocolo “${name}”: seguir a missão.`);
         } else {
-          log('emergencia', `Protocolo cumprido: ${name}.`);
-          say(`Protocolo cumprido: “${name}”. Os passos são proposta do protótipo, não procedimento oficial da NASA. Sigo vigiando os alertas.`);
+          log('emergencia', t`Protocolo cumprido: ${name}.`);
+          say(t`Protocolo cumprido: “${name}”. Os passos são proposta do protótipo, não procedimento oficial da NASA. Sigo vigiando os alertas.`);
         }
       }
     }
     for (const id of seenProtocols.keys()) {
-      if (!now.has(id)) log('emergencia', `Condição encerrada: ${PROTOCOLS[id].name}.`);
+      if (!now.has(id)) log('emergencia', t`Condição encerrada: ${PROTOCOLS[id].name}.`);
     }
     seenProtocols = now;
   }
@@ -462,7 +496,7 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     const ended = before.state.dwellRemainingH > 0 && session.state.dwellRemainingH === 0 && session.state.nav.kind === 'plan';
     const leftStop = ended ? session.plan.stops[session.state.stopsReached - 1]?.stop : null;
     if (leftStop && !journal.stats().samplesByStop[leftStop.id]) {
-      say(`Saímos da parada ${leftStop.id} sem amostra registrada no diário. Se coletou algo, diga “registrar amostra” e a observação.`, 'alert');
+      say(t`Saímos da parada ${leftStop.id} sem amostra registrada no diário. Se coletou algo, diga “registrar amostra” e a observação.`, 'alert');
     }
     const line = currentLine(message, instruction);
 
@@ -494,7 +528,7 @@ export function createField({ drawer, markersLayer, pinsLayer, camera, terrain, 
     toggleVoice: () => conversation.toggleSpeaking(),
     listen: () => listenTo('chat'),
     voiceState: () => conversation.voiceState(),
-    /** Texto do rótulo do assistente: qual IA está respondendo, ou que ela está fora do ar. */
-    assistantNote: () => assistant.note(),
+    /** Nota do assistente na barra do visor: vazia com a IA respondendo; senão, que ela está verificando ou fora do ar. */
+    assistantNote: () => assistant.barNote(),
   });
 }

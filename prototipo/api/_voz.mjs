@@ -1,14 +1,17 @@
 // Voz do site publicado: o mesmo contrato do servidor de voz local (tools/voz/servidor.py), com
 // /saude, /falar e /ouvir, atendido pelo OpenRouter com a chave que a IA de bordo já usa.
-// A fala é do Kokoro-82M com a voz pf_dora (o mesmo modelo e a mesma voz do servidor local) e a
-// escuta é do Whisper large v3. Arquivo com "_" no começo não vira rota.
+// A fala é do Kokoro-82M (o mesmo modelo do servidor local), com uma voz por idioma: pf_dora em
+// português e af_heart em inglês. A escuta é do Whisper large v3, no idioma que a página pede. Arquivo com "_" no começo não vira rota.
 
 import { allowCall, bodyType, clientIp, isFromOwnPage, refuse, reply } from './_ponte.mjs';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1';
 const SPEECH_MODEL = 'hexgrad/kokoro-82m';
 const SPEECH_MODEL_LABEL = 'Kokoro-82M';
-const SPEECH_VOICE = 'pf_dora';
+// A voz de cada idioma. Pedido sem idioma (página antiga, guardada no navegador) vale como português.
+const SPEECH_VOICES = Object.freeze({ pt: 'pf_dora', en: 'af_heart' });
+const FALLBACK_LANG = 'pt';
+const langOf = (value) => (Object.hasOwn(SPEECH_VOICES, String(value)) ? String(value) : FALLBACK_LANG);
 const LISTEN_MODEL = 'openai/whisper-large-v3';
 const MAX_TEXT_CHARS = 1200;
 const MAX_AUDIO_BYTES = 3_000_000;
@@ -49,36 +52,40 @@ async function callUpstream(path, body, env, fetchImpl) {
   }
 }
 
-/** GET /voz/saude: a página pergunta se há fala e escuta neste servidor. */
-export function health(env) {
+/** GET /voz/saude?idioma=en|pt: a página pergunta se há fala e escuta neste servidor, e qual voz fala o idioma dela. */
+export function health(env, request = null) {
   const isOn = Boolean(env.OPENROUTER_API_KEY);
-  return reply(200, { ok: isOn, modelo: SPEECH_MODEL_LABEL, vozes: [SPEECH_VOICE], voz: SPEECH_VOICE, ouvir: isOn });
+  const lang = langOf(request ? new URL(request.url).searchParams.get('idioma') : null);
+  return reply(200, { ok: isOn, modelo: SPEECH_MODEL_LABEL, vozes: Object.values(SPEECH_VOICES), voz: SPEECH_VOICES[lang], ouvir: isOn });
 }
 
-/** POST /voz/falar com { texto }: devolve o áudio (mp3) da frase. */
+/** POST /voz/falar com { texto, idioma? }: devolve o áudio (mp3) da frase, na voz do idioma. */
 export async function speak(request, env, fetchImpl = fetch) {
   const refused = refusal(request, env, { isAllowedType: (type) => type === 'application/json', service: 'fala', limit: MAX_SPEECH_CALLS });
   if (refused) return refused;
   let text = '';
+  let lang = FALLBACK_LANG;
   try {
-    text = String(JSON.parse(await request.text()).texto ?? '').trim();
+    const payload = JSON.parse(await request.text());
+    text = String(payload.texto ?? '').trim();
+    lang = langOf(payload.idioma);
   } catch {
-    return refuse(400, 'JSON esperado: { texto }');
+    return refuse(400, 'JSON esperado: { texto, idioma? }');
   }
   if (!text || text.length > MAX_TEXT_CHARS) return refuse(400, `texto vazio ou acima de ${MAX_TEXT_CHARS} caracteres`);
-  // A voz é decidida aqui, não pela página.
-  const { upstream, failure } = await callUpstream('audio/speech', { model: SPEECH_MODEL, input: text, voice: SPEECH_VOICE, response_format: 'mp3' }, env, fetchImpl);
+  // A voz é decidida aqui, pelo idioma; a página não escolhe a voz.
+  const { upstream, failure } = await callUpstream('audio/speech', { model: SPEECH_MODEL, input: text, voice: SPEECH_VOICES[lang], response_format: 'mp3' }, env, fetchImpl);
   if (failure) return failure;
   return new Response(await upstream.arrayBuffer(), { status: 200, headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
 }
 
-/** POST /voz/ouvir com o áudio gravado no corpo: devolve { texto } com a transcrição. */
+/** POST /voz/ouvir?idioma=en|pt com o áudio gravado no corpo: devolve { texto } com a transcrição. */
 export async function listen(request, env, fetchImpl = fetch) {
   const refused = refusal(request, env, { isAllowedType: (type) => type in AUDIO_FORMATS, service: 'escuta', limit: MAX_LISTEN_CALLS });
   if (refused) return refused;
   const audio = Buffer.from(await request.arrayBuffer());
   if (audio.length === 0 || audio.length > MAX_AUDIO_BYTES) return refuse(413, 'áudio vazio ou grande demais');
-  const body = { model: LISTEN_MODEL, input_audio: { data: audio.toString('base64'), format: AUDIO_FORMATS[bodyType(request)] }, language: 'pt' };
+  const body = { model: LISTEN_MODEL, input_audio: { data: audio.toString('base64'), format: AUDIO_FORMATS[bodyType(request)] }, language: langOf(new URL(request.url).searchParams.get('idioma')) };
   const { upstream, failure } = await callUpstream('audio/transcriptions', body, env, fetchImpl);
   if (failure) return failure;
   const { text = '' } = await upstream.json().catch(() => ({}));

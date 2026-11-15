@@ -13,6 +13,7 @@ import { HAZARD } from '../../data/travessia.js';
 import { O2_PCT_PER_HOUR, SUIT_ORIGIN, SPEED_ORIGIN } from '../../data/traje.js';
 import { createKnowledgeTools, createRetriever, createRoverTrips, describeSite, isOrder, MISSION_BRIEF, NOT_AN_ORDER, roverInfo, tripSummary, VEHICLE_INFO } from './ferramentas-comuns.js';
 import { BASE_RULES } from './agente.js';
+import { t } from '../i18n.js';
 
 export const VISOR_PROMPT = `Você é a IA de bordo do visor do capacete de um astronauta em uma saída na cratera Gale, em Marte, a pé ou de veículo. DADOS DE AGORA traz a situação, o traje, a volta ao habitat e os abrigos, o ambiente e os alertas. DADOS DE AGORA traz também quanto tempo dá para ficar parado, onde é seguro parar e onde está o rover Curiosity. As ferramentas trazem o resto: o plano da saída, a simulação do plano a pé ou de veículo, a ciência de cada parada, os protocolos de emergência, as fontes pesquisadas e a calculadora.
 
@@ -22,13 +23,13 @@ ${BASE_RULES}`;
 
 /** Perguntas de exemplo para os botões da conversa: [rótulo, pergunta]. */
 export const VISOR_EXAMPLES = Object.freeze([
-  ['Dá para voltar a pé?', 'Dá para voltar a pé para o habitat agora?'],
-  ['Quanto falta de luz?', 'Quanto tempo de luz do Sol eu ainda tenho?'],
-  ['Como está o traje?', 'Como estão meu oxigênio e minha bateria?'],
-  ['O que coletar aqui?', 'O que devo coletar nesta parada e por quê?'],
-  ['Radiação está normal?', 'A radiação está normal hoje? De onde vem esse dado?'],
-  ['Onde me abrigo?', 'Onde me abrigo se vier um evento solar?'],
-  ['Resumo', 'Resuma minha situação em duas frases.'],
+  [t('Dá para voltar a pé?'), t('Dá para voltar a pé para o habitat agora?')],
+  [t('Quanto falta de luz?'), t('Quanto tempo de luz do Sol eu ainda tenho?')],
+  [t('Como está o traje?'), t('Como estão meu oxigênio e minha bateria?')],
+  [t('O que coletar aqui?'), t('O que devo coletar nesta parada e por quê?')],
+  [t('Radiação está normal?'), t('A radiação está normal hoje? De onde vem esse dado?')],
+  [t('Onde me abrigo?'), t('Onde me abrigo se vier um evento solar?')],
+  [t('Resumo'), t('Resuma minha situação em duas frases.')],
 ]);
 
 const TARGET_KIND = Object.freeze({ stop: 'parada científica', dwell: 'coleta em andamento nesta parada', return: 'retorno ao habitat', shelter: 'abrigo', done: 'fim da saída' });
@@ -54,13 +55,13 @@ const ALWAYS_ON_SCREEN = Object.freeze({
 const VISOR_LAYOUT = 'tempo de saída, hora local e modo (no alto, à esquerda); rumo e próxima parada com distância e tempo (no alto, ao centro); oxigênio, bateria e volta a pé (blocos embaixo, à esquerda); estado e a frase da IA (embaixo, ao centro); minimapa (embaixo, à direita)';
 // Camadas do mapa do tablet que a IA pode pintar sobre o terreno do visor: [camada, nome curto, o que mostra].
 const VISOR_LAYERS = Object.freeze({
-  nenhuma: ['none', 'Sem camada', 'só a imagem e o relevo'],
-  termico: ['thermal', 'Térmico noturno', 'imagem térmica noturna do THEMIS (sonda Mars Odyssey, 100 m por pixel): azul-escuro é mais frio à noite, amarelo é mais quente. Não é a temperatura de agora'],
-  declive: ['slope', 'Declividade', 'declive calculado sobre o relevo real, em classes de cor'],
-  radio: ['comms', 'Rádio', 'vermelho onde não há linha de visada com o habitat, azul-claro onde há'],
-  radiacao: ['radiation', 'Radiação', 'taxa média do RAD, menor onde o relevo tapa o céu: do roxo (menor) ao amarelo (maior)'],
-  volta_a_pe: ['walkback', 'Volta a pé', 'tempo de volta a pé ao habitat a partir de cada ponto'],
-  areia: ['sand', 'Areia (estimada)', 'areia escura estimada pela cor da imagem, em roxo; não é mapa da NASA'],
+  nenhuma: ['none', t('Sem camada'), 'só a imagem e o relevo'],
+  termico: ['thermal', t('Térmico noturno'), 'imagem térmica noturna do THEMIS (sonda Mars Odyssey, 100 m por pixel): azul-escuro é mais frio à noite, amarelo é mais quente. Não é a temperatura de agora'],
+  declive: ['slope', t('Declividade'), 'declive calculado sobre o relevo real, em classes de cor'],
+  radio: ['comms', t('Rádio'), 'vermelho onde não há linha de visada com o habitat, azul-claro onde há'],
+  radiacao: ['radiation', t('Radiação'), 'taxa média do RAD, menor onde o relevo tapa o céu: do roxo (menor) ao amarelo (maior)'],
+  volta_a_pe: ['walkback', t('Volta a pé'), 'tempo de volta a pé ao habitat a partir de cada ponto'],
+  areia: ['sand', t('Areia (estimada)'), 'areia escura estimada pela cor da imagem, em roxo; não é mapa da NASA'],
 });
 const PROTOCOL_ACTIONS = Object.freeze({
   confirmar_passo: { type: 'protocol-advance' },
@@ -308,24 +309,24 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
 
   // Leituras que a IA pode fixar no visor a pedido do astronauta. Cada uma é lida de novo a cada atualização.
   const METRICS = Object.freeze({
-    oxigenio: ['Oxigênio', () => pct(context().suit.o2Pct)],
-    autonomia: ['Autonomia de O₂', () => duration(getSession().r.o2AutonomyH)],
-    bateria: ['Bateria', () => pct(context().suit.batteryPct)],
-    pressao: ['Pressão do traje', () => `${fmtNumber(getSession().r.pressureKpa, 1)} kPa`],
-    temperatura: ['Temperatura do ar', () => `${fmtNumber(context().env.airTempC)} °C`],
-    radiacao: ['Radiação', () => `${fmtNumber(context().env.radiationUsvH, 1)} µSv/h`],
-    dose: ['Dose da saída', () => `${plain(context().env.doseUsv)} µSv`],
-    velocidade: ['Velocidade', () => { const { r } = getSession(); return r.moving ? `${fmtNumber(r.m.speedKmh, 1)} km/h` : 'parado'; }],
-    velocidade_media: ['Velocidade média', () => { const c = context(); return c.elapsedH > 0 ? `${fmtNumber(c.position.distM / 1000 / c.elapsedH, 1)} km/h` : 'ainda sem deslocamento'; }],
-    distancia: ['Percorrido', () => { const c = context(); return `${fmtDistance(c.position.distM)} de ${fmtDistance(c.position.totalM)}`; }],
-    tempo_de_saida: ['Tempo de saída', () => fmtDuration(context().elapsedH)],
-    hora: ['Hora local', () => fmtClock(context().clockH)],
-    luz: ['Luz que resta', () => ambiente().sol.luz_restante],
-    altitude: ['Altitude', () => `${plain(context().position.elevM)} m`],
-    declive: ['Declive aqui', () => `${fmtNumber(context().env.slopeDeg)}°`],
-    proxima_parada: ['Próximo alvo', () => { const { target } = context(); return `${target.name} · ${fmtDistance(target.distM)}`; }],
-    volta_a_pe: ['Volta a pé', () => { const { habitat } = context(); return habitat.walkH === null ? 'sem caminho conhecido' : duration(habitat.walkH); }],
-    radio: ['Rádio com o habitat', () => (context().comms.lineOfSight === false ? 'sem visada' : 'com visada')],
+    oxigenio: [t('Oxigênio'), () => pct(context().suit.o2Pct)],
+    autonomia: [t('Autonomia de O₂'), () => duration(getSession().r.o2AutonomyH)],
+    bateria: [t('Bateria'), () => pct(context().suit.batteryPct)],
+    pressao: [t('Pressão do traje'), () => `${fmtNumber(getSession().r.pressureKpa, 1)} kPa`],
+    temperatura: [t('Temperatura do ar'), () => `${fmtNumber(context().env.airTempC)} °C`],
+    radiacao: [t('Radiação'), () => `${fmtNumber(context().env.radiationUsvH, 1)} µSv/h`],
+    dose: [t('Dose da saída'), () => `${plain(context().env.doseUsv)} µSv`],
+    velocidade: [t('Velocidade'), () => { const { r } = getSession(); return r.moving ? `${fmtNumber(r.m.speedKmh, 1)} km/h` : t('parado'); }],
+    velocidade_media: [t('Velocidade média'), () => { const c = context(); return c.elapsedH > 0 ? `${fmtNumber(c.position.distM / 1000 / c.elapsedH, 1)} km/h` : t('ainda sem deslocamento'); }],
+    distancia: [t('Percorrido'), () => { const c = context(); return t`${fmtDistance(c.position.distM)} de ${fmtDistance(c.position.totalM)}`; }],
+    tempo_de_saida: [t('Tempo de saída'), () => fmtDuration(context().elapsedH)],
+    hora: [t('Hora local'), () => fmtClock(context().clockH)],
+    luz: [t('Luz que resta'), () => ambiente().sol.luz_restante],
+    altitude: [t('Altitude'), () => `${plain(context().position.elevM)} m`],
+    declive: [t('Declive aqui'), () => `${fmtNumber(context().env.slopeDeg)}°`],
+    proxima_parada: [t('Próximo alvo'), () => { const { target } = context(); return `${target.name} · ${fmtDistance(target.distM)}`; }],
+    volta_a_pe: [t('Volta a pé'), () => { const { habitat } = context(); return habitat.walkH === null ? t('sem caminho conhecido') : duration(habitat.walkH); }],
+    radio: [t('Rádio com o habitat'), () => (context().comms.lineOfSight === false ? t('sem visada') : t('com visada'))],
   });
   let pinned = [];
   // Blocos do canto (o2, bateria, volta) que o astronauta mandou tirar.
@@ -335,7 +336,7 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
   /** Cartões fixados no visor agora, com o valor deste instante. */
   const pins = () => {
     if (!getContext()) return [];
-    const layerCard = visorLayer === 'nenhuma' ? [] : [{ id: 'camada', rotulo: 'Camada no terreno', valor: VISOR_LAYERS[visorLayer][1] }];
+    const layerCard = visorLayer === 'nenhuma' ? [] : [{ id: 'camada', rotulo: t('Camada no terreno'), valor: VISOR_LAYERS[visorLayer][1] }];
     return [...pinned.map(readPin), ...layerCard];
   };
 
@@ -496,39 +497,39 @@ export function createVisorTools({ getContext, getSession, safety, live, runActi
   };
 
   const tools = Object.freeze([
-    { name: 'plano', status: 'lendo o plano…', run: plano, parameters: noParams,
+    { name: 'plano', status: t('lendo o plano…'), run: plano, parameters: noParams,
       description: 'Plano da saída: distância e duração totais, hora de partida, paradas (visitadas ou não), trechos com distância, subida e declive, e a segurança do plano.' },
-    { name: 'simular_deslocamento', status: 'simulando o trajeto…', run: simular,
+    { name: 'simular_deslocamento', status: t('simulando o trajeto…'), run: simular,
       description: 'Simulação, sem mudar nada: como fica o plano inteiro desta saída, com as paradas de coleta, feito de veículo ou a pé: distância, duração total, tempo nas paradas, oxigênio gasto e trechos em que o veículo não passa. Traz também os dados do veículo (velocidade, declive máximo, consumo). Use para "e se formos de jipe", "quanto tempo levo de veículo parando para coletar", "o veículo passa?".',
       parameters: { type: 'object', required: ['modo'], properties: { modo: { type: 'string', enum: Object.keys(SIM_MODES), description: 'veiculo ou a_pe.' } } } },
     ...knowledge,
-    { name: 'registrar_amostra', action: true, status: 'registrando a amostra…',
+    { name: 'registrar_amostra', action: true, status: t('registrando a amostra…'),
       description: 'Ação: registra no diário uma amostra coletada aqui. Só quando o astronauta pedir para registrar.',
       parameters: { type: 'object', properties: { observacao: { type: 'string', description: 'O que foi visto e coletado, nas palavras do astronauta.' } } },
       run: ({ observacao } = {}, { question }) => act({ type: 'record-sample', note: String(observacao ?? '') }, question) },
-    { name: 'relatar_perigo', action: true, status: 'registrando o perigo…',
+    { name: 'relatar_perigo', action: true, status: t('registrando o perigo…'),
       description: 'Ação: marca um perigo do terreno na posição atual, para avisar as próximas saídas. Só quando o astronauta relatar um perigo.',
       parameters: { type: 'object', required: ['tipo'], properties: { tipo: { type: 'string', enum: HAZARD_KINDS, description: 'rocha (cortante), areia (fofa), declive ou outro.' }, observacao: { type: 'string' } } },
       run: ({ tipo, observacao } = {}, { question }) => (HAZARD_KINDS.includes(tipo)
         ? act({ type: 'report-hazard', hazardType: tipo, note: String(observacao ?? '') }, question)
         : { erro: `Tipo de perigo inválido. Use: ${HAZARD_KINDS.join(', ')}.` }) },
-    { name: 'protocolo_acao', action: true, status: 'conduzindo o protocolo…',
+    { name: 'protocolo_acao', action: true, status: t('conduzindo o protocolo…'),
       description: 'Ação no protocolo de emergência em andamento: confirmar o passo atual, decidir abortar ou seguir, ou encerrar um cenário de treino. Só com ordem direta do astronauta.',
       parameters: { type: 'object', required: ['acao'], properties: { acao: { type: 'string', enum: Object.keys(PROTOCOL_ACTIONS) } } },
       run: ({ acao } = {}, { question }) => (Object.hasOwn(PROTOCOL_ACTIONS, acao) ? act(PROTOCOL_ACTIONS[acao], question) : { erro: `Ação inválida. Use: ${Object.keys(PROTOCOL_ACTIONS).join(', ')}.` }) },
-    { name: 'mostrar_no_visor', action: true, status: 'mudando o visor…',
+    { name: 'mostrar_no_visor', action: true, status: t('mudando o visor…'),
       description: 'Ação: põe na tela do visor uma ou mais leituras em número (ficam fixas e se atualizam sozinhas) ou liga um painel. Leitura que o visor já mostra sempre (oxigênio, bateria, volta a pé, próxima parada, tempo de saída, hora) não ganha cartão repetido: a peça que já existe pisca e a ferramenta diz onde ela fica. Para uma camada colorida sobre o terreno, use camada_no_visor. Use quando o astronauta pedir para mostrar, colocar, fixar ou trocar o que aparece no visor, por exemplo "me mostra meu oxigênio", "coloca na tela a velocidade média", "altera o visor para mostrar a radiação", "abre o mapa".',
       parameters: { type: 'object', required: ['itens'], properties: { itens: { type: 'array', items: { type: 'string', enum: [...Object.keys(METRICS), ...HUD_PANELS] }, description: 'Leituras ou painéis a mostrar.' } } },
       run: ({ itens } = {}, { question }) => changeHud(itens, true, question) },
-    { name: 'camada_no_visor', action: true, status: 'pintando o terreno…',
+    { name: 'camada_no_visor', action: true, status: t('pintando o terreno…'),
       description: 'Ação: pinta sobre o terreno do visor uma camada do mapa do tablet, como se vê no painel de planejamento: termico (temperatura do terreno à noite), declive, radio, radiacao, volta_a_pe ou areia; "nenhuma" volta à imagem normal. Use quando pedirem para VER NO TERRENO, ver a camada, o mapa de temperatura, de declive, de rádio, de radiação ou de areia.',
       parameters: { type: 'object', required: ['camada'], properties: { camada: { type: 'string', enum: Object.keys(VISOR_LAYERS) } } },
       run: ({ camada } = {}, { question }) => changeLayer(camada, question) },
-    { name: 'tirar_do_visor', action: true, status: 'mudando o visor…',
+    { name: 'tirar_do_visor', action: true, status: t('mudando o visor…'),
       description: 'Ação: tira da tela do visor uma leitura fixada, um dos blocos do canto (oxigenio, bateria, volta_a_pe) ou desliga um painel (mapa, leituras, historico). "tudo" tira todas as leituras fixadas. Os blocos do canto voltam sozinhos em qualquer alerta. Alertas e protocolo não saem: são de segurança.',
       parameters: { type: 'object', required: ['itens'], properties: { itens: { type: 'array', items: { type: 'string', enum: [...Object.keys(METRICS), ...HUD_PANELS, 'tudo'] }, description: 'Leituras ou painéis a tirar.' } } },
       run: ({ itens } = {}, { question }) => changeHud(itens, false, question) },
-    { name: 'pausar', action: true, status: 'ajustando a caminhada…',
+    { name: 'pausar', action: true, status: t('ajustando a caminhada…'),
       description: 'Ação: pausa ou retoma a caminhada da saída. Só com ordem direta do astronauta.',
       parameters: { type: 'object', required: ['pausar'], properties: { pausar: { type: 'boolean', description: 'true para pausar, false para retomar.' } } },
       run: ({ pausar } = {}, { question }) => act({ type: pausar === false || pausar === 'false' ? 'resume' : 'pause' }, question) },

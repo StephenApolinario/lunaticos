@@ -98,6 +98,14 @@ a.device-team:hover, a.device-team:focus-visible { text-decoration: underline; t
 .device-status span { white-space: nowrap; }
 .device-status span + span { padding-left: var(--space-3); border-left: 1px solid var(--line); }
 .device-status span:empty { display: none; }
+/* Seletor de idioma na barra do tablet: inglês e português, com o idioma em uso marcado. */
+.device-lang { display: inline-flex; align-items: center; gap: 2px; }
+.device-lang button {
+  font: inherit; letter-spacing: inherit; color: var(--muted); background: none; cursor: pointer;
+  border: 1px solid transparent; border-radius: 3px; padding: 2px 6px;
+}
+.device-lang button:hover { color: var(--fg); border-color: var(--line); }
+.device-lang button[aria-pressed="true"] { color: var(--bg); background: var(--fg); border-color: var(--fg); }
 /* A tela escurece um pouco junto da moldura, como um visor de aparelho, em vez de terminar seca. */
 .app[data-view="tablet"] .stage::after {
   /* z-index 0: acima do canvas (que vem antes na página) e abaixo dos pinos e rótulos. */

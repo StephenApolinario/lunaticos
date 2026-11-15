@@ -17,6 +17,7 @@ import { RAD, REMS } from '../../data/medicoes.js';
 import { SUIT, O2_PCT_PER_HOUR, O2_RESERVE_PCT, SUIT_ORIGIN, SPEED_ORIGIN } from '../../data/traje.js';
 import { createKnowledgeTools, createRetriever, createRoverTrips, describeSite, isOrder, MISSION_BRIEF, NOT_AN_ORDER, roverInfo, tripSummary, VEHICLE_INFO } from './ferramentas-comuns.js';
 import { BASE_RULES } from './agente.js';
+import { t } from '../i18n.js';
 
 export const TABLET_PROMPT = `Você é a IA de planejamento do tablet do habitat, na cratera Gale, em Marte. A tripulação monta aqui a saída antes de vestir o traje. DADOS DE AGORA traz o plano que está na tela (rota, paradas, tempo e segurança), a hora de partida com o Sol e a luz, e o ambiente medido. As ferramentas trazem a ciência das paradas, os protocolos, as fontes pesquisadas, a calculadora e a análise de um ponto do mapa. As ferramentas de ação mudam o plano na tela.
 
@@ -26,12 +27,12 @@ ${BASE_RULES}`;
 
 /** Pedidos de exemplo para os botões do painel: [rótulo, pedido]. */
 export const TABLET_EXAMPLES = Object.freeze([
-  ['Esse plano é seguro?', 'O plano que está na tela é seguro? Onde está o maior risco?'],
-  ['Dá tempo com luz?', 'Saindo nesta hora, a saída termina antes do pôr do Sol?'],
-  ['Sair às 8h', 'Muda a hora de partida para as 8h.'],
-  ['Onde falta rádio?', 'Mostra no mapa onde a rota fica sem rádio.'],
-  ['Rota até o enxofre', 'Monta uma rota livre até a parada 3, a do enxofre.'],
-  ['De onde vem o relevo?', 'De onde vem o dado de relevo do mapa?'],
+  [t('Esse plano é seguro?'), t('O plano que está na tela é seguro? Onde está o maior risco?')],
+  [t('Dá tempo com luz?'), t('Saindo nesta hora, a saída termina antes do pôr do Sol?')],
+  [t('Sair às 8h'), t('Muda a hora de partida para as 8h.')],
+  [t('Onde falta rádio?'), t('Mostra no mapa onde a rota fica sem rádio.')],
+  [t('Rota até o enxofre'), t('Monta uma rota livre até a parada 3, a do enxofre.')],
+  [t('De onde vem o relevo?'), t('De onde vem o dado de relevo do mapa?')],
 ]);
 
 const LAYER_NAMES = Object.freeze({ none: 'relevo e imagem', slope: 'declividade', walkback: 'volta a pé', comms: 'rádio', radiation: 'radiação', thermal: 'térmico', sand: 'areia fofa (estimada)' });
@@ -228,7 +229,7 @@ export function createTabletTools({ getState, getPlan, safety, terrain, lsDeg, i
 
   const tools = Object.freeze([
     ...knowledge,
-    { name: 'simular_deslocamento', status: 'simulando o trajeto…',
+    { name: 'simular_deslocamento', status: t('simulando o trajeto…'),
       description: 'Simulação, sem mudar o plano da tela: como fica este mesmo plano, com as paradas de coleta, feito de veículo ou a pé: distância, duração total, tempo nas paradas, oxigênio gasto e trechos em que o veículo não passa. Traz também os dados do veículo. Use para "e se formos de jipe", "quanto tempo levo de veículo parando para coletar".',
       parameters: { type: 'object', required: ['modo'], properties: { modo: { type: 'string', enum: ['veiculo', 'a_pe'], description: 'veiculo ou a_pe.' } } },
       run: ({ modo } = {}) => {
@@ -237,10 +238,10 @@ export function createTabletTools({ getState, getPlan, safety, terrain, lsDeg, i
         if (!simulated) return { erro: 'Não consegui calcular este plano nesse modo.' };
         return { plano_da_tela: tripSummary(getPlan()), plano_simulado: tripSummary(simulated), veiculo: VEHICLE_INFO, aviso: 'Simulação: o plano da tela não foi alterado.' };
       } },
-    { name: 'analisar_local', status: 'analisando o local…', run: pontoNoMapa,
+    { name: 'analisar_local', status: t('analisando o local…'), run: pontoNoMapa,
       description: 'Terreno e segurança de um local, sem mudar o plano: altitude, declive, tempo de volta a pé ao habitat, se há rádio com o habitat e a radiação estimada. Use para perguntas sobre o terreno, o rádio ou a volta a pé em uma parada, em uma coleta do rover ou em uma latitude e longitude. (A ciência da parada é a ferramenta parada.)',
       parameters: { type: 'object', properties: { parada_id: { type: 'string', description: 'H, 1, 2, 3, 4, 5 ou a letra de um ponto da rota livre.' }, coleta: { type: 'string', description: 'Nome de um caso de coleta do rover, por exemplo "Atacama".' }, latitude: { type: 'number' }, longitude: { type: 'number' } } } },
-    { name: 'luz_para_outra_hora', status: 'calculando a luz…',
+    { name: 'luz_para_outra_hora', status: t('calculando a luz…'),
       description: 'Calcula, sem mudar o plano, como fica a luz do dia se a saída partir em outra hora: Sol na partida, fim previsto e quanto sobra de luz. Use para perguntas do tipo "e se eu sair às 15h?".',
       parameters: { type: 'object', required: ['hora'], properties: { hora: { type: 'number', description: 'Hora de 0 a 23,75. Por exemplo 15 para 15:00.' } } },
       run: ({ hora } = {}) => {
@@ -249,7 +250,7 @@ export function createTabletTools({ getState, getPlan, safety, terrain, lsDeg, i
           ? { aviso: 'Simulação: o plano na tela não mudou. Responda só com os valores abaixo.', se_a_saida_partir_nessa_hora: partidaELuz(hourH) }
           : { erro: 'Hora inválida: use de 0 a 23,75.' };
       } },
-    { name: 'definir_hora', action: true, status: 'mudando a hora de partida…',
+    { name: 'definir_hora', action: true, status: t('mudando a hora de partida…'),
       description: 'Ação: muda a hora solar local de partida da saída. O Sol, as sombras e a folga de luz são refeitos.',
       parameters: { type: 'object', required: ['hora'], properties: { hora: { type: 'number', description: 'Hora de 0 a 23,75. Por exemplo 8 para 08:00 e 14.5 para 14:30.' } } },
       run: ({ hora } = {}, { question }) => {
@@ -257,11 +258,11 @@ export function createTabletTools({ getState, getPlan, safety, terrain, lsDeg, i
         if (!Number.isFinite(hourH) || hourH < 0 || hourH >= 24) return { erro: 'Hora inválida: use de 0 a 23,75.' };
         return act(question, () => actions.setHour(hourH));
       } },
-    { name: 'definir_modo', action: true, status: 'mudando o deslocamento…',
+    { name: 'definir_modo', action: true, status: t('mudando o deslocamento…'),
       description: 'Ação: muda o deslocamento da saída para a pé ou de veículo e refaz o plano.',
       parameters: { type: 'object', required: ['modo'], properties: { modo: { type: 'string', enum: Object.keys(MODES) } } },
       run: ({ modo } = {}, { question }) => (Object.hasOwn(MODES, modo) ? act(question, () => actions.setMode(MODES[modo])) : { erro: 'Modo inválido: use a_pe ou veiculo.' }) },
-    { name: 'adicionar_ponto', action: true, status: 'acrescentando o ponto à rota…',
+    { name: 'adicionar_ponto', action: true, status: t('acrescentando o ponto à rota…'),
       description: 'Ação: acrescenta um ponto ao fim da rota livre (vira a próxima parada A, B, C…) e recalcula a rota sobre o relevo. O primeiro ponto troca a travessia do Monte Sharp por uma rota livre.',
       parameters: { type: 'object', properties: { parada_id: { type: 'string', description: 'Parada da travessia: 1, 2, 3, 4 ou 5.' }, coleta: { type: 'string', description: 'Caso de coleta do rover, por exemplo "Atacama".' }, rover: { type: 'boolean', description: 'true para o local onde está o rover Curiosity.' }, latitude: { type: 'number' }, longitude: { type: 'number' } } },
       run: (args, { question }) => {
@@ -270,7 +271,7 @@ export function createTabletTools({ getState, getPlan, safety, terrain, lsDeg, i
         if (!isInsideData(point)) return { erro: 'Esse ponto fica fora da área com dados do mapa.' };
         return act(question, () => actions.addWaypoint({ x: point.x, z: point.z }), `acrescentado à rota: ${point.name}`);
       } },
-    { name: 'remover_ponto', action: true, status: 'tirando o ponto da rota…',
+    { name: 'remover_ponto', action: true, status: t('tirando o ponto da rota…'),
       description: 'Ação: tira um ponto da rota livre pela letra (A, B, C…) e recalcula.',
       parameters: { type: 'object', required: ['letra'], properties: { letra: { type: 'string' } } },
       run: ({ letra } = {}, { question }) => {
@@ -278,14 +279,14 @@ export function createTabletTools({ getState, getPlan, safety, terrain, lsDeg, i
         const index = plan.isCustom ? plan.stops.findIndex((entry) => entry.stop.id === String(letra ?? '').trim().toUpperCase()) : -1;
         return index < 0 ? { erro: `Não há ponto "${letra ?? ''}" na rota livre.` } : act(question, () => actions.removeWaypoint(index));
       } },
-    { name: 'voltar_a_travessia', action: true, status: 'voltando à travessia…', parameters: noParams,
+    { name: 'voltar_a_travessia', action: true, status: t('voltando à travessia…'), parameters: noParams,
       description: 'Ação: apaga a rota livre e volta ao plano da travessia do Monte Sharp.',
       run: (_args, { question }) => act(question, () => actions.clearRoute()) },
-    { name: 'mostrar_camada', action: true, status: 'trocando a camada do mapa…',
+    { name: 'mostrar_camada', action: true, status: t('trocando a camada do mapa…'),
       description: 'Ação: troca a camada mostrada no mapa: none (relevo e imagem), slope (declividade), walkback (tempo de volta a pé), comms (onde há rádio com o habitat), radiation (radiação estimada), thermal (infravermelho térmico noturno).',
       parameters: { type: 'object', required: ['camada'], properties: { camada: { type: 'string', enum: ['none', ...Object.keys(LAYERS), 'slope'].filter((id, i, all) => all.indexOf(id) === i) } } },
       run: ({ camada } = {}, { question }) => (Object.hasOwn(LAYER_NAMES, camada) ? act(question, () => actions.setLayer(camada)) : { erro: `Camada inválida. Use: ${Object.keys(LAYER_NAMES).join(', ')}.` }) },
-    { name: 'focar_no_mapa', action: true, status: 'levando o mapa até a parada…',
+    { name: 'focar_no_mapa', action: true, status: t('levando o mapa até a parada…'),
       description: 'Ação: leva a câmera do mapa até uma parada.',
       parameters: { type: 'object', required: ['parada_id'], properties: { parada_id: { type: 'string' } } },
       run: ({ parada_id: stopId } = {}, { question }) => {

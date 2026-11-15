@@ -3,6 +3,7 @@
 // e o perigo relatado dentro da pilha de alertas do Guardião. Roda no Node (ver check.mjs).
 
 import { fmtDistance, fmtDuration, fmtNumber } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 import { levelOrder, RULES } from '../guardiao/catalog.js';
 import { nextManeuver } from '../navegador/analise.js';
 import { routeInstruction } from '../navegador/assistente.js';
@@ -19,8 +20,8 @@ const LOGGED = /^(p:|a:|aviso:|fim$|abrigado$)/;
 /** Rótulo do alvo atual (pino da cena e indicador de borda), a partir da leitura do Guardião. */
 export function targetLabel({ target }) {
   if (target.kind === 'dwell' || target.kind === 'home') return target.name;
-  const prefix = target.kind === 'shelter' ? 'Abrigo · ' : '';
-  return `${prefix}${target.name} · ${target.timeOnly ? fmtDuration(target.etaH) : fmtDistance(target.distM)}`;
+  const howFar = target.timeOnly ? fmtDuration(target.etaH) : fmtDistance(target.distM);
+  return target.kind === 'shelter' ? t`Abrigo · ${target.name} · ${howFar}` : `${target.name} · ${howFar}`;
 }
 
 /**
@@ -45,7 +46,7 @@ export function guideFor(analysis, session) {
   const atTarget = r.finished || r.target.kind === 'dwell' || r.target.kind === 'home' || r.sheltered;
   const backToRoute = rejoin && !toTerrain;
   let point = null;
-  if (backToRoute) point = { ...rejoin, label: 'Retomar a rota' };
+  if (backToRoute) point = { ...rejoin, label: t`Retomar a rota` };
   else if (!atTarget) point = { x: r.target.position.x, z: r.target.position.z, label: targetLabel(r) };
 
   return {
@@ -58,12 +59,15 @@ export function guideFor(analysis, session) {
   };
 }
 
-/** Quando o rádio muda seguindo a rota, a partir de `radioReading` (../navegador/leitura.js). */
+/** Quando o rádio muda seguindo a rota, em uma frase inteira, a partir de `radioReading` (../navegador/leitura.js). */
 export function radioAheadText({ route }) {
-  if (route.changeInM === null) return 'não muda até o fim da rota';
-  if (!route.visible) return `volta em ${fmtDistance(route.changeInM)}`;
-  const short = route.nextLengthM < NAV.radioMinGapM;
-  return `${short ? 'tem um corte curto' : 'cai'} em ${fmtDistance(route.changeInM)}, por ${fmtDistance(route.nextLengthM)}`;
+  if (route.changeInM === null) return t`Seguindo a rota, o sinal não muda até o fim da rota.`;
+  const changeIn = fmtDistance(route.changeInM);
+  if (!route.visible) return t`Seguindo a rota, o sinal volta em ${changeIn}.`;
+  const length = fmtDistance(route.nextLengthM);
+  return route.nextLengthM < NAV.radioMinGapM
+    ? t`Seguindo a rota, o sinal tem um corte curto em ${changeIn}, por ${length}.`
+    : t`Seguindo a rota, o sinal cai em ${changeIn}, por ${length}.`;
 }
 
 /**
@@ -95,9 +99,9 @@ export function withReportedHazard(active, warning, acked, clockH) {
   const alert = {
     id: warning.key,
     level: REPORT_LEVEL,
-    title: 'Perigo relatado por perto',
+    title: t`Perigo relatado por perto`,
     cause: `${warning.text}.`,
-    effect: 'Não está nos dados da rota: veio do relato de um astronauta, guardado neste navegador.',
+    effect: t`Não está nos dados da rota: veio do relato de um astronauta, guardado neste navegador.`,
     action: warning.action,
     raisedH: clockH,
     ack: acked.has(warning.key),
@@ -112,21 +116,21 @@ export const isReportedHazard = (id) => id.startsWith('perigo-relatado:');
 const minutes = (hours) => `${Math.max(1, Math.round(hours * 60))} min`;
 // A leitura que explica cada alerta do Guardião (../guardiao/rules.js): [rótulo, valor, nota curta].
 const ALERT_READINGS = Object.freeze({
-  solar: (r) => ['Radiação', `${fmtNumber(r.radiationRate)} µSv/h`, `${fmtNumber(r.fx.radFactor)}× o normal`],
-  poeira: (r) => ['Poeira', r.fx.dust.arrived ? 'chegou' : `em ${minutes(r.fx.dust.etaH)}`, 'frente de poeira'],
-  frio: (r) => ['Temperatura', `${fmtNumber(r.airTempC)} °C`, `mínimo do traje ${RULES.suitMinTempC} °C`],
-  'frio-a-caminho': (r) => ['Temperatura', `${fmtNumber(r.airTempC)} °C`, `frio em ${minutes(r.coldInH)}`],
-  vento: (r) => ['Vento', `${fmtNumber(r.windMps)} m/s`, 'rajadas'],
-  radio: (r) => ['Rádio', 'sem resposta', `há ${minutes(r.radio.lostH)}`],
-  veiculo: () => ['Veículo', 'em pane', 'a volta é a pé'],
-  traje: (r) => ['Integridade', `${fmtNumber(r.integrityPct)}%`, `vaza ${fmtNumber(r.leakPctH, 1)} %/h de O₂`],
-  o2: (r) => ['O₂ acaba em', fmtDuration(r.o2AutonomyH), 'neste ritmo'],
-  'o2-plano': (r) => ['O₂ no fim', r.o2EndPct < 0 ? 'não cobre' : `${fmtNumber(Math.round(r.o2EndPct))}%`, 'no fim do plano'],
-  pnr: (r) => (r.pnr.status === 'ahead' ? ['Sem retorno', fmtDistance(r.pnr.aheadM), 'à frente'] : ['Sem retorno', 'passou', 'ponto ultrapassado']),
-  declive: (r) => ['Declive', `${fmtNumber(r.slopeAheadDeg)}°`, 'à frente'],
-  rochas: (r) => ['Rochas', fmtDistance(Math.max(0, r.hazard.edgeM)), r.hazard.side],
-  bateria: (r) => ['Bateria acaba em', fmtDuration(r.batteryPct / r.batteryRatePctH), 'neste ritmo'],
-  dose: (r) => ['Dose', `${fmtNumber(r.doseUsv)} µSv`, `limite de ${fmtNumber(RULES.doseLimitUsv)}`],
+  solar: (r) => [t`Radiação`, `${fmtNumber(r.radiationRate)} µSv/h`, t`${fmtNumber(r.fx.radFactor)}× o normal`],
+  poeira: (r) => [t`Poeira`, r.fx.dust.arrived ? t`chegou` : t`em ${minutes(r.fx.dust.etaH)}`, t`frente de poeira`],
+  frio: (r) => [t`Temperatura`, `${fmtNumber(r.airTempC)} °C`, t`mínimo do traje ${RULES.suitMinTempC} °C`],
+  'frio-a-caminho': (r) => [t`Temperatura`, `${fmtNumber(r.airTempC)} °C`, t`frio em ${minutes(r.coldInH)}`],
+  vento: (r) => [t`Vento`, `${fmtNumber(r.windMps)} m/s`, t`rajadas`],
+  radio: (r) => [t`Rádio`, t`sem resposta`, t`há ${minutes(r.radio.lostH)}`],
+  veiculo: () => [t`Veículo`, t`em pane`, t`a volta é a pé`],
+  traje: (r) => [t`Integridade`, `${fmtNumber(r.integrityPct)}%`, t`vaza ${fmtNumber(r.leakPctH, 1)} %/h de O₂`],
+  o2: (r) => [t`O₂ acaba em`, fmtDuration(r.o2AutonomyH), t`neste ritmo`],
+  'o2-plano': (r) => [t`O₂ no fim`, r.o2EndPct < 0 ? t`não cobre` : `${fmtNumber(Math.round(r.o2EndPct))}%`, t`no fim do plano`],
+  pnr: (r) => (r.pnr.status === 'ahead' ? [t`Sem retorno`, fmtDistance(r.pnr.aheadM), t`à frente`] : [t`Sem retorno`, t`passou`, t`ponto ultrapassado`]),
+  declive: (r) => [t`Declive`, `${fmtNumber(r.slopeAheadDeg)}°`, t`à frente`],
+  rochas: (r) => [t`Rochas`, fmtDistance(Math.max(0, r.hazard.edgeM)), r.hazard.side],
+  bateria: (r) => [t`Bateria acaba em`, fmtDuration(r.batteryPct / r.batteryRatePctH), t`neste ritmo`],
+  dose: (r) => [t`Dose`, `${fmtNumber(r.doseUsv)} µSv`, t`limite de ${fmtNumber(RULES.doseLimitUsv)}`],
 });
 
 /**
@@ -137,7 +141,7 @@ const ALERT_READINGS = Object.freeze({
  */
 export function alertReading(alert, r) {
   if (!alert) return null;
-  if (isReportedHazard(alert.id)) return { label: 'Perigo relatado', value: 'por perto', note: 'relato de astronauta' };
+  if (isReportedHazard(alert.id)) return { label: t`Perigo relatado`, value: t`por perto`, note: t`relato de astronauta` };
   if (!Object.hasOwn(ALERT_READINGS, alert.id)) return null;
   const [label, value, note] = ALERT_READINGS[alert.id](r);
   return { label, value, note };

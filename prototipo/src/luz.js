@@ -7,6 +7,8 @@
 //
 // Puro: roda no Node e no navegador.
 
+import { t } from './i18n.js';
+
 const DEG = Math.PI / 180;
 const J2000_JD = 2451545.0;
 const UNIX_EPOCH_JD = 2440587.5;
@@ -72,6 +74,6 @@ export function daylightHours(latDeg, lsDeg) {
 /** Hora solar local depois de `elapsedEarthH` horas da Terra contadas a partir de `startH`. */
 export const localSolarHour = (startH, elapsedEarthH) => startH + elapsedEarthH / EARTH_HOURS_PER_MARS_HOUR;
 
-const COMPASS = Object.freeze(['norte', 'nordeste', 'leste', 'sudeste', 'sul', 'sudoeste', 'oeste', 'noroeste']);
+const COMPASS = Object.freeze([t('norte'), t('nordeste'), t('leste'), t('sudeste'), t('sul'), t('sudoeste'), t('oeste'), t('noroeste')]);
 /** Nome do rumo (norte, nordeste…) de um azimute em graus. */
 export const compassName = (azimuthDeg) => COMPASS[Math.round(wrap360(azimuthDeg) / 45) % COMPASS.length];

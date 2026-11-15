@@ -69,7 +69,8 @@ assert.equal(blocked.calls.length, 0);
 
 // ---------- Voz: fala e escuta ----------
 console.error = () => {}; // as falhas simuladas abaixo escreveriam no registro da função
-assert.deepEqual(await voiceHealth(env).json(), { ok: true, modelo: 'Kokoro-82M', vozes: ['pf_dora'], voz: 'pf_dora', ouvir: true });
+assert.deepEqual(await voiceHealth(env).json(), { ok: true, modelo: 'Kokoro-82M', vozes: ['pf_dora', 'af_heart'], voz: 'pf_dora', ouvir: true });
+assert.equal((await voiceHealth(env, new Request(`${SITE}/api/voz/saude?idioma=en`)).json()).voz, 'af_heart', 'a página em inglês vê a voz do inglês');
 assert.equal((await voiceHealth({}).json()).ok, false);
 
 const sayRequest = (payload, headers = {}) => new Request(`${SITE}/api/voz/falar`, {
@@ -97,6 +98,11 @@ assert.equal(spoken.headers.get('content-type'), 'audio/mpeg');
 assert.equal((await spoken.arrayBuffer()).byteLength, 3);
 assert.deepEqual(voice.calls[0].sent, { model: 'hexgrad/kokoro-82m', input: 'Oxigênio em 82 por cento.', voice: 'pf_dora', response_format: 'mp3' });
 assert.equal(voice.calls[0].auth, 'Bearer chave-de-teste');
+// Em inglês a voz é a do inglês; idioma desconhecido cai no português.
+await speak(sayRequest({ texto: 'Oxygen at 82 percent.', idioma: 'en' }), env, voice.fetchImpl);
+assert.equal(voice.calls.at(-1).sent.voice, 'af_heart');
+await speak(sayRequest({ texto: 'oi', idioma: 'xx' }), env, voice.fetchImpl);
+assert.equal(voice.calls.at(-1).sent.voice, 'pf_dora');
 assert.equal((await speak(sayRequest({ texto: '' }), env, voice.fetchImpl)).status, 400);
 assert.equal((await speak(sayRequest({ texto: 'x'.repeat(1201) }), env, voice.fetchImpl)).status, 400);
 assert.equal((await speak(sayRequest({ texto: 'oi' }, { origin: 'https://outro.exemplo.net' }), env, voice.fetchImpl)).status, 403);
@@ -111,6 +117,11 @@ assert.deepEqual(ear.calls[0].sent, { model: 'openai/whisper-large-v3', input_au
 await listen(heardRequest(new Uint8Array([1]), 'audio/webm;codecs=opus'), env, ear.fetchImpl);
 await listen(heardRequest(new Uint8Array([1]), 'audio/mp4'), env, ear.fetchImpl);
 assert.deepEqual(ear.calls.slice(1).map((call) => call.sent.input_audio.format), ['webm', 'm4a']);
+// O idioma da escuta vem no endereço; sem ele, ou com um desconhecido, vale o português.
+await listen(new Request(`${SITE}/api/voz/ouvir?idioma=en`, { method: 'POST', headers: { host: 'mapa.exemplo.app', origin: SITE, 'content-type': 'audio/ogg' }, body: new Uint8Array([1]) }), env, ear.fetchImpl);
+assert.equal(ear.calls.at(-1).sent.language, 'en');
+await listen(new Request(`${SITE}/api/voz/ouvir?idioma=xx`, { method: 'POST', headers: { host: 'mapa.exemplo.app', origin: SITE, 'content-type': 'audio/ogg' }, body: new Uint8Array([1]) }), env, ear.fetchImpl);
+assert.equal(ear.calls.at(-1).sent.language, 'pt');
 assert.equal((await listen(heardRequest(new Uint8Array([1]), 'application/json'), env, ear.fetchImpl)).status, 403, 'não é áudio');
 assert.equal((await listen(heardRequest(new Uint8Array(0)), env, ear.fetchImpl)).status, 413);
 assert.equal((await listen(heardRequest(new Uint8Array(3_000_001)), env, ear.fetchImpl)).status, 413);

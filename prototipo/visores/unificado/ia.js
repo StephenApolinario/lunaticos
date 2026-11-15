@@ -8,12 +8,13 @@
 
 import { createAgent, engineLabel, offlineMessage } from '../../src/ia/agente.js';
 import { createVisorTools, VISOR_PROMPT, VISOR_EXAMPLES } from '../../src/ia/ferramentas-visor.js';
-import { answerUnified } from './contexto.js';
+import { t } from '../../src/i18n.js';
+import { answerUnified, PROTOCOL_COMMANDS } from './contexto.js';
 
 // Perguntas rápidas que são comandos do protocolo em condução: ficam na frente dos exemplos.
-const PROTOCOL_COMMANDS = new Set(['feito', 'abortar', 'seguir', 'repetir o passo', 'encerrar emergência']);
+const PROTOCOL_QUESTIONS = new Set(Object.values(PROTOCOL_COMMANDS));
 
-const offlineText = (health) => `${offlineMessage(health)} Os alertas e os protocolos do visor continuam funcionando sem ela.`;
+const offlineText = (health) => `${offlineMessage(health)} ${t`Os alertas e os protocolos do visor continuam funcionando sem ela.`}`;
 
 /**
  * @param {{
@@ -28,6 +29,10 @@ export function createAssistantEngine({ getContext, getSession, safety, live, pl
   // Fila: uma pergunta feita enquanto outra ainda é respondida espera a vez, para as conversas não se misturarem.
   let queue = Promise.resolve();
   let health = { ok: false, reason: 'verificando', where: agent.where, model: agent.model };
+  const note = () => {
+    if (health.ok) return engineLabel(health);
+    return health.reason === 'verificando' ? t`IA de bordo · verificando…` : t`IA de bordo fora do ar · alertas por regras`;
+  };
 
   async function check() {
     health = await agent.health();
@@ -61,12 +66,14 @@ export function createAssistantEngine({ getContext, getSession, safety, live, pl
     reset: () => { agent.reset(); visorTools.clearPins(); },
     /** Leituras que a IA fixou no visor, com o valor de agora. */
     pins: visorTools.pins,
-    /** Texto curto para o rótulo do assistente no visor. */
-    note: () => (health.ok ? engineLabel(health) : health.reason === 'verificando' ? 'IA de bordo · verificando…' : 'IA de bordo fora do ar · alertas por regras'),
+    /** Texto curto para o rótulo do assistente: quem responde, ou que a IA está verificando ou fora do ar. */
+    note,
+    /** O mesmo rótulo para a barra do visor, que só o mostra quando há o que dizer: vazio com a IA respondendo. */
+    barNote: () => (health.ok ? '' : note()),
     intro: () => (health.ok
-      ? 'IA de bordo pronta. Respondo só com os dados desta saída; os alertas e os protocolos seguem regras fixas.'
-      : 'Os alertas e os protocolos estão ativos. A IA de bordo ainda não respondeu.'),
+      ? t`IA de bordo pronta. Respondo só com os dados desta saída; os alertas e os protocolos seguem regras fixas.`
+      : t`Os alertas e os protocolos estão ativos. A IA de bordo ainda não respondeu.`),
     /** Perguntas de exemplo, com os comandos do protocolo em condução na frente. */
-    examples: (ruleQuestions) => [...ruleQuestions.filter(([, question]) => PROTOCOL_COMMANDS.has(question)), ...VISOR_EXAMPLES],
+    examples: (ruleQuestions) => [...ruleQuestions.filter(([, question]) => PROTOCOL_QUESTIONS.has(question)), ...VISOR_EXAMPLES],
   });
 }

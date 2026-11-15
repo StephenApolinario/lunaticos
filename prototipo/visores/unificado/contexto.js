@@ -8,6 +8,7 @@
 
 import { SIM } from '../../src/simulation.js';
 import { fmtDistance, fmtDuration } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 import { LEVELS, PROTOCOLS } from '../guardiao/catalog.js';
 import { shelterLine } from '../guardiao/rules.js';
 import { buildContext } from '../cientista/contexto.js';
@@ -16,16 +17,28 @@ import { answerByRules, quickQuestions, normalize } from '../cientista/assistent
 // Os quatro níveis do Guardião nas três severidades que o assistente do Cientista lê.
 const SEVERITY = Object.freeze({ emergencia: 'critico', perigo: 'critico', atencao: 'atencao', info: 'info' });
 
-const STEP_DONE = /^(feito|pronto|ok|okay|certo|confirmo|confirmado|concluido|sim|passo feito|proximo( passo)?|passo seguinte|seguinte|ja fiz|entendido)$/;
-const STEP_REPEAT = /\b(repet\w*|de novo|qual (e )?o passo|passo atual)\b/;
-const DECIDE_ABORT = /^(abortar?|aborte|aborto|abrigar|recuar|voltar|ir (para|pro|ao) (o )?abrigo)\b/;
-const DECIDE_GO_ON = /^(seguir|sigo|segue|siga|continuar?|prosseguir)( (a|com a) missao| em frente)?$/;
-const WHERE_TO = /\b(para onde|pra onde|por onde|que direcao|qual (e )?a direcao|viro|virar|curva|rumo|instrucao|manobra)\b/;
-const ABOUT_DECISION = /\b(abort\w*|segu\w*|decid\w*|decis\w*|recomend\w*)\b/;
-const ABOUT_PROTOCOL = /\b(protocolo|passos?|disso|isso|desse|deste)\b/;
-const ABOUT_HABITAT = /\b(habitat|base)\b/;
+// O que o astronauta diz ou digita, já sem acento e sem pontuação (`normalize`). Cada padrão aceita o
+// português e o inglês, nos dois idiomas da interface: quem fala escolhe as palavras, não a tela.
+const STEP_DONE = /^(feito|pronto|ok|okay|certo|confirmo|confirmado|concluido|sim|passo feito|proximo( passo)?|passo seguinte|seguinte|ja fiz|entendido|done|step done|ready|confirm|confirmed|completed?|yes|next( step)?|got it|understood|roger|copy)$/;
+const STEP_REPEAT = /\b(repet\w*|de novo|qual (e )?o passo|passo atual|repeat\w*|again|what( i| )?s the step|which step|current step)\b/;
+const DECIDE_ABORT = /^(abortar?|aborte|aborto|abrigar|recuar|voltar|ir (para|pro|ao) (o )?abrigo|abort|take shelter|retreat|turn back|go back|(go|head) (to|for) (the )?shelter)\b/;
+const DECIDE_GO_ON = /^(seguir|sigo|segue|siga|continuar?|prosseguir|continue|proceed|go on|carry on|press on|keep going)( (a|com a) missao| em frente| (with )?the mission| ahead)?$/;
+const WHERE_TO = /\b(para onde|pra onde|por onde|que direcao|qual (e )?a direcao|viro|virar|curva|rumo|instrucao|manobra|where to|where (do|should|am) i (go|going|headed)|which way|(which|what) direction|turn (left|right)|next (turn|instruction|maneuver))\b/;
+const ABOUT_DECISION = /\b(abort\w*|segu\w*|decid\w*|decis\w*|recomend\w*|continue|proceed\w*|go on|keep going|recommend\w*)\b/;
+const ABOUT_PROTOCOL = /\b(protocolo|passos?|disso|isso|desse|deste|protocol|steps?|(this|that) (step|protocol))\b/;
+const ABOUT_HABITAT = /\b(habitat|base|walk back|way back)\b/;
+// Pergunta sem assunto que faz o Cientista dar a resposta geral sobre protocolos (ver `answerUnified`).
+const BARE_PROTOCOL_QUESTION = 'protocolo';
 
-const NO_PROTOCOL_TEXT = `Nenhuma emergência em andamento. Se houver, eu conduzo o protocolo passo a passo (confirmar, decidir, ir ao abrigo, encerrar) para: ${Object.values(PROTOCOLS).map((protocol) => `“${protocol.name}”`).join(', ')}. Pergunte, por exemplo, “o que fazer numa tempestade de poeira?”.`;
+/**
+ * Comandos do protocolo em condução, como aparecem nas perguntas rápidas e como o astronauta os diz.
+ * Os padrões acima reconhecem cada um nos dois idiomas; "encerrar emergência" é do Cientista.
+ */
+export const PROTOCOL_COMMANDS = Object.freeze({
+  done: t`feito`, abort: t`abortar`, goOn: t`seguir`, repeat: t`repetir o passo`, end: t`encerrar emergência`,
+});
+
+const NO_PROTOCOL_TEXT = t`Nenhuma emergência em andamento. Se houver, eu conduzo o protocolo passo a passo (confirmar, decidir, ir ao abrigo, encerrar) para: ${Object.values(PROTOCOLS).map((protocol) => `“${protocol.name}”`).join(', ')}. Pergunte, por exemplo, “o que fazer numa tempestade de poeira?”.`;
 
 /** Alertas do Guardião (já em ordem de prioridade) no formato que o assistente lê. */
 export const alertsForAssistant = (active) => active.map((alert) => ({
@@ -73,8 +86,11 @@ function protocolFor(proto, scenarios) {
 
 function goingText({ target }) {
   if (target.kind !== 'shelter') return null;
-  const howFar = target.timeOnly ? `cerca de ${fmtDuration(target.etaH)} a pé` : `a ${fmtDistance(target.distM)}, cerca de ${fmtDuration(target.etaH)}`;
-  return `Você está indo ao abrigo: ${target.name.toLowerCase()}, ${howFar}.`;
+  const name = target.name.toLowerCase();
+  const eta = fmtDuration(target.etaH);
+  return target.timeOnly
+    ? t`Você está indo ao abrigo: ${name}, cerca de ${eta} a pé.`
+    : t`Você está indo ao abrigo: ${name}, a ${fmtDistance(target.distM)}, cerca de ${eta}.`;
 }
 
 /**
@@ -133,8 +149,8 @@ export function assistantContext({ session, proto, alerts, guidance, stops, haza
 }
 
 const reply = (intent, text, action = null) => ({ intent, text, action });
-const stepLine = (protocol) => `Passo ${protocol.stepNumber} de ${protocol.stepCount}: ${protocol.stepText}`;
-const adviceLine = (protocol) => `${protocol.abort ? 'Recomendo abortar' : 'Recomendo seguir'}: ${protocol.why}.${protocol.abort ? ` ${protocol.shelter}` : ''}`;
+const stepLine = (protocol) => t`Passo ${protocol.stepNumber} de ${protocol.stepCount}: ${protocol.stepText}`;
+const adviceLine = (protocol) => (protocol.abort ? `${t`Recomendo abortar: ${protocol.why}.`} ${protocol.shelter}` : t`Recomendo seguir: ${protocol.why}.`);
 
 // Condução do protocolo do Guardião pela conversa. Devolve null se a frase não é sobre o passo atual.
 // Como no Cientista, comando é ordem direta: uma pergunta ("devo abortar?") nunca decide nem confirma.
@@ -144,12 +160,12 @@ function answerProtocol(raw, norm, protocol) {
   if (protocol.stepType === 'decision') {
     if (isOrder && DECIDE_ABORT.test(norm)) return reply('protocolo-decidir', '', { type: 'protocol-decide', choice: 'abortar' });
     if (isOrder && DECIDE_GO_ON.test(norm)) return reply('protocolo-decidir', '', { type: 'protocol-decide', choice: 'seguir' });
-    if (STEP_DONE.test(norm) || ABOUT_DECISION.test(norm)) return reply('protocolo-decisao', `Este passo é uma decisão sua: diga “abortar” ou “seguir”. ${adviceLine(protocol)}`);
+    if (STEP_DONE.test(norm) || ABOUT_DECISION.test(norm)) return reply('protocolo-decisao', `${t`Este passo é uma decisão sua: diga “abortar” ou “seguir”.`} ${adviceLine(protocol)}`);
     return null;
   }
   if (!isOrder || !STEP_DONE.test(norm)) return null;
   if (protocol.stepType === 'ok') return reply('protocolo-avancar', '', { type: 'protocol-advance' });
-  return reply('protocolo-ida', `Este passo fecha sozinho quando você chegar ao abrigo. ${protocol.stepText}`);
+  return reply('protocolo-ida', `${t`Este passo fecha sozinho quando você chegar ao abrigo.`} ${protocol.stepText}`);
 }
 
 /**
@@ -167,18 +183,19 @@ export function answerUnified(question, context) {
   if (own.guidance && WHERE_TO.test(norm)) return reply('navegacao', own.guidance.text);
 
   const base = answerByRules(question, context);
-  // ponytail: reconhece a resposta genérica do Cientista pelo começo do texto (ele fala em quatro
-  // protocolos; aqui são os oito do Guardião). Trocar por um campo no retorno se o motor ganhar um.
-  if (!protocol && base.intent === 'protocolo' && base.text.startsWith('Nenhuma emergência')) return { ...base, text: NO_PROTOCOL_TEXT };
+  // ponytail: reconhece a resposta geral do Cientista comparando com a que ele dá à pergunta sem
+  // assunto, em qualquer idioma (ele fala em quatro protocolos; aqui são os oito do Guardião).
+  // Trocar por um campo no retorno se o motor ganhar um.
+  if (!protocol && base.intent === 'protocolo' && base.text === answerByRules(BARE_PROTOCOL_QUESTION, context).text) return { ...base, text: NO_PROTOCOL_TEXT };
   if (protocol && base.intent === 'protocolo') {
     const advice = protocol.stepType === 'decision' ? ` ${adviceLine(protocol)}` : '';
-    return { ...base, text: `Protocolo em condução: ${protocol.title}. ${stepLine(protocol)}${advice}` };
+    return { ...base, text: `${t`Protocolo em condução: ${protocol.title}.`} ${stepLine(protocol)}${advice}` };
   }
   if (protocol && base.intent === 'fonte' && ABOUT_PROTOCOL.test(norm)) {
-    return { ...base, text: `Base do protocolo “${protocol.title}”: ${protocol.source}. Os passos são proposta do protótipo, não procedimento oficial da NASA.` };
+    return { ...base, text: t`Base do protocolo “${protocol.title}”: ${protocol.source}. Os passos são proposta do protótipo, não procedimento oficial da NASA.` };
   }
   if (own.going && base.intent === 'quanto-falta' && !ABOUT_HABITAT.test(norm)) return { ...base, text: own.going };
-  if (own.guidance?.radio && base.intent === 'comunicacao' && !context.comms.failed) return { ...base, text: `${base.text} Seguindo a rota, o sinal ${own.guidance.radio}.` };
+  if (own.guidance?.radio && base.intent === 'comunicacao' && !context.comms.failed) return { ...base, text: `${base.text} ${own.guidance.radio}` };
   return base;
 }
 
@@ -186,9 +203,9 @@ export function answerUnified(question, context) {
 export function unifiedQuickQuestions(context) {
   const protocol = context.guardiao?.protocol;
   const common = quickQuestions(context);
-  if (!protocol) return [['Para onde agora?', 'Para onde eu vou agora?'], ...common];
+  if (!protocol) return [[t`Para onde agora?`, t`Para onde eu vou agora?`], ...common];
   let step = [];
-  if (protocol.stepType === 'ok') step = [['Passo feito', 'feito']];
-  if (protocol.stepType === 'decision') step = [['Abortar', 'abortar'], ['Seguir a missão', 'seguir']];
-  return [...step, ['Repetir passo', 'repetir o passo'], ['Encerrar emergência', 'encerrar emergência'], ...common];
+  if (protocol.stepType === 'ok') step = [[t`Passo feito`, PROTOCOL_COMMANDS.done]];
+  if (protocol.stepType === 'decision') step = [[t`Abortar`, PROTOCOL_COMMANDS.abort], [t`Seguir a missão`, PROTOCOL_COMMANDS.goOn]];
+  return [...step, [t`Repetir passo`, PROTOCOL_COMMANDS.repeat], [t`Encerrar emergência`, PROTOCOL_COMMANDS.end], ...common];
 }

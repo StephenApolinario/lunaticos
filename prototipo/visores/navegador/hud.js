@@ -5,39 +5,41 @@ import { SIM } from '../../src/simulation.js';
 import { angleDeltaDeg, clamp } from '../../src/geo.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock, fmtSigned } from '../../src/format.js';
 import { h, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { NAV } from './leitura.js';
 
 const COMPASS = Object.freeze({ pxPerDeg: 5, marginDeg: 60, tickDeg: 15, maxTargetDeg: 30 });
-const CARDINALS = Object.freeze({ 0: 'N', 45: 'NE', 90: 'L', 135: 'SE', 180: 'S', 225: 'SO', 270: 'O', 315: 'NO' });
-const MODE_LABEL = Object.freeze({ foot: 'A pé', cabin: 'Veículo' });
+const CARDINALS = Object.freeze({ 0: 'N', 45: 'NE', 90: t('L', 'ponto cardeal'), 135: 'SE', 180: 'S', 225: t('SO', 'ponto cardeal'), 270: t('O', 'ponto cardeal'), 315: t('NO', 'ponto cardeal') });
+const MODE_LABEL = Object.freeze({ foot: t`A pé`, cabin: t`Veículo` });
 const METER_LEVELS = Object.freeze({ o2: { danger: 25, warn: 45 }, battery: { danger: 20, warn: 40 } });
 const SLOPE_DATA_LEVEL = Object.freeze({ ok: 'ok', attention: 'attention', near: 'warn', over: 'danger' });
 const RADIO_STATE = Object.freeze({
-  clear: { text: 'Visada livre', level: 'ok' },
-  marginal: { text: 'Visada marginal', level: 'warn' },
-  blocked: { text: 'Sem visada', level: 'danger' },
+  clear: { text: t`Visada livre`, level: 'ok' },
+  marginal: { text: t`Visada marginal`, level: 'warn' },
+  blocked: { text: t`Sem visada`, level: 'danger' },
 });
 const GLYPH_TEXT = Object.freeze({ stop: '◆', alert: '!', home: 'H' });
 const MAX_ALERTS = 4;
 const ATTITUDE = Object.freeze({ pxPerDeg: 0.9, maxDeg: 25 });
 const LEVEL_FLAT_DEG = 0.5;
 
-// Marcação fixa do HUD (texto estático, sem dado externo).
+// Marcação fixa do HUD (texto estático, sem dado externo). Os textos entram já no idioma da interface.
+// Onde o rótulo tem versão longa e curta, cada uma é uma frase inteira (`navegador-longo` e `navegador-curto`).
 const TEMPLATE = `
 <div class="navegador" data-el="root" data-mode="walk">
   <canvas class="navegador-mundo" data-el="world" aria-hidden="true"></canvas>
   <div class="navegador-frame" aria-hidden="true"></div>
 
   <div class="navegador-view">
-    <section class="navegador-bloco navegador-ritmo" aria-label="Ritmo contra o plano">
-      <span class="navegador-rotulo">Tempo de saída · <span data-el="mode">A pé</span></span>
+    <section class="navegador-bloco navegador-ritmo" aria-label="${t`Ritmo contra o plano`}">
+      <span class="navegador-rotulo">${t`Tempo de saída`} · <span data-el="mode">${t`A pé`}</span></span>
       <b class="navegador-valor" data-el="elapsed">0h00</b>
-      <div class="navegador-linha"><span>Ritmo <small>simulado</small></span><b data-el="pace">no plano</b></div>
-      <div class="navegador-linha"><span>Velocidade</span><b data-el="speedNow">–</b></div>
-      <div class="navegador-linha navegador-extra"><span>Hora local</span><b data-el="clock">09:00</b></div>
+      <div class="navegador-linha"><span>${t`Ritmo`} <small>${t`simulado`}</small></span><b data-el="pace">${t`no plano`}</b></div>
+      <div class="navegador-linha"><span>${t`Velocidade`}</span><b data-el="speedNow">–</b></div>
+      <div class="navegador-linha navegador-extra"><span>${t`Hora local`}</span><b data-el="clock">09:00</b></div>
     </section>
 
-    <section class="navegador-bussola" aria-label="Bússola">
+    <section class="navegador-bussola" aria-label="${t`Bússola`}">
       <div class="navegador-bussola-janela">
         <div class="navegador-fita" data-el="tape"></div>
         <i class="navegador-agulha"></i>
@@ -47,61 +49,61 @@ const TEMPLATE = `
       <b class="navegador-valor" data-el="heading">000°</b>
     </section>
 
-    <section class="navegador-bloco navegador-destino" aria-label="Destinos">
-      <span class="navegador-rotulo" data-el="nextLabel">Próxima parada</span>
+    <section class="navegador-bloco navegador-destino" aria-label="${t`Destinos`}">
+      <span class="navegador-rotulo" data-el="nextLabel">${t`Próxima parada`}</span>
       <b class="navegador-valor" data-el="nextName">–</b>
       <span class="navegador-sub"><span data-el="nextDist"></span> <span data-el="nextEta"></span> <span data-el="nextGain"></span></span>
-      <div class="navegador-linha navegador-extra"><span>Habitat pela rota</span><b data-el="home">–</b></div>
-      <div class="navegador-linha"><span>Retorno mais curto</span><b data-el="back">–</b></div>
-      <div class="navegador-linha navegador-extra"><span>Volta a pé</span><b data-el="walkBack">–</b></div>
+      <div class="navegador-linha navegador-extra"><span>${t`Habitat pela rota`}</span><b data-el="home">–</b></div>
+      <div class="navegador-linha"><span>${t`Retorno mais curto`}</span><b data-el="back">–</b></div>
+      <div class="navegador-linha navegador-extra"><span>${t`Volta a pé`}</span><b data-el="walkBack">–</b></div>
     </section>
 
-    <section class="navegador-bloco navegador-terreno" aria-label="Leitura do terreno">
-      <span class="navegador-rotulo">Terreno <small data-el="terrainSource">relevo real · USGS</small></span>
+    <section class="navegador-bloco navegador-terreno" aria-label="${t`Leitura do terreno`}">
+      <span class="navegador-rotulo">${t`Terreno`} <small data-el="terrainSource">${t`relevo real · USGS`}</small></span>
       <div class="navegador-terreno-corpo">
         <div class="navegador-atitude" aria-hidden="true"><i data-el="horizon"></i></div>
         <div class="navegador-terreno-linhas">
-          <div class="navegador-linha"><span>Sob os pés</span><b data-el="pitch">–</b></div>
-          <div class="navegador-linha"><span>Tombo lateral</span><b data-el="roll">–</b></div>
-          <div class="navegador-linha"><span>À frente</span><b data-el="ahead">–</b></div>
+          <div class="navegador-linha"><span>${t`Sob os pés`}</span><b data-el="pitch">–</b></div>
+          <div class="navegador-linha"><span>${t`Tombo lateral`}</span><b data-el="roll">–</b></div>
+          <div class="navegador-linha"><span>${t`À frente`}</span><b data-el="ahead">–</b></div>
         </div>
       </div>
-      <div class="navegador-linha"><span>Limite<span class="navegador-longo"> de declive</span></span><b data-el="limit">–</b></div>
-      <div class="navegador-linha navegador-extra"><span>Altitude</span><b data-el="altitude">–</b></div>
-      <div class="navegador-linha navegador-risco"><span>Risco próximo</span><b data-el="risk">–</b></div>
+      <div class="navegador-linha"><span><span class="navegador-longo">${t`Limite de declive`}</span><span class="navegador-curto">${t`Limite`}</span></span><b data-el="limit">–</b></div>
+      <div class="navegador-linha navegador-extra"><span>${t`Altitude`}</span><b data-el="altitude">–</b></div>
+      <div class="navegador-linha navegador-risco"><span>${t`Risco próximo`}</span><b data-el="risk">–</b></div>
     </section>
 
     <div class="navegador-alertas" data-el="alerts"></div>
     <p class="visually-hidden" data-el="announce" role="status" aria-live="polite"></p>
     <i class="navegador-mira" data-el="reticle" aria-hidden="true"></i>
-    <div class="navegador-pad" data-el="pad" hidden role="group" aria-label="Mover na caminhada livre">
-      <button type="button" data-pad="left" aria-label="Virar à esquerda">◀</button>
-      <button type="button" data-pad="forward" aria-label="Andar para a frente">▲</button>
-      <button type="button" data-pad="back" aria-label="Andar para trás">▼</button>
-      <button type="button" data-pad="right" aria-label="Virar à direita">▶</button>
+    <div class="navegador-pad" data-el="pad" hidden role="group" aria-label="${t`Mover na caminhada livre`}">
+      <button type="button" data-pad="left" aria-label="${t`Virar à esquerda`}">◀</button>
+      <button type="button" data-pad="forward" aria-label="${t`Andar para a frente`}">▲</button>
+      <button type="button" data-pad="back" aria-label="${t`Andar para trás`}">▼</button>
+      <button type="button" data-pad="right" aria-label="${t`Virar à direita`}">▶</button>
     </div>
 
-    <section class="navegador-mapa" aria-label="Minimapa">
-      <canvas class="navegador-minimapa" data-el="minimap" role="img" aria-label="Minimapa centrado no astronauta, girando com o rumo: rota, paradas, trajeto do Curiosity, zona de rochas cortantes, habitat e norte"></canvas>
+    <section class="navegador-mapa" aria-label="${t`Minimapa`}">
+      <canvas class="navegador-minimapa" data-el="minimap" role="img" aria-label="${t`Minimapa centrado no astronauta, girando com o rumo: rota, paradas, trajeto do Curiosity, zona de rochas cortantes, habitat e norte`}"></canvas>
       <div class="navegador-zoom">
-        <button type="button" data-el="zoomOut" aria-label="Afastar o minimapa">−</button>
-        <span data-el="zoomLabel">raio 400 m</span>
-        <button type="button" data-el="zoomIn" aria-label="Aproximar o minimapa">+</button>
+        <button type="button" data-el="zoomOut" aria-label="${t`Afastar o minimapa`}">−</button>
+        <span data-el="zoomLabel">${t`raio ${'400 m'}`}</span>
+        <button type="button" data-el="zoomIn" aria-label="${t`Aproximar o minimapa`}">+</button>
       </div>
     </section>
 
-    <section class="navegador-bloco navegador-traje" aria-label="Traje e ambiente">
-      <span class="navegador-rotulo">Traje <small>simulado</small><span class="navegador-longo"> · ambiente <small>medido e estimado</small></span></span>
+    <section class="navegador-bloco navegador-traje" aria-label="${t`Traje e ambiente`}">
+      <span class="navegador-rotulo">${t`Traje`} <small>${t`simulado`}</small><span class="navegador-longo"> · ${t`ambiente`} <small>${t`medido e estimado`}</small></span></span>
       <div class="navegador-medidor" data-el="o2Meter"><span>O₂</span><i></i><b data-el="o2">100%</b></div>
-      <div class="navegador-medidor" data-el="batteryMeter"><span>Bateria</span><i></i><b data-el="battery">100%</b></div>
-      <div class="navegador-linha"><span>Margem de O₂<span class="navegador-longo"> no fim</span></span><b data-el="margin">–</b></div>
-      <div class="navegador-linha"><span>Radiação <small>RAD</small></span><b data-el="radiation">–</b></div>
-      <div class="navegador-linha"><span>Dose na saída <small>est.</small></span><b data-el="dose">–</b></div>
-      <div class="navegador-linha"><span>Temp. do ar <small>est.</small></span><b data-el="temperature">–</b></div>
+      <div class="navegador-medidor" data-el="batteryMeter"><span>${t`Bateria`}</span><i></i><b data-el="battery">100%</b></div>
+      <div class="navegador-linha"><span><span class="navegador-longo">${t`Margem de O₂ no fim`}</span><span class="navegador-curto">${t`Margem de O₂`}</span></span><b data-el="margin">–</b></div>
+      <div class="navegador-linha"><span>${t`Radiação`} <small>RAD</small></span><b data-el="radiation">–</b></div>
+      <div class="navegador-linha"><span>${t`Dose na saída`} <small>${t`est.`}</small></span><b data-el="dose">–</b></div>
+      <div class="navegador-linha"><span>${t`Temp. do ar`} <small>${t`est.`}</small></span><b data-el="temperature">–</b></div>
     </section>
 
-    <section class="navegador-guia" aria-label="Assistente de navegação">
-      <span class="navegador-rotulo">Navegador <small>regras simuladas<span class="navegador-longo"> · não é IA de verdade</span></small></span>
+    <section class="navegador-guia" aria-label="${t`Assistente de navegação`}">
+      <span class="navegador-rotulo">${t`Navegador`} <small>${t`regras simuladas`}<span class="navegador-longo"> · ${t`não é IA de verdade`}</span></small></span>
       <div class="navegador-manobra" data-el="maneuver" data-level="info">
         <span class="navegador-glifo" aria-hidden="true">
           <svg data-el="arrow" viewBox="0 0 48 48"><path d="M24 5 39 27H29.5V43h-11V27H9Z"/></svg>
@@ -113,29 +115,29 @@ const TEMPLATE = `
       <ul class="navegador-avisos" data-el="advisories"></ul>
     </section>
 
-    <section class="navegador-perfil" aria-label="Perfil de altitude à frente">
-      <span class="navegador-rotulo" data-el="profileCaption">Perfil à frente</span>
-      <canvas class="navegador-perfil-tela" data-el="profile" role="img" aria-label="Perfil de altitude dos próximos metros da rota, com os trechos de declive forte e a cobertura de rádio"></canvas>
+    <section class="navegador-perfil" aria-label="${t`Perfil de altitude à frente`}">
+      <span class="navegador-rotulo" data-el="profileCaption">${t`Perfil à frente`}</span>
+      <canvas class="navegador-perfil-tela" data-el="profile" role="img" aria-label="${t`Perfil de altitude dos próximos metros da rota, com os trechos de declive forte e a cobertura de rádio`}"></canvas>
     </section>
 
-    <section class="navegador-bloco navegador-radio" aria-label="Rádio com o habitat">
-      <span class="navegador-rotulo">Rádio<span class="navegador-longo"> · habitat</span> <small>visada calculada</small></span>
+    <section class="navegador-bloco navegador-radio" aria-label="${t`Rádio com o habitat`}">
+      <span class="navegador-rotulo">${t`Rádio`}<span class="navegador-longo"> · habitat</span> <small>${t`visada calculada`}</small></span>
       <b class="navegador-valor" data-el="radioState">–</b>
-      <div class="navegador-linha"><span>Folga<span class="navegador-longo"> sobre o relevo</span></span><b data-el="radioClearance">–</b></div>
-      <div class="navegador-linha"><span><span class="navegador-longo">Seguindo a rota</span><span class="navegador-curto">Na rota</span></span><b data-el="radioNext">–</b></div>
-      <div class="navegador-linha navegador-extra"><span>Em linha reta</span><b data-el="radioDist">–</b></div>
+      <div class="navegador-linha"><span><span class="navegador-longo">${t`Folga sobre o relevo`}</span><span class="navegador-curto">${t`Folga`}</span></span><b data-el="radioClearance">–</b></div>
+      <div class="navegador-linha"><span><span class="navegador-longo">${t`Seguindo a rota`}</span><span class="navegador-curto">${t`Na rota`}</span></span><b data-el="radioNext">–</b></div>
+      <div class="navegador-linha navegador-extra"><span>${t`Em linha reta`}</span><b data-el="radioDist">–</b></div>
       <span class="navegador-nota" data-el="radioNote"></span>
     </section>
   </div>
 
-  <div class="navegador-controles" role="toolbar" aria-label="Controles da simulação">
-    <button type="button" data-el="pause">Pausar</button>
-    <label><span class="navegador-longo">Velocidade</span> <select data-el="speed" aria-label="Velocidade da simulação"></select></label>
-    <input type="range" data-el="scrub" min="0" value="0" aria-label="Posição na rota">
-    <button type="button" data-el="free" aria-pressed="false" title="Andar com W A S D ou as setas (tecla L)"><span class="navegador-longo">Caminhada </span>livre</button>
-    <button type="button" data-el="voice" aria-pressed="false" title="Voz do assistente (tecla V)">Voz</button>
-    <button type="button" data-el="solar" aria-pressed="false"><span class="navegador-longo">Simular evento </span>solar</button>
-    <button type="button" data-el="exit" class="navegador-primario"><span class="navegador-longo">Voltar ao tablet</span><span class="navegador-curto">Sair</span></button>
+  <div class="navegador-controles" role="toolbar" aria-label="${t`Controles da simulação`}">
+    <button type="button" data-el="pause">${t`Pausar`}</button>
+    <label><span class="navegador-longo">${t`Velocidade`}</span> <select data-el="speed" aria-label="${t`Velocidade da simulação`}"></select></label>
+    <input type="range" data-el="scrub" min="0" value="0" aria-label="${t`Posição na rota`}">
+    <button type="button" data-el="free" aria-pressed="false" title="${t`Andar com W A S D ou as setas (tecla L)`}"><span class="navegador-longo">${t`Caminhada livre`}</span><span class="navegador-curto">${t`livre`}</span></button>
+    <button type="button" data-el="voice" aria-pressed="false" title="${t`Voz do assistente (tecla V)`}">${t`Voz`}</button>
+    <button type="button" data-el="solar" aria-pressed="false"><span class="navegador-longo">${t`Simular evento solar`}</span><span class="navegador-curto">${t`solar`}</span></button>
+    <button type="button" data-el="exit" class="navegador-primario"><span class="navegador-longo">${t`Voltar ao tablet`}</span><span class="navegador-curto">${t`Sair`}</span></button>
   </div>
 </div>
 `;
@@ -178,27 +180,27 @@ function renderCompass(els, viewHeading, readout) {
 
 function renderPace(els, readout, state) {
   const mode = readout.here.onFoot ? MODE_LABEL.foot : MODE_LABEL.cabin;
-  setText(els.mode, state.free ? `${mode} · livre` : mode);
+  setText(els.mode, state.free ? t`${mode} · livre` : mode);
   setText(els.elapsed, fmtDuration(readout.elapsedH));
   setText(els.pace, readout.pace.text);
   setData(els.pace, 'level', readout.pace.level);
   let speed = `${fmtNumber(readout.movingKmh, 1)} km/h`;
-  if (state.finished) speed = 'no habitat';
-  else if (state.paused) speed = 'pausado';
-  else if (state.dwellRemainingH > 0) speed = 'em coleta';
+  if (state.finished) speed = t`no habitat`;
+  else if (state.paused) speed = t`pausado`;
+  else if (state.dwellRemainingH > 0) speed = t`em coleta`;
   setText(els.speedNow, speed);
   setText(els.clock, fmtClock(readout.clockH));
 }
 
 // Volta a pé direta ao habitat: pelo roteador quando o contexto traz, senão pelo ponto sem volta do plano.
 function walkBackText({ walkBack, noReturn }) {
-  if (walkBack?.noRoute) return 'sem caminho a pé';
+  if (walkBack?.noRoute) return t`sem caminho a pé`;
   if (walkBack) {
-    const oxygen = walkBack.covered ? `sobra ${fmtNumber(walkBack.o2AfterPct)}% de O₂` : 'O₂ não cobre';
+    const oxygen = walkBack.covered ? t`sobra ${fmtNumber(walkBack.o2AfterPct)}% de O₂` : t`O₂ não cobre`;
     return `${fmtDuration(walkBack.walkH)} · ${oxygen}`;
   }
-  if (!noReturn) return 'coberta neste plano';
-  return noReturn.passed ? `sem volta há ${fmtDistance(-noReturn.aheadM)}` : `sem volta em ${fmtDistance(noReturn.aheadM)}`;
+  if (!noReturn) return t`coberta neste plano`;
+  return noReturn.passed ? t`sem volta há ${fmtDistance(-noReturn.aheadM)}` : t`sem volta em ${fmtDistance(noReturn.aheadM)}`;
 }
 
 function renderDestination(els, readout) {
@@ -206,16 +208,16 @@ function renderDestination(els, readout) {
   setText(els.nextLabel, target.label);
   setText(els.nextName, target.name);
   if (target.kind === 'dwell') {
-    setText(els.nextDist, 'coleta em andamento');
-    setText(els.nextEta, `faltam ${fmtDuration(target.etaH)}`);
+    setText(els.nextDist, t`coleta em andamento`);
+    setText(els.nextEta, t`faltam ${fmtDuration(target.etaH)}`);
     setText(els.nextGain, '');
   } else {
     setText(els.nextDist, fmtDistance(target.distM));
-    setText(els.nextEta, `chegada em ${fmtDuration(target.etaH)}`);
+    setText(els.nextEta, t`chegada em ${fmtDuration(target.etaH)}`);
     setText(els.nextGain, `${fmtSigned(target.gainM)} m`);
   }
   setText(els.home, `${fmtDistance(home.distM)} · ${fmtDuration(home.timeH)}`);
-  setText(els.back, `${fmtDistance(back.distM)} · ${fmtDuration(back.timeH)} · ${back.via === 'back' ? 'pela ida' : 'em frente'}`);
+  setText(els.back, `${fmtDistance(back.distM)} · ${fmtDuration(back.timeH)} · ${back.via === 'back' ? t`pela ida` : t`em frente`}`);
   setText(els.walkBack, walkBackText(readout));
   setData(els.walkBack, 'level', readout.stranded ? 'warn' : 'ok');
 }
@@ -230,13 +232,15 @@ function renderTerrain(els, readout) {
   setText(els.pitch, `${fmtSigned(terrain.pitchDeg)}°`);
   setData(els.pitch, 'level', SLOPE_DATA_LEVEL[terrain.level]);
   const rollAbs = Math.abs(terrain.rollDeg);
-  setText(els.roll, rollAbs < LEVEL_FLAT_DEG ? 'nivelado' : `${fmtNumber(rollAbs)}° ${terrain.rollDeg > 0 ? 'à dir.' : 'à esq.'}`);
+  let rollText = terrain.rollDeg > 0 ? t`${fmtNumber(rollAbs)}° à dir.` : t`${fmtNumber(rollAbs)}° à esq.`;
+  if (rollAbs < LEVEL_FLAT_DEG) rollText = t`nivelado`;
+  setText(els.roll, rollText);
   setData(els.roll, 'level', SLOPE_DATA_LEVEL[terrain.rollLevel]);
-  const where = terrain.aheadInM >= 10 ? ` em ${fmtDistance(terrain.aheadInM)}` : '';
-  setText(els.ahead, `${fmtSigned(terrain.aheadDeg)}°${where}`);
+  const aheadDeg = fmtSigned(terrain.aheadDeg);
+  setText(els.ahead, terrain.aheadInM >= 10 ? t`${aheadDeg}° em ${fmtDistance(terrain.aheadInM)}` : `${aheadDeg}°`);
   setData(els.ahead, 'level', SLOPE_DATA_LEVEL[terrain.aheadLevel]);
 
-  setText(els.limit, `${terrain.limitDeg}° ${here.onFoot ? 'a pé' : 'de veículo'}`);
+  setText(els.limit, here.onFoot ? t`${terrain.limitDeg}° a pé` : t`${terrain.limitDeg}° de veículo`);
   setText(els.altitude, `${fmtNumber(readout.elevM)} m`);
   setText(els.risk, risk.text);
   setData(els.risk, 'level', risk.level);
@@ -270,15 +274,15 @@ function renderRadio(els, readout) {
   setData(els.radioState, 'level', status.level);
   let clearance = '–';
   if (Number.isFinite(radio.clearanceM)) {
-    clearance = radio.visible ? `${fmtSigned(radio.clearanceM)} m` : `${fmtSigned(radio.clearanceM)} m a ${fmtDistance(radio.blockAtM)}`;
+    clearance = radio.visible ? `${fmtSigned(radio.clearanceM)} m` : t`${fmtSigned(radio.clearanceM)} m a ${fmtDistance(radio.blockAtM)}`;
   }
   setText(els.radioClearance, clearance);
-  let next = 'sem mudança até o fim';
+  let next = t`sem mudança até o fim`;
   if (radio.route.changeInM !== null) {
-    let what = 'volta';
+    const changeIn = fmtDistance(radio.route.changeInM);
+    next = t`volta em ${changeIn}`;
     // Um corte de menos de 40 m não é a perda do alerta: aparece com outro nome.
-    if (radio.route.visible) what = radio.route.nextLengthM < NAV.radioMinGapM ? 'corte curto' : 'cai';
-    next = `${what} em ${fmtDistance(radio.route.changeInM)}`;
+    if (radio.route.visible) next = radio.route.nextLengthM < NAV.radioMinGapM ? t`corte curto em ${changeIn}` : t`cai em ${changeIn}`;
   }
   setText(els.radioNext, next);
   setData(els.radioNext, 'level', radio.lossSoon ? 'warn' : 'ok');
@@ -329,9 +333,10 @@ export function createHud(mount, terrain, antenna) {
   mount.innerHTML = TEMPLATE;
   const els = Object.fromEntries([...mount.querySelectorAll('[data-el]')].map((node) => [node.dataset.el, node]));
   buildCompassTape(els.tape);
-  setText(els.terrainSource, terrain.isReal ? 'relevo real · USGS' : 'relevo aproximado');
-  const relief = terrain.isReal ? 'relevo real' : 'relevo aproximado';
-  setText(els.radioNote, `Geometria sobre o ${relief}. Antenas presumidas (hipótese da equipe): traje ${antenna.suit} m, mastro do habitat ${antenna.habitat} m. Sem difração nem relé.`);
+  setText(els.terrainSource, terrain.isReal ? t`relevo real · USGS` : t`relevo aproximado`);
+  setText(els.radioNote, terrain.isReal
+    ? t`Geometria sobre o relevo real. Antenas presumidas (hipótese da equipe): traje ${antenna.suit} m, mastro do habitat ${antenna.habitat} m. Sem difração nem relé.`
+    : t`Geometria sobre o relevo aproximado. Antenas presumidas (hipótese da equipe): traje ${antenna.suit} m, mastro do habitat ${antenna.habitat} m. Sem difração nem relé.`);
 
   /**
    * @param {object} readout Resultado de `deriveReadout`.

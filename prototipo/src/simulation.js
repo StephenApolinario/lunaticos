@@ -12,6 +12,7 @@ import { localSolarHour } from './luz.js';
 import { estimatedAirTempC } from './clima.js';
 import { RAD } from '../data/medicoes.js';
 import { SUIT, O2_PCT_PER_HOUR } from '../data/traje.js';
+import { t } from './i18n.js';
 
 export const SIM = Object.freeze({
   speeds: [1, 20, 60, 200],
@@ -95,19 +96,19 @@ export function jumpTo(plan, state, distM) {
 function nextTarget(plan, state, here) {
   if (state.dwellRemainingH > 0) {
     const { stop } = plan.stops[state.stopsReached - 1];
-    return { kind: 'dwell', stop, label: `Em coleta · parada ${stop.id}`, name: shortName(stop.id), distM: 0, etaH: state.dwellRemainingH, gainM: 0, position: toLocal(stop.lat, stop.lon) };
+    return { kind: 'dwell', stop, label: t`Em coleta · parada ${stop.id}`, name: shortName(stop.id), distM: 0, etaH: state.dwellRemainingH, gainM: 0, position: toLocal(stop.lat, stop.lon) };
   }
   const next = plan.stops[state.stopsReached];
   if (next) {
     const at = samplePath(plan.path, next.distM);
     return {
-      kind: 'stop', stop: next.stop, label: `Próxima parada · ${next.stop.id}`, name: shortName(next.stop.id),
+      kind: 'stop', stop: next.stop, label: t`Próxima parada · ${next.stop.id}`, name: shortName(next.stop.id),
       distM: next.distM - here.distM, etaH: at.travelH - here.travelH, gainM: next.stop.el - here.elev, position: at,
     };
   }
   const end = samplePath(plan.path, plan.path.totalM);
   return {
-    kind: 'return', stop: findStop('H'), label: 'Retorno', name: 'Habitat',
+    kind: 'return', stop: findStop('H'), label: t('Retorno'), name: 'Habitat',
     distM: plan.path.totalM - here.distM, etaH: plan.path.totalTravelH - here.travelH, gainM: end.elev - here.elev, position: end,
   };
 }
@@ -144,42 +145,42 @@ function hazardStatus(here, heading) {
   const center = toLocal(HAZARD.lat, HAZARD.lon);
   const edgeM = Math.hypot(center.x - here.x, center.z - here.z) - HAZARD.radiusKm * 1000;
   const relative = angleDeltaDeg(heading, headingDeg(center.x - here.x, center.z - here.z));
-  let side = relative > 0 ? 'à direita' : 'à esquerda';
-  if (Math.abs(relative) < AHEAD_CONE_DEG) side = 'à frente';
-  if (Math.abs(relative) > BEHIND_CONE_DEG) side = 'atrás';
+  let side = relative > 0 ? t('à direita') : t('à esquerda');
+  if (Math.abs(relative) < AHEAD_CONE_DEG) side = t('à frente');
+  if (Math.abs(relative) > BEHIND_CONE_DEG) side = t('atrás');
   return { edgeM, side, near: edgeM < SIM.hazardWarnM };
 }
 
 function buildAlerts(state, readout) {
   const alerts = [];
   const { suit, hazard, slopeAheadDeg } = readout;
-  if (state.solarEvent) alerts.push({ kind: 'solar', level: 'danger', text: `Evento solar · dose ${SIM.solarEventFactor}× acima do normal` });
-  if (suit.marginH < 0) alerts.push({ kind: 'o2-short', level: 'danger', text: `O₂ insuficiente para o plano · faltam ${fmtDuration(-suit.marginH)}` });
-  else if (suit.marginH < SIM.lowMarginH) alerts.push({ kind: 'o2-low', level: 'warn', text: `Margem de O₂ baixa · ${fmtDuration(suit.marginH)}` });
-  if (hazard.near) alerts.push({ kind: 'hazard', level: 'warn', text: `Rochas cortantes a ${fmtDistance(Math.max(0, hazard.edgeM))} ${hazard.side}` });
-  if (slopeAheadDeg >= SIM.slopeWarnDeg) alerts.push({ kind: 'slope', level: 'warn', text: `Declive de ${fmtNumber(slopeAheadDeg)}° à frente` });
+  if (state.solarEvent) alerts.push({ kind: 'solar', level: 'danger', text: t`Evento solar · dose ${SIM.solarEventFactor}× acima do normal` });
+  if (suit.marginH < 0) alerts.push({ kind: 'o2-short', level: 'danger', text: t`O₂ insuficiente para o plano · faltam ${fmtDuration(-suit.marginH)}` });
+  else if (suit.marginH < SIM.lowMarginH) alerts.push({ kind: 'o2-low', level: 'warn', text: t`Margem de O₂ baixa · ${fmtDuration(suit.marginH)}` });
+  if (hazard.near) alerts.push({ kind: 'hazard', level: 'warn', text: t`Rochas cortantes a ${fmtDistance(Math.max(0, hazard.edgeM))} ${hazard.side}` });
+  if (slopeAheadDeg >= SIM.slopeWarnDeg) alerts.push({ kind: 'slope', level: 'warn', text: t`Declive de ${fmtNumber(slopeAheadDeg)}° à frente` });
   return alerts;
 }
 
 // Uma frase por vez, escolhida pela regra de maior prioridade que se aplica.
 function copilotMessage(plan, state, readout) {
   const { here, suit, target, hazard, slopeAheadDeg } = readout;
-  if (state.finished) return 'Travessia concluída. Você está de volta ao habitat.';
+  if (state.finished) return t('Travessia concluída. Você está de volta ao habitat.');
   if (state.solarEvent) {
     const backM = Math.min(here.distM, plan.path.totalM - here.distM);
-    return `Evento solar em curso. Volte ao habitat pelo caminho mais curto: ${fmtDistance(backM)}, cerca de ${fmtDuration(backM / 1000 / here.speedKmh)}.`;
+    return t`Evento solar em curso. Volte ao habitat pelo caminho mais curto: ${fmtDistance(backM)}, cerca de ${fmtDuration(backM / 1000 / here.speedKmh)}.`;
   }
   if (suit.marginH < 0) {
-    const fix = plan.mode === 'walk' ? 'Encurte a rota ou troque para o veículo.' : 'Encurte a rota.';
-    return `O oxigênio não cobre este plano: faltam ${fmtDuration(-suit.marginH)} de autonomia. ${fix}`;
+    const fix = plan.mode === 'walk' ? t('Encurte a rota ou troque para o veículo.') : t('Encurte a rota.');
+    return `${t`O oxigênio não cobre este plano: faltam ${fmtDuration(-suit.marginH)} de autonomia.`} ${fix}`;
   }
-  if (target.kind === 'dwell') return `Parada ${target.stop.id}, ${target.name}. Tarefa: ${target.stop.task}`;
-  if (hazard.near) return `Rochas cortantes a ${fmtDistance(Math.max(0, hazard.edgeM))} ${hazard.side}. Mantenha-se na rota marcada.`;
+  if (target.kind === 'dwell') return t`Parada ${target.stop.id}, ${target.name}. Tarefa: ${target.stop.task}`;
+  if (hazard.near) return t`Rochas cortantes a ${fmtDistance(Math.max(0, hazard.edgeM))} ${hazard.side}. Mantenha-se na rota marcada.`;
   if (slopeAheadDeg >= SIM.slopeWarnDeg) {
-    return `Declive de ${fmtNumber(slopeAheadDeg)}° nos próximos ${SIM.slopeLookaheadM} m. Reduza o passo e firme o apoio.`;
+    return t`Declive de ${fmtNumber(slopeAheadDeg)}° nos próximos ${SIM.slopeLookaheadM} m. Reduza o passo e firme o apoio.`;
   }
-  if (target.kind === 'return') return `Coletas concluídas. Siga ${fmtDistance(target.distM)} de volta ao habitat, chegada em ${fmtDuration(target.etaH)}.`;
-  return `Siga ${fmtDistance(target.distM)} até ${target.name}. Chegada em ${fmtDuration(target.etaH)}.`;
+  if (target.kind === 'return') return t`Coletas concluídas. Siga ${fmtDistance(target.distM)} de volta ao habitat, chegada em ${fmtDuration(target.etaH)}.`;
+  return t`Siga ${fmtDistance(target.distM)} até ${target.name}. Chegada em ${fmtDuration(target.etaH)}.`;
 }
 
 /**

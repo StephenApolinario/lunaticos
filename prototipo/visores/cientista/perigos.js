@@ -6,12 +6,13 @@
 
 import { toLocal, headingDeg, angleDeltaDeg } from '../../src/geo.js';
 import { fmtDistance, fmtNumber } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 
 export const HAZARD_TYPES = Object.freeze({
-  rocha: 'Rocha cortante',
-  areia: 'Areia fofa',
-  declive: 'Declive',
-  outro: 'Outro perigo',
+  rocha: t`Rocha cortante`,
+  areia: t`Areia fofa`,
+  declive: t`Declive`,
+  outro: t`Outro perigo`,
 });
 export const HAZARD_STORAGE_KEY = 'lunaticos.cientista.perigos.v1';
 export const MAX_HAZARD_NOTE_CHARS = 280;
@@ -119,15 +120,15 @@ export function createHazardStore(storage = defaultStorage()) {
 
 /** Uma linha de texto por perigo: tipo, posição, nota e data do relato. */
 export function describeHazard(hazard) {
-  const note = hazard.note ? ` · nota: ${hazard.note}` : '';
-  const date = hazard.createdAt ? ` · relatado em ${hazard.createdAt.slice(0, 10)}` : '';
+  const note = hazard.note ? ` · ${t`nota: ${hazard.note}`}` : '';
+  const date = hazard.createdAt ? ` · ${t`relatado em ${hazard.createdAt.slice(0, 10)}`}` : '';
   return `${HAZARD_TYPES[hazard.type]} · lat ${fmtNumber(hazard.lat, 5)}, lon ${fmtNumber(hazard.lon, 5)}, alt ${fmtNumber(hazard.elevM)} m${note}${date}`;
 }
 
 function sideOf(relativeDeg) {
-  if (Math.abs(relativeDeg) < AHEAD_CONE_DEG) return 'à frente';
-  if (Math.abs(relativeDeg) > BEHIND_CONE_DEG) return 'atrás';
-  return relativeDeg > 0 ? 'à direita' : 'à esquerda';
+  if (Math.abs(relativeDeg) < AHEAD_CONE_DEG) return t('à frente');
+  if (Math.abs(relativeDeg) > BEHIND_CONE_DEG) return t('atrás');
+  return relativeDeg > 0 ? t('à direita') : t('à esquerda');
 }
 
 /**
@@ -161,14 +162,14 @@ export function locateHazards(hazards, here, heading, outingId) {
 export function hazardWarning(located, { minM, warnM } = HAZARD_WARNING) {
   const hazard = located.find((candidate) => candidate.ahead && candidate.distM >= minM && candidate.distM <= warnM);
   if (!hazard) return null;
-  const origin = hazard.previous ? 'Relato de uma saída anterior' : 'Relato desta saída';
-  const note = hazard.note ? `: “${hazard.note}”` : '';
+  let origin = hazard.previous ? t`Relato de uma saída anterior.` : t`Relato desta saída.`;
+  if (hazard.note) origin = hazard.previous ? t`Relato de uma saída anterior: “${hazard.note}”.` : t`Relato desta saída: “${hazard.note}”.`;
   return {
     kind: 'perigo-relatado',
     // Cada perigo é um aviso próprio: o segundo é anunciado mesmo com o primeiro ainda na tela.
     key: `perigo-relatado:${hazard.id}`,
     level: 'atencao',
-    text: `Perigo relatado: ${hazard.label.toLowerCase()} a ${fmtDistance(hazard.distM)} ${hazard.side}`,
-    action: `${origin}${note}. Passe com cuidado e confirme se o perigo continua lá.`,
+    text: t`Perigo relatado: ${hazard.label.toLowerCase()} a ${fmtDistance(hazard.distM)} ${hazard.side}`,
+    action: `${origin} ${t`Passe com cuidado e confirme se o perigo continua lá.`}`,
   };
 }

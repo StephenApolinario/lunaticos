@@ -1,7 +1,13 @@
 // Calculadora da IA: soma, subtração, multiplicação, divisão e parênteses, sem `eval`.
 // O modelo de linguagem erra conta de cabeça; aqui a conta é feita de verdade. Puro.
 
-const TOKEN = /\s*(\d+(?:[.,]\d+)?|[-+*/()×÷x])/y;
+import { IS_ENGLISH } from '../i18n.js';
+
+// Em inglês a vírgula separa milhares ("1,080"); em português ela é a vírgula decimal ("4,7").
+const TOKEN = IS_ENGLISH
+  ? /\s*(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?|[-+*/()×÷x])/y
+  : /\s*(\d+(?:[.,]\d+)?|[-+*/()×÷x])/y;
+const THOUSANDS = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
 
 function tokenize(expression) {
   const tokens = [];
@@ -32,7 +38,8 @@ export function evaluate(expression) {
       if (take() !== ')') throw new Error('Falta fechar um parêntese.');
       return value;
     }
-    const value = Number.parseFloat(String(token).replace(',', '.'));
+    const text = String(token);
+    const value = Number.parseFloat(IS_ENGLISH && THOUSANDS.test(text) ? text.replace(/,/g, '') : text.replace(',', '.'));
     if (!Number.isFinite(value)) throw new Error('Expressão inválida.');
     return value;
   }
@@ -61,5 +68,8 @@ export function evaluate(expression) {
   return result;
 }
 
-/** Resultado em texto, com vírgula decimal e até duas casas. */
-export const formatResult = (value) => String(Math.round(value * 100) / 100).replace('.', ',');
+/** Resultado em texto, com até duas casas: vírgula decimal em português, ponto em inglês. */
+export const formatResult = (value) => {
+  const text = String(Math.round(value * 100) / 100);
+  return IS_ENGLISH ? text : text.replace('.', ',');
+};

@@ -2,9 +2,11 @@
 // que as ferramentas devolveram nesta pergunta (ou na própria pergunta). Arredondar pode; converter
 // ou estimar, não. Puro: roda no Node e no navegador.
 
+import { IS_ENGLISH } from '../i18n.js';
+
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 // O que vem logo depois do número e mostra que ele é uma medida (e não uma contagem solta).
-const UNIT_AFTER = /^\s?(%|°|º|h\d|h\b|min\b|km|m\b|m\/|kpa|pa\b|µ|msv|kg\b|g\b|w\b|×|x\b|vezes|por cento|graus?|horas?|minutos?|metros?|quil|sols?\b)/i;
+const UNIT_AFTER = /^\s?(%|°|º|h\d|h\b|min\b|km|m\b|m\/|kpa|pa\b|µ|msv|kg\b|g\b|w\b|×|x\b|vezes|por cento|graus?|horas?|minutos?|metros?|quil|sols?\b|times\b|percent|degrees?|hours?|minutes?|seconds?|meters?|metres?|kilo|micro|milli|watts?)/i;
 // Inteiros pequenos sem unidade (contagens, passos, "parada 3") não precisam de conferência.
 const FREE_INTEGER_MAX = 20;
 const MAX_ROUNDABLE_DECIMALS = 2;
@@ -13,6 +15,11 @@ const MAX_ROUNDABLE_DECIMALS = 2;
 function readings(raw) {
   const plain = (text) => ({ value: Number.parseFloat(text), decimals: (text.split('.')[1] ?? '').length });
   if (/^\d+$/.test(raw)) return [plain(raw)];
+  // "1,080" em inglês é mil e oitenta e só isso; em português pode ser também 1,08 (as duas leituras valem).
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(raw)) {
+    const thousands = plain(raw.replace(/,/g, ''));
+    return !IS_ENGLISH && /^\d+,\d+$/.test(raw) ? [thousands, plain(raw.replace(',', '.'))] : [thousands];
+  }
   if (/^\d+,\d+$/.test(raw)) return [plain(raw.replace(',', '.'))];
   if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw)) {
     const thousands = plain(raw.replace(/\./g, '').replace(',', '.'));

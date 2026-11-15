@@ -5,6 +5,7 @@ import { estimatedAirTempC } from '../../src/clima.js';
 import { SIM, localClockOf } from '../../src/simulation.js';
 import { headingDeg, yToElev } from '../../src/geo.js';
 import { samplePath, maxSlopeAheadDeg } from '../../src/route.js';
+import { t } from '../../src/i18n.js';
 import { RULES, FAULTS, SHELTER_NAMES } from './catalog.js';
 import { effects, mobility, ratesOf, o2PctOf, batteryPctOf, isColdAt } from './engine.js';
 
@@ -55,7 +56,7 @@ function bearingTo(from, to) {
 
 // Para onde se está indo agora: a próxima parada do plano ou o abrigo escolhido.
 function currentTarget(plan, state, pos, m, base) {
-  if (state.finished) return { kind: 'home', label: 'Saída encerrada', name: 'Habitat', distM: 0, etaH: 0, gainM: 0, position: pos, stopId: 'H' };
+  if (state.finished) return { kind: 'home', label: t`Saída encerrada`, name: 'Habitat', distM: 0, etaH: 0, gainM: 0, position: pos, stopId: 'H' };
   if (state.nav.kind !== 'goto') return { ...base.target, stopId: base.target.stop.id };
   const { target } = state.nav;
   const onRoute = target.kind !== 'terrain';
@@ -63,7 +64,7 @@ function currentTarget(plan, state, pos, m, base) {
   const distM = onRoute && !state.off ? Math.abs(target.distM - state.distM) : Math.hypot(position.x - pos.x, position.z - pos.z);
   const speedKmh = m.driving ? m.speedKmh : target.paceKmh ?? m.speedKmh;
   return {
-    kind: 'shelter', label: 'Indo ao abrigo', name: SHELTER_NAMES[target.kind], distM, etaH: distM / M_PER_KM / speedKmh,
+    kind: 'shelter', label: t`Indo ao abrigo`, name: SHELTER_NAMES[target.kind], distM, etaH: distM / M_PER_KM / speedKmh,
     // Com ritmo ajustado, a distância pela linha da rota não é a do caminho real: mostra só o tempo.
     timeOnly: target.paceKmh !== undefined,
     gainM: onRoute ? position.elev - m.here.elev : 0, position, stopId: target.kind === 'habitat' ? 'H' : null,

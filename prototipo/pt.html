@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Martian Map · Lunáticos</title>
+  <meta name="description" content="Guia de sobrevivência para uma caminhada em Marte: um tablet para planejar a saída no habitat e um visor de capacete para seguir a rota, sobre dados reais da NASA.">
+  <meta name="color-scheme" content="dark">
+  <!-- Versão em português de index.html: a mesma estrutura, só o texto muda (conferir com tools/check-apresentacao.mjs). -->
+  <!-- Só o script da própria página roda aqui (a rota na rolagem e a conversa de exemplo). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'self'; form-action 'none'">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Martian Map · Lunáticos">
+  <meta property="og:description" content="Uma caminhada em Marte, planejada para dar tempo de voltar. Projeto da equipe Lunáticos para o NASA Space Apps Challenge 2026.">
+  <meta property="og:image" content="https://lunaticos-ruby.vercel.app/apresentacao/img/og.jpg">
+  <link rel="alternate" hreflang="en" href="./">
+  <link rel="alternate" hreflang="x-default" href="./">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="preload" as="image" href="./apresentacao/img/tablet-pt.webp" type="image/webp" fetchpriority="high">
+  <link rel="stylesheet" href="./apresentacao/site.css">
+  <script type="module" src="./apresentacao/site.js"></script>
+</head>
+<body>
+  <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+  <header class="barra">
+    <a class="marca" href="./pt.html"><span class="marca-led" aria-hidden="true"></span>Martian Map <span class="marca-equipe">Lunáticos</span></a>
+    <nav class="barra-nav" aria-label="Seções da página">
+      <a href="#problema">Problema</a>
+      <a href="#telas">Duas telas</a>
+      <a href="#dados">Dados</a>
+      <a href="#seguranca">Segurança</a>
+      <a href="#limites">Limites</a>
+    </nav>
+    <nav class="idiomas" aria-label="Idioma">
+      <a href="./" lang="en" title="English">EN</a>
+      <a href="./pt.html" lang="pt-BR" aria-current="true" title="Português (Brasil)">PT</a>
+    </nav>
+    <a class="botao botao-pequeno" href="./demo.html?lang=pt"><span>Ver demo</span><span class="seta" aria-hidden="true">→</span></a>
+  </header>
+
+  <main id="conteudo">
+    <section class="abertura" aria-labelledby="titulo">
+      <div class="abertura-texto">
+        <p class="selo">NASA Space Apps Challenge 2026 · Interplanetary Survival Guide: Martian Map</p>
+        <h1 id="titulo">Uma caminhada em Marte, planejada para dar tempo de voltar.</h1>
+        <p class="lede">O projeto junta dados de várias missões da NASA na área de uma única saída. O tablet planeja a rota no habitat. O visor do capacete acompanha o astronauta lá fora.</p>
+        <div class="acoes">
+          <a class="botao" href="./demo.html?lang=pt"><span>Ver demo</span><span class="seta" aria-hidden="true">→</span></a>
+          <a class="link-seta" href="#problema">Como funciona</a>
+        </div>
+        <p class="nota">Abre no navegador, sem instalar nada. Fica melhor num computador.</p>
+      </div>
+      <div class="abertura-telas">
+        <img class="tela-tablet" src="./apresentacao/img/tablet-pt.webp" width="1600" height="1000" fetchpriority="high" alt="Tablet de missão: mapa 3D da cratera Gale com a rota em azul, as paradas numeradas e o painel de planejamento à direita.">
+        <figure class="capacete capacete-abertura">
+          <img src="./apresentacao/img/capacete-pt.webp" width="1600" height="1000" alt="Visor do capacete: o terreno de Marte à frente, a guia azul no chão até a próxima parada e os blocos de oxigênio, bateria e volta a pé.">
+        </figure>
+      </div>
+    </section>
+
+    <section class="ficha" aria-labelledby="ficha-titulo">
+      <div class="ficha-nome">
+        <p class="rotulo">Saída de exemplo</p>
+        <h2 id="ficha-titulo">Das argilas ao enxofre</h2>
+        <p>Travessia do Monte Sharp, na cratera Gale, ao lado do trajeto do rover Curiosity.</p>
+      </div>
+      <dl class="ficha-numeros">
+        <div><dt>com retorno</dt><dd>9,0 km</dd></div>
+        <div><dt>tempo estimado</dt><dd>6h44</dd></div>
+        <div><dt>subida acumulada</dt><dd>+482 m</dd></div>
+        <div><dt>declive máximo</dt><dd>19,9°</dd></div>
+        <div><dt>paradas científicas</dt><dd>3</dd></div>
+      </dl>
+      <p class="ficha-nota">A pé, com partida às 10:00. Calculado pelo protótipo sobre o relevo real do USGS.</p>
+    </section>
+
+    <div class="rota">
+      <section class="parada" id="problema" aria-labelledby="problema-titulo">
+        <span class="pino pino-habitat" aria-hidden="true">H</span>
+        <p class="rotulo">Ponto de partida · O problema</p>
+        <div class="dupla">
+          <div class="prosa">
+            <h2 id="problema-titulo">Os dados de Marte existem. Falta juntá-los na escala de uma saída.</h2>
+            <p>Ferramentas como o Mars Trek e o mapeamento geológico USGS-NASA foram feitas para ver Marte por regiões. Uma caminhada cabe em poucos quilômetros.</p>
+            <p>Nessa escala, quem está de traje precisa de respostas diretas: onde pisar, quanto falta, se o rádio alcança e se o oxigênio cobre a volta.</p>
+          </div>
+          <figure class="globo">
+            <img src="./apresentacao/img/globo-pt.webp" width="900" height="900" loading="lazy" alt="Globo de Marte quase todo escurecido, com um pequeno círculo laranja marcando a área mapeada na cratera Gale.">
+            <figcaption>O globo que abre o tablet. Só a área mapeada fica iluminada. Mosaico das sondas Viking, lido do NASA Mars Trek.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="parada" id="telas" aria-labelledby="telas-titulo">
+        <span class="pino" aria-hidden="true">1</span>
+        <p class="rotulo">Parada 1 · Duas telas</p>
+        <h2 id="telas-titulo">Planejar no habitat. Seguir lá fora.</h2>
+
+        <article class="tela">
+          <img src="./apresentacao/img/tablet-pt.webp" width="1600" height="1000" loading="lazy" alt="Mapa de planejamento no tablet, com relevo e imagem reais, a rota calculada e o painel com o objetivo da missão.">
+          <div class="tela-texto">
+            <p class="rotulo rotulo-rota">No habitat</p>
+            <h3>Tablet de missão</h3>
+            <ul>
+              <li>Mapa 3D com o relevo e a imagem reais da cratera Gale.</li>
+              <li>Cada clique no mapa vira uma parada. A rota sai do habitat, passa por todas e volta pelo caminho mais seguro.</li>
+              <li>O controle de hora move o Sol, refaz as sombras e diz quanta luz sobra.</li>
+              <li>O painel de segurança mostra oxigênio, rádio, areia e abrigo antes de alguém sair.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="tela tela-invertida">
+          <figure class="capacete">
+            <img src="./apresentacao/img/capacete-pt.webp" width="1600" height="1000" loading="lazy" alt="Vista pelo visor do capacete durante a saída: rumo, próxima parada a 120 metros, estado seguro e minimapa.">
+          </figure>
+          <div class="tela-texto">
+            <p class="rotulo rotulo-rota">Durante a saída</p>
+            <h3>Visor do capacete</h3>
+            <ul>
+              <li>A vista do terreno fica livre. Sempre na tela, só o essencial: rumo, próxima parada, oxigênio, bateria e volta a pé.</li>
+              <li>Uma guia no chão mostra o caminho até a próxima parada.</li>
+              <li>Os alertas aparecem por gravidade, e o protocolo de emergência é conduzido passo a passo.</li>
+              <li>O resto abre a pedido, por toque ou por voz.</li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section class="parada" id="dados" aria-labelledby="dados-titulo">
+        <span class="pino" aria-hidden="true">2</span>
+        <p class="rotulo">Parada 2 · Dados em camadas</p>
+        <div class="dupla dupla-camadas">
+          <div class="pilha" aria-hidden="true">
+            <span class="plano plano-optico"></span>
+            <span class="plano plano-topo"></span>
+            <span class="plano plano-termico"></span>
+            <span class="plano plano-ar"></span>
+            <span class="plano plano-radiacao"></span>
+            <span class="plano plano-geo"></span>
+          </div>
+          <div class="prosa">
+            <h2 id="dados-titulo">Seis tipos de dado sobre o mesmo chão.</h2>
+            <p>O desafio pede pelo menos três. Cada camada tem a missão e o instrumento registrados.</p>
+            <ol class="camadas">
+              <li><strong>Óptico</strong><span>HiRISE, sonda MRO</span><em>Fotos de 25 cm a 2,5 m por pixel</em></li>
+              <li><strong>Topográfico</strong><span>Modelo de elevação de 1 m, USGS</span><em>Relevo, declive e rotas</em></li>
+              <li><strong>Térmico</strong><span>THEMIS, sonda Mars Odyssey</span><em>Imagem térmica noturna</em></li>
+              <li><strong>Atmosférico</strong><span>REMS, rover Curiosity</span><em>Temperatura e pressão</em></li>
+              <li><strong>Radiação</strong><span>RAD, rover Curiosity</span><em>Dose dos últimos 30 dias</em></li>
+              <li><strong>Geológico</strong><span>Mapa geológico USGS-NASA</span><em>Unidade geológica da área</em></li>
+            </ol>
+            <p class="nota">Sobre elas o protótipo calcula declive, volta a pé, alcance do rádio e areia fofa. A areia é estimativa da equipe, pela cor da imagem.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="parada" id="seguranca" aria-labelledby="seguranca-titulo">
+        <span class="pino" aria-hidden="true">3</span>
+        <p class="rotulo">Parada 3 · Segurança primeiro</p>
+        <h2 id="seguranca-titulo">Antes da ciência, a volta.</h2>
+        <p class="abre">O painel de segurança responde, sobre o relevo real, às perguntas que decidem a saída.</p>
+        <ul class="perguntas">
+          <li>
+            <h3>Dá para voltar a pé?</h3>
+            <p>O oxigênio precisa cobrir a caminhada de qualquer ponto até o habitat, a 2 km/h, com uma hora de reserva.</p>
+            <span class="tipo tipo-calc">Calculado</span>
+          </li>
+          <li>
+            <h3>O rádio alcança?</h3>
+            <p>Uma linha reta liga a antena do traje ao habitat. Se o relevo fica no meio, não há sinal direto.</p>
+            <span class="tipo tipo-calc">Calculado</span>
+          </li>
+          <li>
+            <h3>Onde me abrigo?</h3>
+            <p>O ponto mais afastado da rota já sai com o abrigo de relevo mais próximo marcado.</p>
+            <span class="tipo tipo-calc">Calculado</span>
+          </li>
+          <li>
+            <h3>Quanta radiação?</h3>
+            <p>A dose vem do instrumento RAD do Curiosity, com a média dos últimos 30 dias.</p>
+            <span class="tipo tipo-real">Real</span>
+          </li>
+          <li>
+            <h3>Vai esfriar?</h3>
+            <p>O tablet avisa em que parte da saída o ar fica abaixo do mínimo do traje. O visor avisa uma hora antes.</p>
+            <span class="tipo tipo-hip">Hipótese</span>
+          </li>
+          <li>
+            <h3>E se der errado?</h3>
+            <p>Tempestade de poeira, evento solar, perda de rádio, pane do veículo: cada cenário tem um protocolo.</p>
+            <span class="tipo tipo-hip">Hipótese</span>
+          </li>
+        </ul>
+        <p class="achado"><strong>81%</strong><span>da travessia de exemplo fica sem linha de visada com o habitat. O painel mostra isso antes de alguém sair.</span></p>
+      </section>
+
+      <section class="parada" id="ia" aria-labelledby="ia-titulo">
+        <span class="pino" aria-hidden="true">4</span>
+        <p class="rotulo">Parada 4 · IA de bordo</p>
+        <div class="dupla">
+          <div class="prosa">
+            <h2 id="ia-titulo">Uma IA que só cita número que veio dos dados.</h2>
+            <p>No tablet e no visor, a conversa é com um modelo de linguagem no papel de computador de bordo. A cada pergunta ele recebe os dados da saída daquele instante.</p>
+            <p>A resposta é conferida antes de aparecer, e número sem origem não passa. Os alertas e os protocolos seguem regras fixas e não dependem dela.</p>
+            <p class="nota">Ela fala e escuta em português e em inglês, com dois modelos abertos: Kokoro para a fala e Whisper para a escuta.</p>
+          </div>
+          <div class="conversa" data-conversa>
+            <div class="conversa-topo">
+              <p><span class="marca-led" aria-hidden="true"></span>IA de bordo</p>
+              <button class="conversa-pausa" type="button" hidden data-pausar="Pausar" data-tocar="Tocar">Pausar</button>
+            </div>
+            <ol class="conversa-falas">
+              <li class="troca">
+                <p class="fala fala-pergunta">Dá tempo com luz saindo nesta hora?</p>
+                <p class="fala fala-resposta" data-estado="pensando…">Sim, saindo às 10:00, a saída termina às 16:33, com <strong>1h26 de luz</strong> antes do pôr do Sol, às 17:56. Esse horário é calculado pelo Mars24 da NASA e não considera a poeira.</p>
+              </li>
+              <li class="troca">
+                <p class="fala fala-pergunta">Onde a rota fica sem rádio?</p>
+                <p class="fala fala-resposta" data-estado="pensando…">O plano informa que <strong>7,3 km da rota</strong> ficam sem linha de visada com o habitat, em 6 trechos — cerca de 81% da rota. Não especifica os pontos exatos desses trechos.</p>
+              </li>
+              <li class="troca">
+                <p class="fala fala-pergunta">O oxigênio cobre a volta a pé de qualquer ponto da rota?</p>
+                <p class="fala fala-resposta" data-estado="pensando…">Sim. Segundo o plano, o oxigênio cobre a volta a pé ao habitat de qualquer ponto da rota; a menor folga de oxigênio é 1h26.</p>
+              </li>
+            </ol>
+            <p class="conversa-nota">Respostas reais da IA de bordo sobre a travessia de exemplo, gravadas em 15/11/2026. O destaque foi posto nesta página.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="parada" id="fontes" aria-labelledby="fontes-titulo">
+        <span class="pino" aria-hidden="true">5</span>
+        <p class="rotulo">Parada 5 · De onde vem cada dado</p>
+        <h2 id="fontes-titulo">Cada dado de Marte tem fonte.</h2>
+        <p class="abre">Nada foi inventado. O que é conta, hipótese ou simulação aparece marcado na tela.</p>
+        <dl class="tipos">
+          <div><dt><span class="tipo tipo-real">Real</span></dt><dd>Medido por sonda ou rover: relevo, imagens, clima e radiação.</dd></div>
+          <div><dt><span class="tipo tipo-calc">Calculado</span></dt><dd>Conta feita sobre o dado real: rotas, declive, rádio, posição do Sol e sombras.</dd></div>
+          <div><dt><span class="tipo tipo-hip">Hipótese</span></dt><dd>Escolha da equipe: velocidade do veículo, limites dos alertas, bateria do traje e protocolos.</dd></div>
+          <div><dt><span class="tipo tipo-sim">Simulado</span></dt><dd>A posição do astronauta no visor e as falhas dos cenários de treino.</dd></div>
+        </dl>
+        <p class="nota">A lista completa, com o link de cada dado, fica no fim do painel do tablet, na demo.</p>
+      </section>
+
+      <section class="parada" id="limites" aria-labelledby="limites-titulo">
+        <span class="pino" aria-hidden="true">6</span>
+        <p class="rotulo">Parada 6 · Como foi feito e onde para</p>
+        <h2 id="limites-titulo">Roda no navegador. Tem limites, e eles estão à vista.</h2>
+        <div class="dupla dupla-listas">
+          <div>
+            <h3>Feito com</h3>
+            <ul class="lista">
+              <li>HTML, CSS e JavaScript puro, sem etapa de build.</li>
+              <li>Three.js para o relevo, o globo e o visor em 3D.</li>
+              <li>Rotas de menor custo (A*) sobre o relevo, com a função de caminhada de Tobler.</li>
+              <li>Posição do Sol pelo algoritmo Mars24, da NASA.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Limites</h3>
+            <ul class="lista">
+              <li>O relevo usa uma grade de 8 metros. Pedras menores não aparecem.</li>
+              <li>A areia fofa é estimativa pela cor da imagem.</li>
+              <li>Em Marte não há GPS. A posição do astronauta é simulada.</li>
+              <li>Os protocolos de emergência são proposta da equipe.</li>
+              <li>A IA e as medições ao vivo precisam de rede.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="parada parada-fim" aria-labelledby="fim-titulo">
+        <span class="pino pino-habitat" aria-hidden="true">H</span>
+        <p class="rotulo">Volta ao habitat</p>
+        <h2 id="fim-titulo">Veja a saída inteira funcionando.</h2>
+        <div class="acoes">
+          <a class="botao" href="./demo.html?lang=pt"><span>Ver demo</span><span class="seta" aria-hidden="true">→</span></a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="rodape">
+    <p>Equipe Lunáticos · NASA Space Apps Challenge 2026 · <a href="https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/" rel="noopener">Interplanetary Survival Guide: Martian Map</a></p>
+    <p>Imagens e dados: NASA/JPL-Caltech/UArizona (HiRISE), USGS Astrogeology (relevo e ortofoto), NASA Mars Trek (Viking e THEMIS) e a missão Curiosity (REMS, RAD e Navcam). A NASA não endossa este projeto.</p>
+  </footer>
+</body>
+</html>

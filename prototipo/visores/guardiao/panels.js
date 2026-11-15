@@ -6,6 +6,7 @@ import { SIM } from '../../src/simulation.js';
 import { localSolarHour } from '../../src/luz.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock } from '../../src/format.js';
 import { h, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { LEVELS } from './catalog.js';
 import { fmtWalk } from './rules.js';
 
@@ -33,10 +34,10 @@ function createAlertCard(onAck) {
   const cause = h('dd');
   const effect = h('dd');
   const action = h('dd', { class: 'guardiao-acao' });
-  const ack = h('button', { type: 'button', class: 'guardiao-ack', title: 'Reconhecer o alerta (tecla R)' }, 'Reconhecer');
+  const ack = h('button', { type: 'button', class: 'guardiao-ack', title: t`Reconhecer o alerta (tecla R)` }, t`Reconhecer`);
   const root = h('article', { class: 'guardiao-alerta' },
     h('header', {}, icon, h('span', { class: 'guardiao-alerta-titulo' }, level, title), ack),
-    h('dl', {}, h('dt', {}, 'Causa'), cause, h('dt', {}, 'Consequência'), effect, h('dt', { class: 'guardiao-acao' }, 'Ação'), action));
+    h('dl', {}, h('dt', {}, t`Causa`), cause, h('dt', {}, t`Consequência`), effect, h('dt', { class: 'guardiao-acao' }, t`Ação`), action));
   let id = null;
   ack.addEventListener('click', () => onAck(id));
   return {
@@ -60,7 +61,7 @@ function createAlertCard(onAck) {
 /** Pilha de alertas: no máximo três cartões, o de maior prioridade aberto, e um contador do resto. */
 export function createAlertStack(onAck) {
   const more = h('p', { class: 'guardiao-mais', hidden: true });
-  const root = h('section', { class: 'guardiao-alertas', 'aria-label': 'Alertas' }, more);
+  const root = h('section', { class: 'guardiao-alertas', 'aria-label': t`Alertas` }, more);
   const cards = new Map();
   let order = '';
   return {
@@ -79,7 +80,7 @@ export function createAlertStack(onAck) {
       }
       const hiddenCount = alerts.length - visible.length;
       setHidden(more, hiddenCount === 0);
-      setText(more, hiddenCount === 0 ? '' : `+${hiddenCount} no histórico (tecla H)`);
+      setText(more, hiddenCount === 0 ? '' : t`+${hiddenCount} no histórico (tecla H)`);
     },
   };
 }
@@ -90,14 +91,14 @@ export function createProtocolPanel({ onConfirm, onDecide }) {
   const progress = h('span', { class: 'guardiao-progresso' });
   const steps = h('ol', { class: 'guardiao-passos' });
   const advice = h('p', { class: 'guardiao-recomendacao' });
-  const confirm = h('button', { type: 'button', class: 'guardiao-confirmar', onclick: onConfirm }, 'Passo feito ', key('P'));
+  const confirm = h('button', { type: 'button', class: 'guardiao-confirmar', onclick: onConfirm }, `${t`Passo feito`} `, key('P'));
   const abortText = h('span');
   const abort = h('button', { type: 'button', class: 'guardiao-abortar', onclick: () => onDecide('abortar') }, abortText, ' ', key('A'));
-  const carryOn = h('button', { type: 'button', class: 'guardiao-seguir', onclick: () => onDecide('seguir') }, 'Seguir a missão ', key('S'));
+  const carryOn = h('button', { type: 'button', class: 'guardiao-seguir', onclick: () => onDecide('seguir') }, `${t`Seguir a missão`} `, key('S'));
   const queue = h('p', { class: 'guardiao-fila' });
   const source = h('p', { class: 'guardiao-fila' });
-  const root = h('section', { class: 'guardiao-bloco guardiao-protocolo', 'aria-label': 'Protocolo de emergência', hidden: true },
-    h('header', {}, h('span', { class: 'guardiao-rotulo' }, 'Protocolo'), name, progress),
+  const root = h('section', { class: 'guardiao-bloco guardiao-protocolo', 'aria-label': t`Protocolo de emergência`, hidden: true },
+    h('header', {}, h('span', { class: 'guardiao-rotulo' }, t`Protocolo`), name, progress),
     steps, advice, h('div', { class: 'guardiao-acoes' }, confirm, abort, carryOn), queue, source);
   let shape = '';
   let items = [];
@@ -118,40 +119,48 @@ export function createProtocolPanel({ onConfirm, onDecide }) {
       });
       setText(name, view.title);
       setText(source, view.source);
-      setText(progress, `passo ${view.stepNumber} de ${view.steps.length}`);
+      setText(progress, t`passo ${view.stepNumber} de ${view.steps.length}`);
       const { type } = view.current;
       setData(root, 'step', type);
       const deciding = type === 'decision';
       setHidden(advice, type === 'ok');
       if (deciding) {
-        setData(advice, 'abort', view.recommendation.abort);
-        setText(advice, `${view.recommendation.abort ? 'Recomendo abortar' : 'Recomendo seguir'}: ${view.recommendation.why}.`);
+        const { abort: shouldAbort, why } = view.recommendation;
+        setData(advice, 'abort', shouldAbort);
+        setText(advice, shouldAbort ? t`Recomendo abortar: ${why}.` : t`Recomendo seguir: ${why}.`);
       } else if (type === 'go') {
         setData(advice, 'abort', true);
-        setText(advice, view.pick ? 'A caminho do abrigo. O passo fecha sozinho na chegada.' : 'Sem abrigo ao alcance: aguardando resgate.');
+        setText(advice, view.pick ? t`A caminho do abrigo. O passo fecha sozinho na chegada.` : t`Sem abrigo ao alcance: aguardando resgate.`);
       }
       setHidden(confirm, type !== 'ok');
       setHidden(abort, !deciding);
       setHidden(carryOn, !deciding);
-      setText(abortText, view.pick ? `Abortar · ir para ${view.pick.name}` : 'Abortar · aguardar resgate');
+      setText(abortText, view.pick ? t`Abortar · ir para ${view.pick.name}` : t`Abortar · aguardar resgate`);
       setData(abort, 'recommended', view.recommendation.abort);
       setData(carryOn, 'recommended', !view.recommendation.abort);
       setHidden(queue, view.queued.length === 0);
-      setText(queue, view.queued.length === 0 ? '' : `Na fila: ${view.queued.join(', ')}`);
+      setText(queue, view.queued.length === 0 ? '' : t`Na fila: ${view.queued.join(', ')}`);
     },
   };
 }
 
 function shelterInfo(option) {
-  if (option.distM === null) return `${fmtWalk(option.timeH)} ${option.dirText} · caminho mais rápido no relevo`;
+  if (option.distM === null) return t`${fmtWalk(option.timeH)} ${option.dirText} · caminho mais rápido no relevo`;
   if (option.distM < 1) return option.dirText;
-  const sky = option.kind === 'terrain' ? ` · ${fmtNumber(option.skyBlocked * 100)}% do céu encoberto` : '';
-  return `${fmtDistance(option.distM)} ${option.dirText} · ${fmtDuration(option.timeH)}${sky}`;
+  if (option.kind !== 'terrain') return `${fmtDistance(option.distM)} ${option.dirText} · ${fmtDuration(option.timeH)}`;
+  return t`${fmtDistance(option.distM)} ${option.dirText} · ${fmtDuration(option.timeH)} · ${fmtNumber(option.skyBlocked * 100)}% do céu encoberto`;
 }
 
 function shelterOxygen(option) {
-  if (!option.reaches) return 'O₂ não alcança';
-  return `O₂ chega com ${fmtNumber(Math.max(0, option.o2AfterPct))}%${option.usesReserve ? ' · usa a reserva' : ''}`;
+  if (!option.reaches) return t`O₂ não alcança`;
+  const arrivalPct = fmtNumber(Math.max(0, option.o2AfterPct));
+  return option.usesReserve ? t`O₂ chega com ${arrivalPct}% · usa a reserva` : t`O₂ chega com ${arrivalPct}%`;
+}
+
+// Nome do abrigo na lista, com a pane do veículo e a marca do indicado.
+function shelterTitle(option, chosen) {
+  if (option.down) return chosen ? t`${option.name} (em pane) · indicado` : t`${option.name} (em pane)`;
+  return chosen ? t`${option.name} · indicado` : option.name;
 }
 
 /** Onde se abrigar: habitat, veículo e relevo, com distância, tempo e se o O₂ alcança. */
@@ -162,8 +171,8 @@ export function createShelterPanel() {
     const oxygen = h('span', { class: 'guardiao-abrigo-o2' });
     return [kind, { name, info, oxygen, node: h('div', { class: 'guardiao-abrigo', hidden: true }, name, info, oxygen) }];
   }));
-  const root = h('section', { class: 'guardiao-bloco guardiao-abrigos', 'aria-label': 'Onde se abrigar' },
-    h('span', { class: 'guardiao-rotulo' }, 'Onde se abrigar', h('small', {}, ' estimado')),
+  const root = h('section', { class: 'guardiao-bloco guardiao-abrigos', 'aria-label': t`Onde se abrigar` },
+    h('span', { class: 'guardiao-rotulo' }, t`Onde se abrigar`, h('small', {}, ` ${t`estimado`}`)),
     ...SHELTER_KINDS.map((kind) => rows[kind].node));
   return {
     root,
@@ -174,7 +183,7 @@ export function createShelterPanel() {
         setHidden(row.node, !option);
         if (!option) continue;
         const chosen = pick?.kind === kind;
-        setText(row.name, `${option.name}${option.down ? ' (em pane)' : ''}${chosen ? ' · indicado' : ''}`);
+        setText(row.name, shelterTitle(option, chosen));
         setText(row.info, shelterInfo(option));
         setText(row.oxygen, shelterOxygen(option));
         setData(row.node, 'pick', chosen);
@@ -185,17 +194,17 @@ export function createShelterPanel() {
 }
 
 function historyState(entry, startH) {
-  if (entry.clearedH !== null) return `encerrado ${clock(entry.clearedH, startH)}`;
-  if (entry.ackH !== null) return `reconhecido ${clock(entry.ackH, startH)}`;
-  return entry.level === 'info' ? 'ativo' : 'aguardando reconhecimento';
+  if (entry.clearedH !== null) return t`encerrado ${clock(entry.clearedH, startH)}`;
+  if (entry.ackH !== null) return t`reconhecido ${clock(entry.ackH, startH)}`;
+  return entry.level === 'info' ? t`ativo` : t`aguardando reconhecimento`;
 }
 
 /** Histórico consultável: todos os alertas da saída, do mais novo para o mais antigo. */
 export function createHistoryPanel(onClose) {
   const list = h('ol');
-  const empty = h('p', { class: 'guardiao-sub' }, 'Nenhum alerta nesta saída.');
-  const root = h('aside', { class: 'guardiao-historico', 'aria-label': 'Histórico de alertas', hidden: true },
-    h('header', {}, h('b', {}, 'Histórico de alertas'), h('button', { type: 'button', onclick: onClose }, 'Fechar ', key('H'))),
+  const empty = h('p', { class: 'guardiao-sub' }, t`Nenhum alerta nesta saída.`);
+  const root = h('aside', { class: 'guardiao-historico', 'aria-label': t`Histórico de alertas`, hidden: true },
+    h('header', {}, h('b', {}, t`Histórico de alertas`), h('button', { type: 'button', onclick: onClose }, `${t`Fechar`} `, key('H'))),
     empty, list);
   let signature = null;
   return {

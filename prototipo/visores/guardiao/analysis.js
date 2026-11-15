@@ -9,6 +9,7 @@
 import { SPEED_KMH, STOP_HOURS } from '../../data/travessia.js';
 import { SIM } from '../../src/simulation.js';
 import { samplePath } from '../../src/route.js';
+import { t } from '../../src/i18n.js';
 import { RULES, FAULTS, PROTOCOLS, SHELTER_NAMES } from './catalog.js';
 import { effects, mobility, o2PctOf, batteryPctOf, indexAt, isColdAt } from './engine.js';
 
@@ -89,7 +90,7 @@ function walkHome(plan, state, fx, pos, safety) {
   return { timeH, o2NeedPct, o2AfterPct, dir, ok: o2AfterPct >= RULES.o2ReservePct, reaches: o2AfterPct > 0 };
 }
 
-const DIR_TEXT = Object.freeze({ back: 'por trás', fwd: 'em frente' });
+const DIR_TEXT = Object.freeze({ back: t`por trás`, fwd: t`em frente` });
 
 function withReach(option, o2Now) {
   const o2AfterPct = o2Now - option.o2NeedPct;
@@ -104,7 +105,7 @@ function habitatOption(plan, state, m, fx, ret, offM) {
     // O tempo é o do caminho a pé mais rápido; o ritmo ao longo da linha da rota é ajustado para fechar com ele.
     const paceKmh = ret.timeH > 0 && Number.isFinite(ret.timeH) ? routeM / M_PER_KM / ret.timeH : SPEED_KMH.walk;
     return {
-      kind: 'habitat', distM: null, timeH: ret.timeH, o2NeedPct: ret.o2NeedPct, dirText: 'a pé',
+      kind: 'habitat', distM: null, timeH: ret.timeH, o2NeedPct: ret.o2NeedPct, dirText: t`a pé`,
       exposure: FAULTS.exposure.habitat, target: { kind: 'habitat', distM: targetM, paceKmh }, position: samplePath(path, targetM),
     };
   }
@@ -128,7 +129,7 @@ function habitatOption(plan, state, m, fx, ret, offM) {
 function vehicleOption(plan, state, m, fx, offM) {
   if (m.vehicleM === null) return null;
   const distM = m.inCabin ? 0 : Math.abs(state.distM - m.vehicleM) + offM;
-  let dirText = 'você está nele';
+  let dirText = t`você está nele`;
   if (distM > 0) dirText = m.vehicleM <= state.distM ? DIR_TEXT.back : DIR_TEXT.fwd;
   return {
     kind: 'vehicle', distM, timeH: walkHours(distM), o2NeedPct: walkHours(distM) * (SIM.o2PctPerHour.foot + fx.leakPctH), dirText,
@@ -140,11 +141,11 @@ function vehicleOption(plan, state, m, fx, offM) {
 // ponytail: ida em linha reta, sem desvio de obstáculo; pedir ao módulo compartilhado o caminho até o abrigo.
 function terrainOption(state, pos, fx, spot) {
   if (state.sheltered === 'terrain') {
-    return { kind: 'terrain', distM: 0, timeH: 0, o2NeedPct: 0, dirText: 'você está nele', exposure: state.exposure, skyBlocked: 1 - state.exposure, target: null, position: pos };
+    return { kind: 'terrain', distM: 0, timeH: 0, o2NeedPct: 0, dirText: t`você está nele`, exposure: state.exposure, skyBlocked: 1 - state.exposure, target: null, position: pos };
   }
   if (!spot) return null;
   return {
-    kind: 'terrain', distM: spot.distM, timeH: spot.walkH, o2NeedPct: spot.walkH * (SIM.o2PctPerHour.foot + fx.leakPctH), dirText: 'fora da rota',
+    kind: 'terrain', distM: spot.distM, timeH: spot.walkH, o2NeedPct: spot.walkH * (SIM.o2PctPerHour.foot + fx.leakPctH), dirText: t`fora da rota`,
     exposure: 1 - spot.skyBlocked, skyBlocked: spot.skyBlocked,
     target: { kind: 'terrain', x: spot.x, z: spot.z, skyBlocked: spot.skyBlocked }, position: spot,
   };

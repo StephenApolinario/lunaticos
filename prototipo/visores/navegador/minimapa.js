@@ -4,6 +4,7 @@
 import { TRACK, HAZARD } from '../../data/travessia.js';
 import { toLocal } from '../../src/geo.js';
 import { COLORS } from '../../src/config.js';
+import { LOCALE } from '../../src/i18n.js';
 import { HABITAT } from './analise.js';
 
 export const ZOOM_RADII_M = Object.freeze([150, 400, 1000, 2500]);
@@ -31,7 +32,7 @@ const TRACK_POINTS = TRACK.map(([lat, lon]) => toLocal(lat, lon));
 const HAZARD_LOCAL = Object.freeze({ ...toLocal(HAZARD.lat, HAZARD.lon), radiusM: HAZARD.radiusKm * 1000 });
 const HABITAT_POINT = Object.freeze({ id: 'H', ...HABITAT });
 
-const ringLabel = (meters) => (meters >= 1000 ? `${(meters / 1000).toLocaleString('pt-BR')} km` : `${meters} m`);
+const ringLabel = (meters) => (meters >= 1000 ? `${(meters / 1000).toLocaleString(LOCALE)} km` : `${meters} m`);
 
 // Trechos da rota com o mesmo estilo: volta tracejada, trecho bloqueado para veículo em vermelho.
 function routeSpans(plan, analysis, color) {

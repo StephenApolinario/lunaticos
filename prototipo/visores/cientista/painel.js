@@ -5,17 +5,18 @@
 // Todo texto de quem usa (pergunta, observação, nota) entra como nó de texto, via h().
 
 import { emphasized, h, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { MAX_NOTE_CHARS, entryLabel, fmtPosition, fmtStamp } from './diario.js';
 import { HAZARD_TYPES } from './perigos.js';
 
 const TABS = Object.freeze([
-  { id: 'chat', label: 'Conversa' },
-  { id: 'science', label: 'Ciência' },
-  { id: 'journal', label: 'Diário' },
+  { id: 'chat', label: t`Conversa` },
+  { id: 'science', label: t`Ciência` },
+  { id: 'journal', label: t`Diário` },
 ]);
 const MAX_MESSAGES = 120;
 const MAX_QUESTION_CHARS = 240;
-const SPEAKER = Object.freeze({ user: 'Você', assistant: 'Assistente', alert: 'Alerta do visor' });
+const SPEAKER = Object.freeze({ user: t`Você`, assistant: t`Assistente`, alert: t`Alerta do visor` });
 
 const button = (label, props = {}) => h('button', { type: 'button', ...props }, label);
 
@@ -24,7 +25,7 @@ function micButton(idleLabel, onClick) {
   /** Mostra o botão só onde há reconhecimento de fala e marca quando está ouvindo. */
   const setListening = (canListen, listening) => {
     node.hidden = !canListen;
-    setText(node, listening ? 'Ouvindo…' : idleLabel);
+    setText(node, listening ? t`Ouvindo…` : idleLabel);
     node.setAttribute('aria-pressed', String(listening));
   };
   return { node, setListening };
@@ -36,14 +37,14 @@ function micButton(idleLabel, onClick) {
  */
 export function createChatView({ onAsk, onMic }) {
   let quickKey = '';
-  const log = h('ol', { class: 'cientista-log', tabIndex: 0, 'aria-label': 'Histórico da conversa' });
-  const quick = h('div', { class: 'cientista-quick', role: 'group', 'aria-label': 'Perguntas de exemplo' });
+  const log = h('ol', { class: 'cientista-log', tabIndex: 0, 'aria-label': t`Histórico da conversa` });
+  const quick = h('div', { class: 'cientista-quick', role: 'group', 'aria-label': t`Perguntas de exemplo` });
   const busy = h('p', { class: 'cientista-busy', role: 'status', hidden: true });
   const input = h('input', {
     type: 'text', class: 'cientista-input', maxLength: MAX_QUESTION_CHARS, autocomplete: 'off', enterKeyHint: 'send',
-    placeholder: 'Pergunte sobre a saída…', 'aria-label': 'Pergunta para o assistente',
+    placeholder: t`Pergunte sobre a saída…`, 'aria-label': t`Pergunta para o assistente`,
   });
-  const mic = micButton('Falar', onMic);
+  const mic = micButton(t`Falar`, onMic);
   const form = h('form', {
     class: 'cientista-ask',
     onsubmit: (event) => {
@@ -53,8 +54,8 @@ export function createChatView({ onAsk, onMic }) {
       input.value = '';
       onAsk(text);
     },
-  }, input, mic.node, h('button', { type: 'submit', class: 'cientista-send' }, 'Enviar'));
-  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-chat', 'aria-label': 'Conversa' }, log, busy, quick, form);
+  }, input, mic.node, h('button', { type: 'submit', class: 'cientista-send' }, t`Enviar`));
+  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-chat', 'aria-label': t`Conversa` }, log, busy, quick, form);
 
   const scrollToEnd = () => { log.scrollTop = log.scrollHeight; };
 
@@ -114,10 +115,10 @@ export function createScienceView({ onRecordSample, onMic, onSuggest, onContinue
   const remember = (field) => (event) => checks.set(stopId, { ...checks.get(stopId), [field]: event.target.checked });
   const risk = checkItem('', { onchange: remember('risk') });
   const task = checkItem('', { onchange: remember('task') });
-  const sample = checkItem('Amostra registrada no diário', { disabled: true });
+  const sample = checkItem(t`Amostra registrada no diário`, { disabled: true });
 
-  const note = h('textarea', { class: 'cientista-note', rows: 3, maxLength: MAX_NOTE_CHARS, placeholder: 'O que você viu e coletou…', 'aria-label': 'Observação da amostra' });
-  const dictate = micButton('Ditar', onMic);
+  const note = h('textarea', { class: 'cientista-note', rows: 3, maxLength: MAX_NOTE_CHARS, placeholder: t`O que você viu e coletou…`, 'aria-label': t`Observação da amostra` });
+  const dictate = micButton(t`Ditar`, onMic);
   const form = h('form', {
     class: 'cientista-sample',
     onsubmit: (event) => {
@@ -125,27 +126,27 @@ export function createScienceView({ onRecordSample, onMic, onSuggest, onContinue
       onRecordSample(note.value);
       note.value = '';
     },
-  }, note, h('div', { class: 'cientista-actions' }, dictate.node, h('button', { type: 'submit', class: 'cientista-send' }, 'Registrar amostra')));
-  const resume = button('Concluir parada e seguir', { class: 'cientista-send cientista-resume', hidden: true, onclick: onContinue });
+  }, note, h('div', { class: 'cientista-actions' }, dictate.node, h('button', { type: 'submit', class: 'cientista-send' }, t`Registrar amostra`)));
+  const resume = button(t`Concluir parada e seguir`, { class: 'cientista-send cientista-resume', hidden: true, onclick: onContinue });
 
-  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-science', 'aria-label': 'Ciência da parada' },
+  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-science', 'aria-label': t`Ciência da parada` },
     eyebrow, title, status,
-    h('dl', { class: 'cientista-facts' }, h('dt', {}, 'Objetivo'), objective, h('dt', {}, 'Pergunta científica'), question),
-    h('h4', {}, 'Lista de verificação'),
+    h('dl', { class: 'cientista-facts' }, h('dt', {}, t`Objetivo`), objective, h('dt', {}, t`Pergunta científica`), question),
+    h('h4', {}, t`Lista de verificação`),
     h('ul', { class: 'cientista-checklist' }, risk.item, task.item, sample.item),
-    button('O que observar aqui?', { class: 'cientista-chip', onclick: onSuggest }),
-    h('h4', {}, 'Registro da amostra'),
+    button(t`O que observar aqui?`, { class: 'cientista-chip', onclick: onSuggest }),
+    h('h4', {}, t`Registro da amostra`),
     form, resume,
-    h('p', { class: 'cientista-fine' }, 'Textos das paradas: roteiro escrito pela equipe, ainda sem fonte ligada a cada afirmação. Hora e posição do registro vêm da simulação.'));
+    h('p', { class: 'cientista-fine' }, t`Textos das paradas: roteiro escrito pela equipe, ainda sem fonte ligada a cada afirmação. Hora e posição do registro vêm da simulação.`));
 
   function showStop(stop) {
     stopId = stop.id;
-    setText(eyebrow, `${stop.id === 'H' ? 'Habitat' : `Parada ${stop.id}`} · capítulo “${stop.ch}”`);
+    setText(eyebrow, stop.id === 'H' ? t`Habitat · capítulo “${stop.ch}”` : t`Parada ${stop.id} · capítulo “${stop.ch}”`);
     setText(title, stop.name);
     setText(objective, stop.sci);
     setText(question, stop.q);
-    setText(task.label, `Tarefa: ${stop.task}`);
-    setText(risk.label, stop.risk ? `Risco do local conferido: ${stop.risk}` : '');
+    setText(task.label, t`Tarefa: ${stop.task}`);
+    setText(risk.label, stop.risk ? t`Risco do local conferido: ${stop.risk}` : '');
     risk.item.hidden = !stop.risk;
     const saved = checks.get(stop.id) ?? {};
     risk.box.checked = Boolean(saved.risk);
@@ -159,7 +160,7 @@ export function createScienceView({ onRecordSample, onMic, onSuggest, onContinue
   function update({ stop, atStop, paused, statusText, sampleCount }) {
     if (stopId !== stop.id) showStop(stop);
     setText(status, statusText);
-    setText(sample.label, sampleCount ? `Amostra registrada no diário (${sampleCount})` : 'Amostra registrada no diário');
+    setText(sample.label, sampleCount ? t`Amostra registrada no diário (${sampleCount})` : t`Amostra registrada no diário`);
     if (sample.box.checked !== sampleCount > 0) sample.box.checked = sampleCount > 0;
     const canResume = atStop && paused;
     if (resume.hidden === canResume) resume.hidden = !canResume;
@@ -183,26 +184,26 @@ export function createScienceView({ onRecordSample, onMic, onSuggest, onContinue
  * @param {{ onExport: () => void, onDeleteHazard: (id: string) => void }} handlers
  */
 export function createJournalView({ onExport, onDeleteHazard }) {
-  const entryList = h('ol', { class: 'cientista-entries', tabIndex: 0, 'aria-label': 'Registros da saída' });
-  const hazardList = h('ul', { class: 'cientista-hazards', 'aria-label': 'Perigos relatados' });
-  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-journal', 'aria-label': 'Diário da saída' },
+  const entryList = h('ol', { class: 'cientista-entries', tabIndex: 0, 'aria-label': t`Registros da saída` });
+  const hazardList = h('ul', { class: 'cientista-hazards', 'aria-label': t`Perigos relatados` });
+  const element = h('section', { class: 'cientista-ui cientista-pane cientista-pane-journal', 'aria-label': t`Diário da saída` },
     h('div', { class: 'cientista-actions' },
-      h('h4', {}, 'Registros desta saída'),
-      button('Exportar .txt', { class: 'cientista-chip', onclick: onExport })),
+      h('h4', {}, t`Registros desta saída`),
+      button(t`Exportar .txt`, { class: 'cientista-chip', onclick: onExport })),
     entryList,
-    h('h4', {}, 'Perigos relatados ', h('small', {}, 'guardados neste navegador')),
+    h('h4', {}, `${t`Perigos relatados`} `, h('small', {}, t`guardados neste navegador`)),
     hazardList);
 
   const entryItem = (entry) => h('li', { dataset: { kind: entry.kind } },
-    h('span', { class: 'cientista-msg-meta' }, `${entryLabel(entry.kind)}${entry.stopId ? ` · parada ${entry.stopId}` : ''} · ${fmtStamp(entry)}`),
+    h('span', { class: 'cientista-msg-meta' }, `${entry.stopId ? t`${entryLabel(entry.kind)} · parada ${entry.stopId}` : entryLabel(entry.kind)} · ${fmtStamp(entry)}`),
     h('p', {}, `${entry.text} (${fmtPosition(entry.position)})`));
 
   const hazardItem = (hazard, outingId) => {
     const label = HAZARD_TYPES[hazard.type];
     const note = hazard.note ? ` · “${hazard.note}”` : '';
     return h('li', {},
-      h('p', {}, h('strong', {}, label), ` · ${fmtPosition(hazard)}${note} · ${hazard.outing === outingId ? 'desta saída' : 'de saída anterior'}`),
-      button('Apagar', { class: 'cientista-chip', 'aria-label': `Apagar relato: ${label}`, onclick: () => onDeleteHazard(hazard.id) }));
+      h('p', {}, h('strong', {}, label), ` · ${fmtPosition(hazard)}${note} · ${hazard.outing === outingId ? t`desta saída` : t`de saída anterior`}`),
+      button(t`Apagar`, { class: 'cientista-chip', 'aria-label': t`Apagar relato: ${label}`, onclick: () => onDeleteHazard(hazard.id) }));
   };
 
   /**
@@ -211,10 +212,10 @@ export function createJournalView({ onExport, onDeleteHazard }) {
    * @param {string} outingId Saída atual, para separar os relatos de saídas anteriores.
    */
   function render(entries, hazards, outingId) {
-    entryList.replaceChildren(...(entries.length ? entries.map(entryItem) : [h('li', { class: 'cientista-empty' }, 'Nenhum registro ainda.')]));
+    entryList.replaceChildren(...(entries.length ? entries.map(entryItem) : [h('li', { class: 'cientista-empty' }, t`Nenhum registro ainda.`)]));
     hazardList.replaceChildren(...(hazards.length
       ? hazards.map((hazard) => hazardItem(hazard, outingId))
-      : [h('li', { class: 'cientista-empty' }, 'Nenhum perigo relatado neste navegador.')]));
+      : [h('li', { class: 'cientista-empty' }, t`Nenhum perigo relatado neste navegador.`)]));
     entryList.scrollTop = entryList.scrollHeight;
   }
 
@@ -238,19 +239,19 @@ export function createPanel(root, handlers) {
   const journal = createJournalView({ onExport: handlers.onExport, onDeleteHazard: handlers.onDeleteHazard });
   const views = { chat, science, journal };
 
-  const voiceButton = button('Voz desligada', { class: 'cientista-chip', 'aria-pressed': 'false', onclick: handlers.onVoiceToggle });
+  const voiceButton = button(t`Voz desligada`, { class: 'cientista-chip', 'aria-pressed': 'false', onclick: handlers.onVoiceToggle });
   const tabButtons = TABS.map((tab) => button(tab.label, { 'aria-pressed': 'false', dataset: { tab: tab.id }, onclick: () => setTab(tab.id) }));
 
   // Quem responde: por padrão as regras fixas; o visor único troca pelo nome da IA de bordo.
-  const engineNote = h('small', { class: 'cientista-sim' }, 'simulado por regras', h('span', { class: 'cientista-wide' }, ' · sem modelo de linguagem'));
+  const engineNote = h('small', { class: 'cientista-sim' }, t`simulado por regras`, h('span', { class: 'cientista-wide' }, ` · ${t`sem modelo de linguagem`}`));
 
   root.classList.add('cientista-ui');
   root.append(
     h('header', { class: 'cientista-panel-head' },
-      h('div', {}, h('strong', {}, 'Assistente de campo'), engineNote),
+      h('div', {}, h('strong', {}, t`Assistente de campo`), engineNote),
       voiceButton,
-      button('×', { class: 'cientista-close', 'aria-label': 'Fechar painel do assistente', onclick: handlers.onClose })),
-    h('div', { class: 'cientista-tabs', role: 'group', 'aria-label': 'Seções do painel' }, tabButtons),
+      button('×', { class: 'cientista-close', 'aria-label': t`Fechar painel do assistente`, onclick: handlers.onClose })),
+    h('div', { class: 'cientista-tabs', role: 'group', 'aria-label': t`Seções do painel` }, tabButtons),
     chat.element, science.element, journal.element,
   );
 
@@ -265,7 +266,7 @@ export function createPanel(root, handlers) {
   /** @param {{ canSpeak: boolean, canListen: boolean, speaking: boolean, listening: string|null }} voice */
   function setVoiceState({ canSpeak, canListen, speaking, listening }) {
     voiceButton.disabled = !canSpeak;
-    setText(voiceButton, !canSpeak ? 'Voz indisponível' : speaking ? 'Voz ligada' : 'Voz desligada');
+    setText(voiceButton, !canSpeak ? t`Voz indisponível` : speaking ? t`Voz ligada` : t`Voz desligada`);
     voiceButton.setAttribute('aria-pressed', String(speaking));
     chat.setListening(canListen, listening === 'chat');
     science.setListening(canListen, listening === 'note');

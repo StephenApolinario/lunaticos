@@ -9,6 +9,7 @@ import { SIM } from '../../src/simulation.js';
 import { clamp } from '../../src/geo.js';
 import { fmtDistance, fmtDuration, fmtNumber, fmtClock, fmtSigned } from '../../src/format.js';
 import { h, svg, setRichText, setText } from '../../src/dom.js';
+import { t } from '../../src/i18n.js';
 import { RULES, FAULTS, SCENARIOS, SHELTER_NAMES } from '../guardiao/catalog.js';
 import { fmtWalk } from '../guardiao/rules.js';
 import { createAlertStack, createProtocolPanel, createShelterPanel, createHistoryPanel, setData, setHidden } from '../guardiao/panels.js';
@@ -16,21 +17,20 @@ import { createEdgeIndicator } from '../navegador/mundo.js';
 import { HAZARD_TYPES } from '../cientista/perigos.js';
 import { alertReading } from './guia.js';
 
-const CARDINALS = Object.freeze(['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO']);
+const CARDINALS = Object.freeze(['N', 'NE', t('L', 'ponto cardeal'), 'SE', 'S', t('SO', 'ponto cardeal'), t('O', 'ponto cardeal'), t('NO', 'ponto cardeal')]);
 const SCRUB_MAX = 1000;
 const O2_WARN_PCT = 35;
 const ZONE_COLOR = Object.freeze({ ok: 'var(--guardiao-ok)', justa: 'var(--guardiao-atencao)', nao: 'var(--guardiao-emergencia)' });
-const RADIO_TEXT = Object.freeze({ ok: 'visada direta', noise: 'com ruído', shadow: 'sem visada' });
-const TREND_LABEL = Object.freeze({ up: 'subindo', down: 'caindo', down2: 'caindo rápido', flat: 'estável' });
-const SHEET_TITLES = Object.freeze({ rota: 'Próxima parada e terreno à frente', traje: 'Traje e ambiente', volta: 'Volta a pé e abrigo' });
-const NORMAL_ASSISTANT_NOTE = 'IA de bordo';
+const RADIO_TEXT = Object.freeze({ ok: t`visada direta`, noise: t`com ruído`, shadow: t`sem visada` });
+const TREND_LABEL = Object.freeze({ up: t`subindo`, down: t`caindo`, down2: t`caindo rápido`, flat: t`estável` });
+const SHEET_TITLES = Object.freeze({ rota: t`Próxima parada e terreno à frente`, traje: t`Traje e ambiente`, volta: t`Volta a pé e abrigo` });
 // Um pouco mais que a animação `cabine-pisca` do visor.css.
 const FLASH_MS = 1700;
-const SOURCES_TEXT = 'Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos medidos pelo REMS. Oxigênio: calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA (não há traje real). Bateria: hipótese da equipe. Pressão: a do traje EMU. Vento: sem medição desde o sol 1491; o cenário usa o mais forte publicado.';
+const SOURCES_TEXT = t('Declive, altitude e visada do rádio: DEM real (USGS/JPL); a altura das antenas é hipótese da equipe. Radiação: média medida pelo RAD do Curiosity. Temperatura: estimada entre os extremos medidos pelo REMS. Oxigênio: calculado com a taxa metabólica medida na Apollo e o tanque do traje avançado da NASA (não há traje real). Bateria: hipótese da equipe. Pressão: a do traje EMU. Vento: sem medição desde o sol 1491; o cenário usa o mais forte publicado.');
 
 const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
 const pct = (value) => `${fmtNumber(Math.max(0, value))}%`;
-const RESERVE_TEXT = `Reserva de ${fmtNumber(RULES.o2ReservePct, 1)}%.`;
+const RESERVE_TEXT = t`Reserva de ${fmtNumber(RULES.o2ReservePct, 1)}%.`;
 const minutes = (hours) => `${Math.max(1, Math.round(hours * 60))} min`;
 const below = (value, danger, warn) => (value < danger ? 'danger' : value < warn ? 'warn' : 'ok');
 const above = (value, warn, danger) => (value >= danger ? 'danger' : value >= warn ? 'warn' : 'ok');
@@ -81,7 +81,7 @@ function stat(text) {
 function sheet(id, onClose, ...children) {
   const title = SHEET_TITLES[id];
   return h('section', { class: 'cabine-folha', hidden: true, dataset: { folha: id }, 'aria-label': title },
-    h('header', {}, h('span', { class: 'cabine-folha-titulo' }, title), button('Fechar', { class: 'cabine-fechar', 'aria-label': `Fechar: ${title}`, onclick: onClose })),
+    h('header', {}, h('span', { class: 'cabine-folha-titulo' }, title), button(t`Fechar`, { class: 'cabine-fechar', 'aria-label': t`Fechar: ${title}`, onclick: onClose })),
     ...children);
 }
 
@@ -97,17 +97,19 @@ function zonesGradient(zones) {
 }
 
 function modeText(r) {
-  if (r.finished) return 'no habitat';
-  if (r.sheltered) return `abrigado · ${SHELTER_NAMES[r.sheltered].toLowerCase()}`;
-  const how = r.m.inCabin ? 'no veículo' : r.offRoute ? 'a pé · fora da rota' : 'a pé';
-  return r.nav.kind === 'hold' ? `${how} · parado` : how;
+  if (r.finished) return t`no habitat`;
+  if (r.sheltered) return t`abrigado · ${SHELTER_NAMES[r.sheltered].toLowerCase()}`;
+  let how = t`a pé`;
+  if (r.m.inCabin) how = t`no veículo`;
+  else if (r.offRoute) how = t`a pé · fora da rota`;
+  return r.nav.kind === 'hold' ? `${how} · ${t`parado`}` : how;
 }
 
 // O que a pílula diz ao lado do nome do alvo.
 function targetInfo(target) {
-  if (target.kind === 'home') return 'você está aqui';
-  if (target.kind === 'dwell') return `coleta · faltam ${fmtDuration(target.etaH)}`;
-  if (target.timeOnly) return `${fmtDuration(target.etaH)} a pé`;
+  if (target.kind === 'home') return t`você está aqui`;
+  if (target.kind === 'dwell') return t`coleta · faltam ${fmtDuration(target.etaH)}`;
+  if (target.timeOnly) return t`${fmtDuration(target.etaH)} a pé`;
   return `${fmtDistance(target.distM)} · ${fmtDuration(target.etaH)}`;
 }
 
@@ -119,30 +121,30 @@ function buildElements(on) {
     stopBadge: h('span', { class: 'cabine-parada-num' }), stopName: h('b'), stopInfo: h('span', { class: 'cabine-parada-info' }),
     // Folha da rota
     targetLabel: h('span', { class: 'cabine-folha-sub' }),
-    distance: stat('Distância'), arrival: stat('Chegada'), gain: stat('Desnível'), slope: stat('Declive'),
-    profile: h('canvas', { class: 'navegador-perfil-tela', role: 'img', 'aria-label': 'Perfil de altitude da rota à frente' }),
+    distance: stat(t`Distância`), arrival: stat(t`Chegada`), gain: stat(t`Desnível`), slope: stat(t`Declive`),
+    profile: h('canvas', { class: 'navegador-perfil-tela', role: 'img', 'aria-label': t`Perfil de altitude da rota à frente` }),
     profileCaption: h('span'), radioAhead: h('p', { class: 'cabine-folha-texto' }),
     // Blocos e folha do traje
-    o2: block('o2', 'O₂', toggle('traje')), battery: block('bateria', 'Bateria', toggle('traje')), ret: block('volta', 'Volta a pé', toggle('volta')),
+    o2: block('o2', 'O₂', toggle('traje')), battery: block('bateria', t`Bateria`, toggle('traje')), ret: block('volta', t`Volta a pé`, toggle('volta')),
     alertLabel: h('span', { class: 'cabine-bloco-rotulo' }), alertValue: h('b'), alertNote: h('span', { class: 'cabine-bloco-nota' }),
     pins: h('div', { class: 'cabine-pinos' }),
-    o2Row: row('O₂', { note: 'calc.' }), o2Rate: row('Consumo'), o2End: row('O₂ no fim', { note: 'calc.' }),
-    batteryRow: row('Bateria', { note: 'hip.' }), pressure: row('Pressão', { note: 'EMU', trend: true }), integrity: row('Integridade', { note: 'treino' }),
-    radiation: row('Radiação', { note: 'RAD', trend: true }), dose: row('Dose', { note: 'est.' }),
-    temperature: row('Temperatura', { note: 'est.', trend: true }), wind: row('Vento'), radio: row('Rádio', { note: 'calc.' }), altitude: row('Altitude', { trend: true }),
+    o2Row: row('O₂', { note: t`calc.` }), o2Rate: row(t`Consumo`), o2End: row(t`O₂ no fim`, { note: t`calc.` }),
+    batteryRow: row(t`Bateria`, { note: t`hip.` }), pressure: row(t`Pressão`, { note: 'EMU', trend: true }), integrity: row(t`Integridade`, { note: t`treino` }),
+    radiation: row(t`Radiação`, { note: 'RAD', trend: true }), dose: row(t`Dose`, { note: t`est.` }),
+    temperature: row(t`Temperatura`, { note: t`est.`, trend: true }), wind: row(t`Vento`), radio: row(t`Rádio`, { note: t`calc.` }), altitude: row(t`Altitude`, { trend: true }),
     // Folha da volta a pé
     retQuestion: h('span', { class: 'cabine-folha-sub' }), retVerdict: h('b', { class: 'guardiao-veredito' }), retOxygen: h('p', { class: 'cabine-folha-texto' }),
     strip: h('div', { class: 'guardiao-faixa', role: 'img' }), stripDone: h('i', { class: 'guardiao-faixa-feito' }),
     stripHere: h('i', { class: 'guardiao-faixa-aqui' }), stripPnr: h('i', { class: 'guardiao-faixa-pnr' }), pnrText: h('span', { class: 'guardiao-sub guardiao-pnr-texto' }),
-    habitat: row('Habitat'),
+    habitat: row(t`Habitat`),
     // Barra única
     statusWord: h('b'), assistant: h('span', { class: 'cabine-fala', role: 'status', 'aria-live': 'polite' }), assistantNote: h('small', { class: 'cabine-fala-nota' }),
-    talk: button(chatIcon(), { class: 'cabine-redondo cabine-conversar', 'aria-label': 'Abrir a conversa com a IA de bordo', title: 'Abrir a conversa (tecla /)', onclick: on.talk }),
-    mic: button(micIcon(), { class: 'cabine-redondo', 'aria-label': 'Falar com a IA de bordo', 'aria-pressed': 'false', hidden: true, onclick: on.mic }),
+    talk: button(chatIcon(), { class: 'cabine-redondo cabine-conversar', 'aria-label': t`Abrir a conversa com a IA de bordo`, title: t`Abrir a conversa (tecla /)`, onclick: on.talk }),
+    mic: button(micIcon(), { class: 'cabine-redondo', 'aria-label': t`Falar com a IA de bordo`, 'aria-pressed': 'false', hidden: true, onclick: on.mic }),
     // Minimapa
     minimap: h('canvas', { class: 'navegador-minimapa', 'aria-hidden': 'true' }),
-    zoomIn: button('+', { 'aria-label': 'Aproximar o minimapa (tecla +)', onclick: () => on.zoom(-1) }),
-    zoomOut: button('−', { 'aria-label': 'Afastar o minimapa (tecla -)', onclick: () => on.zoom(1) }),
+    zoomIn: button('+', { 'aria-label': t`Aproximar o minimapa (tecla +)`, onclick: () => on.zoom(-1) }),
+    zoomOut: button('−', { 'aria-label': t`Afastar o minimapa (tecla -)`, onclick: () => on.zoom(1) }),
     zoomLabel: h('span', { class: 'guardiao-sub' }),
     // Cena
     world: h('canvas', { class: 'navegador-mundo', 'aria-hidden': 'true' }), edge: createEdgeIndicator(),
@@ -151,18 +153,18 @@ function buildElements(on) {
     area: h('i', { class: 'unificado-area', 'aria-hidden': 'true' }),
     announcer: h('p', { class: 'visually-hidden', role: 'alert' }), dust: h('div', { class: 'guardiao-poeira', 'aria-hidden': 'true' }),
     markPnr: h('div', { class: 'guardiao-marca', hidden: true, dataset: { kind: 'pnr' } }), markShelter: h('div', { class: 'guardiao-marca', hidden: true, dataset: { kind: 'abrigo' } }),
-    drawer: h('aside', { class: 'unificado-gaveta cientista-panel', 'aria-label': 'Assistente, ciência da parada e diário', hidden: true }),
+    drawer: h('aside', { class: 'unificado-gaveta cientista-panel', 'aria-label': t`Assistente, ciência da parada e diário`, hidden: true }),
     // Controles do protótipo
-    exit: button('← Voltar ao tablet', { class: 'guardiao-primario', title: 'Voltar ao tablet (Esc)', onclick: on.exit }),
-    pause: button('Pausar', { onclick: on.pause }),
-    speed: h('select', { 'aria-label': 'Velocidade da simulação', onchange: (event) => on.speed(Number(event.target.value)) }, SIM.speeds.map((speed) => h('option', { value: String(speed) }, `${speed}×`))),
-    scrub: h('input', { type: 'range', min: '0', max: String(SCRUB_MAX), value: '0', 'aria-label': 'Posição na rota', oninput: (event) => on.scrub(Number(event.target.value) / SCRUB_MAX) }),
-    trayButton: button('Controles', { title: 'Assistente, relato de perigo, som e cenários de treino', 'aria-expanded': 'false' }),
-    drawerButton: button('Assistente', { title: 'Conversa, ciência da parada e diário (tecla /)', 'aria-expanded': 'false', onclick: on.drawer }),
-    hazardButton: button('Relatar perigo', { title: 'Marcar um perigo onde você está', 'aria-expanded': 'false' }),
-    history: button('Histórico', { title: 'Histórico de alertas (tecla H)', 'aria-expanded': 'false', onclick: on.history }),
-    sound: button('Som', { title: 'Som dos alertas (tecla M)', onclick: on.sound }),
-    voice: button('Voz', { title: 'Voz do assistente (tecla V)', onclick: on.voice }),
+    exit: button(t`← Voltar ao tablet`, { class: 'guardiao-primario', title: t`Voltar ao tablet (Esc)`, onclick: on.exit }),
+    pause: button(t`Pausar`, { onclick: on.pause }),
+    speed: h('select', { 'aria-label': t`Velocidade da simulação`, onchange: (event) => on.speed(Number(event.target.value)) }, SIM.speeds.map((speed) => h('option', { value: String(speed) }, `${speed}×`))),
+    scrub: h('input', { type: 'range', min: '0', max: String(SCRUB_MAX), value: '0', 'aria-label': t`Posição na rota`, oninput: (event) => on.scrub(Number(event.target.value) / SCRUB_MAX) }),
+    trayButton: button(t`Controles`, { title: t`Assistente, relato de perigo, som e cenários de treino`, 'aria-expanded': 'false' }),
+    drawerButton: button(t`Assistente`, { title: t`Conversa, ciência da parada e diário (tecla /)`, 'aria-expanded': 'false', onclick: on.drawer }),
+    hazardButton: button(t`Relatar perigo`, { title: t`Marcar um perigo onde você está`, 'aria-expanded': 'false' }),
+    history: button(t`Histórico`, { title: t`Histórico de alertas (tecla H)`, 'aria-expanded': 'false', onclick: on.history }),
+    sound: button(t`Som`, { title: t`Som dos alertas (tecla M)`, onclick: on.sound }),
+    voice: button(t`Voz`, { title: t`Voz do assistente (tecla V)`, onclick: on.voice }),
   };
 }
 
@@ -188,32 +190,32 @@ export function createHud(mount, on) {
     scenario,
     node: button([h('kbd', {}, String(index + 1)), ` ${scenario.label}`], { 'aria-pressed': 'false', onclick: () => { setTrayOpen(false); on.scenario(scenario.id); } }),
   }));
-  const popHazard = h('div', { class: 'unificado-pop', role: 'group', 'aria-label': 'Relatar perigo aqui', hidden: true },
-    h('b', {}, 'Relatar perigo aqui'),
+  const popHazard = h('div', { class: 'unificado-pop', role: 'group', 'aria-label': t`Relatar perigo aqui`, hidden: true },
+    h('b', {}, t`Relatar perigo aqui`),
     Object.entries(HAZARD_TYPES).map(([type, text]) => button(text, { onclick: () => { closePops(); els.trayButton.focus(); on.report(type); } })),
-    h('span', { class: 'unificado-nota' }, 'Fica guardado neste navegador e avisa nas próximas saídas.'));
+    h('span', { class: 'unificado-nota' }, t`Fica guardado neste navegador e avisa nas próximas saídas.`));
 
   const stop = button([els.stopBadge, els.stopName, els.stopInfo], { class: 'cabine-parada', 'aria-expanded': 'false', title: SHEET_TITLES.rota, onclick: () => on.sheet('rota') });
   const alertBlock = h('div', { class: 'cabine-bloco', hidden: true, dataset: { bloco: 'alerta' } }, els.alertLabel, els.alertValue, els.alertNote);
   const sheets = {
     rota: sheet('rota', closeSheet, els.targetLabel,
       h('div', { class: 'cabine-dados' }, els.distance.node, els.arrival.node, els.gain.node, els.slope.node),
-      els.profile, h('p', { class: 'cabine-folha-texto' }, els.profileCaption, ' · faixa de baixo: rádio'), els.radioAhead),
+      els.profile, h('p', { class: 'cabine-folha-texto' }, els.profileCaption, ` · ${t`faixa de baixo: rádio`}`), els.radioAhead),
     traje: sheet('traje', closeSheet,
       h('div', { class: 'cabine-colunas' },
-        h('div', {}, h('b', {}, 'Traje'), els.o2Row.node, els.o2Rate.node, els.o2End.node, els.batteryRow.node, els.pressure.node, els.integrity.node),
-        h('div', {}, h('b', {}, 'Ambiente'), els.radiation.node, els.dose.node, els.temperature.node, els.wind.node, els.radio.node, els.altitude.node)),
-      h('p', { class: 'cabine-legenda' }, 'calc. = calculado · est. = estimado · hip. = hipótese. A lista completa de fontes fica no tablet.'),
-      h('details', { class: 'cabine-fontes' }, h('summary', {}, 'De onde vem cada leitura'), h('p', {}, SOURCES_TEXT))),
+        h('div', {}, h('b', {}, t`Traje`), els.o2Row.node, els.o2Rate.node, els.o2End.node, els.batteryRow.node, els.pressure.node, els.integrity.node),
+        h('div', {}, h('b', {}, t`Ambiente`), els.radiation.node, els.dose.node, els.temperature.node, els.wind.node, els.radio.node, els.altitude.node)),
+      h('p', { class: 'cabine-legenda' }, t`calc. = calculado · est. = estimado · hip. = hipótese. A lista completa de fontes fica no tablet.`),
+      h('details', { class: 'cabine-fontes' }, h('summary', {}, t`De onde vem cada leitura`), h('p', {}, SOURCES_TEXT))),
     volta: sheet('volta', closeSheet, els.retQuestion, els.retVerdict, els.retOxygen, els.strip, els.pnrText, els.habitat.node, shelterPanel.root),
   };
   const tray = h('div', { class: 'cabine-bandeja', hidden: true },
-    h('div', { class: 'guardiao-controles', role: 'toolbar', 'aria-label': 'Assistente, perigos, som e voz' }, els.drawerButton, els.hazardButton, els.history, els.sound, els.voice),
-    h('div', { class: 'guardiao-cenarios', role: 'toolbar', 'aria-label': 'Cenários de emergência para demonstração' },
-      h('span', { class: 'guardiao-rotulo' }, 'Cenários de treino'), scenarioButtons.map((entry) => entry.node),
-      button([h('kbd', {}, '0'), ' Limpar'], { class: 'guardiao-limpar', onclick: () => { setTrayOpen(false); on.clear(); } })));
+    h('div', { class: 'guardiao-controles', role: 'toolbar', 'aria-label': t`Assistente, perigos, som e voz` }, els.drawerButton, els.hazardButton, els.history, els.sound, els.voice),
+    h('div', { class: 'guardiao-cenarios', role: 'toolbar', 'aria-label': t`Cenários de emergência para demonstração` },
+      h('span', { class: 'guardiao-rotulo' }, t`Cenários de treino`), scenarioButtons.map((entry) => entry.node),
+      button([h('kbd', {}, '0'), ` ${t`Limpar`}`], { class: 'guardiao-limpar', onclick: () => { setTrayOpen(false); on.clear(); } })));
   const dock = h('div', { class: 'guardiao-doca cabine-doca' },
-    h('div', { class: 'cabine-doca-linha', role: 'toolbar', 'aria-label': 'Controles da simulação' }, els.exit, els.pause, els.speed, els.scrub, els.trayButton),
+    h('div', { class: 'cabine-doca-linha', role: 'toolbar', 'aria-label': t`Controles da simulação` }, els.exit, els.pause, els.speed, els.scrub, els.trayButton),
     tray);
   const bar = h('div', { class: 'cabine-barra', dataset: { kind: 'guia' } },
     h('span', { class: 'cabine-estado' }, h('i', { 'aria-hidden': 'true' }), els.statusWord),
@@ -225,18 +227,18 @@ export function createHud(mount, on) {
     els.markPnr, els.markShelter, els.edge,
     h('div', { class: 'cabine-vista' },
       h('div', { class: 'cabine-alto' }, els.clock,
-        h('section', { class: 'cabine-rumo', 'aria-label': 'Rumo' }, els.heading, els.cardinal), h('span', { 'aria-hidden': 'true' })),
+        h('section', { class: 'cabine-rumo', 'aria-label': t`Rumo` }, els.heading, els.cardinal), h('span', { 'aria-hidden': 'true' })),
       els.area,
       h('div', { class: 'cabine-centro' }, stop,
         h('div', { class: 'cabine-aviso' }, alertStack.root, protocolPanel.root), sheets.rota),
       h('div', { class: 'cabine-base' },
         h('div', { class: 'cabine-blocos' }, els.o2.node, els.battery.node, els.ret.node, alertBlock, els.pins),
         bar,
-        h('section', { class: 'cabine-mapa', 'aria-label': 'Minimapa' },
+        h('section', { class: 'cabine-mapa', 'aria-label': t`Minimapa` },
           // Tocar no minimapa abre o mapa inteiro, no tablet, centrado no astronauta.
           button(els.minimap, {
-            class: 'cabine-mapa-botao', title: 'Abrir o mapa no tablet', onclick: on.openMap,
-            'aria-label': 'Minimapa: você no centro, rumo para cima, rota, paradas e linha de rádio até o habitat. Abrir o mapa no tablet',
+            class: 'cabine-mapa-botao', title: t`Abrir o mapa no tablet`, onclick: on.openMap,
+            'aria-label': t`Minimapa: você no centro, rumo para cima, rota, paradas e linha de rádio até o habitat. Abrir o mapa no tablet`,
           }),
           h('div', { class: 'unificado-zoom' }, els.zoomOut, els.zoomLabel, els.zoomIn)),
         sheets.traje, sheets.volta)),
@@ -286,7 +288,7 @@ export function createHud(mount, on) {
   els.hazardButton.addEventListener('click', () => { closePops(); setHazardOpen(true); });
 
   function renderTop(r, viewHeading) {
-    setText(els.clock, `${fmtDuration(r.clockH)} de saída · ${fmtClock(r.localClockH)} hora local · ${modeText(r)}`);
+    setText(els.clock, t`${fmtDuration(r.clockH)} de saída · ${fmtClock(r.localClockH)} hora local · ${modeText(r)}`);
     const heading = Math.round(viewHeading) % 360;
     setText(els.heading, `${String(heading).padStart(3, '0')}°`);
     setText(els.cardinal, CARDINALS[Math.round(normalizeDeg(viewHeading) / 45) % 8]);
@@ -296,26 +298,29 @@ export function createHud(mount, on) {
     setText(els.stopInfo, targetInfo(r.target));
   }
 
-  // `radio`: { ahead: string, soon: boolean }, a leitura do Navegador de quando o sinal muda seguindo a rota.
+  // `radio`: { ahead: string, soon: boolean }, a frase do Navegador sobre quando o sinal muda seguindo a rota.
   function renderRoute(r, radio) {
     const { target } = r;
     const still = target.kind === 'home' || target.kind === 'dwell';
     setText(els.targetLabel, `${target.label}: ${target.name}`);
-    setText(els.distance.value, still ? 'aqui' : target.timeOnly ? 'sem medida' : fmtDistance(target.distM));
-    setText(els.arrival.value, target.kind === 'home' ? 'chegou' : fmtDuration(target.etaH));
-    setText(els.gain.value, still || target.timeOnly ? 'sem medida' : `${fmtSigned(target.gainM)} m`);
-    setText(els.slope.value, `${fmtSigned(r.slopeDeg)}° · ${fmtNumber(r.slopeAheadDeg)}° à frente`);
+    let distance = fmtDistance(target.distM);
+    if (still) distance = t`aqui`;
+    else if (target.timeOnly) distance = t`sem medida`;
+    setText(els.distance.value, distance);
+    setText(els.arrival.value, target.kind === 'home' ? t`chegou` : fmtDuration(target.etaH));
+    setText(els.gain.value, still || target.timeOnly ? t`sem medida` : `${fmtSigned(target.gainM)} m`);
+    setText(els.slope.value, t`${fmtSigned(r.slopeDeg)}° · ${fmtNumber(r.slopeAheadDeg)}° à frente`);
     setData(els.slope.value, 'level', above(r.slopeAheadDeg, RULES.slopeCautionDeg, RULES.slopeDangerDeg));
     const lost = r.radio.state === 'lost';
-    setText(els.radioAhead, lost || r.finished ? '' : `Rádio: ${RADIO_TEXT[r.radio.state]}. Seguindo a rota, o sinal ${radio.ahead}.`);
+    setText(els.radioAhead, lost || r.finished ? '' : `${t`Rádio: ${RADIO_TEXT[r.radio.state]}.`} ${radio.ahead}`);
     setData(els.radioAhead, 'soon', radio.soon && !lost);
   }
 
   function renderSuit(r, trends) {
     setGauge(els.o2, r.o2Pct, below(r.o2Pct, RULES.o2ReservePct, O2_WARN_PCT));
     setGauge(els.battery, r.batteryPct, below(r.batteryPct, RULES.batteryDangerPct, RULES.batteryCautionPct));
-    setRow(els.o2Row, r.o2RatePctH > 0 ? `${pct(r.o2Pct)} · resta ${fmtDuration(r.o2AutonomyH)}` : pct(r.o2Pct), els.o2.node.dataset.level);
-    setRow(els.o2Rate, r.o2RatePctH > 0 ? `${fmtNumber(r.o2RatePctH, 1)} %/h` : 'parado no habitat');
+    setRow(els.o2Row, r.o2RatePctH > 0 ? t`${pct(r.o2Pct)} · resta ${fmtDuration(r.o2AutonomyH)}` : pct(r.o2Pct), els.o2.node.dataset.level);
+    setRow(els.o2Rate, r.o2RatePctH > 0 ? `${fmtNumber(r.o2RatePctH, 1)} %/h` : t`parado no habitat`);
     setRow(els.o2End, `${fmtNumber(Math.round(r.o2EndPct))}%`, below(r.o2EndPct, 0, RULES.o2ReservePct));
     setRow(els.batteryRow, pct(r.batteryPct), els.battery.node.dataset.level);
     setRow(els.pressure, `${fmtNumber(r.pressureKpa, 1)} kPa`, below(r.pressureKpa, RULES.pressureNominalKpa * 0.9, RULES.pressureNominalKpa * 0.98));
@@ -327,11 +332,11 @@ export function createHud(mount, on) {
 
   function renderEnvironment(r, trends) {
     setRow(els.radiation, `${fmtNumber(r.radiationRate)} µSv/h`, r.fx.radFactor > 1 ? 'danger' : 'ok');
-    setRow(els.dose, `${fmtNumber(r.doseUsv)} de ${fmtNumber(RULES.doseLimitUsv)} µSv`, above(r.doseUsv / RULES.doseLimitUsv, RULES.doseCautionFrac, 1));
+    setRow(els.dose, t`${fmtNumber(r.doseUsv)} de ${fmtNumber(RULES.doseLimitUsv)} µSv`, above(r.doseUsv / RULES.doseLimitUsv, RULES.doseCautionFrac, 1));
     setRow(els.temperature, `${fmtNumber(r.airTempC)} °C`, r.airTempC < RULES.suitMinTempC ? 'danger' : 'ok');
-    setRow(els.wind, r.windMps === null ? 'sem medição' : `${fmtNumber(r.windMps)} m/s`, above(r.windMps ?? 0, RULES.windCautionMps, RULES.windDangerMps));
+    setRow(els.wind, r.windMps === null ? t`sem medição` : `${fmtNumber(r.windMps)} m/s`, above(r.windMps ?? 0, RULES.windCautionMps, RULES.windDangerMps));
     const lost = r.radio.state === 'lost';
-    setRow(els.radio, lost ? `sem resposta · ${minutes(r.radio.lostH)}` : RADIO_TEXT[r.radio.state], lost ? 'danger' : r.radio.state === 'ok' ? 'ok' : 'warn');
+    setRow(els.radio, lost ? t`sem resposta · ${minutes(r.radio.lostH)}` : RADIO_TEXT[r.radio.state], lost ? 'danger' : r.radio.state === 'ok' ? 'ok' : 'warn');
     setRow(els.altitude, `${fmtNumber(r.altitudeM)} m`);
     setTrend(els.radiation.arrow, trends.radiation ?? 'flat');
     setTrend(els.temperature.arrow, trends.temperature ?? 'flat');
@@ -340,19 +345,24 @@ export function createHud(mount, on) {
 
   function renderReturn(r) {
     const level = r.ret.ok || r.finished ? 'ok' : r.ret.reaches ? 'warn' : 'danger';
-    const walk = Number.isFinite(r.ret.timeH) ? fmtDuration(r.ret.timeH) : 'sem caminho';
-    setText(els.ret.value, r.finished ? 'chegou' : walk);
-    setText(els.ret.note, r.finished ? 'no habitat' : r.ret.ok ? 'garantida' : r.ret.reaches ? 'só com a reserva' : 'O₂ não alcança');
+    const hasPath = Number.isFinite(r.ret.timeH);
+    const walk = hasPath ? fmtDuration(r.ret.timeH) : t`sem caminho`;
+    setText(els.ret.value, r.finished ? t`chegou` : walk);
+    let note = t`O₂ não alcança`;
+    if (r.ret.reaches) note = t`só com a reserva`;
+    if (r.ret.ok) note = t`garantida`;
+    setText(els.ret.note, r.finished ? t`no habitat` : note);
     setData(els.ret.node, 'level', level);
 
     const vehicleQuestion = r.m.vehicleM !== null && !r.m.vehicleDown;
-    setText(els.retQuestion, vehicleQuestion ? 'Se o veículo quebrar aqui, volto a pé? Caminho no relevo real, O₂ calculado.' : 'Volto a pé ao habitat? Caminho no relevo real, O₂ calculado.');
-    let verdict = 'Não';
-    if (r.ret.reaches) verdict = 'Só com a reserva';
-    if (r.ret.ok) verdict = 'Sim';
-    setText(els.retVerdict, r.finished ? 'Você está no habitat' : `${verdict} · ${Number.isFinite(r.ret.timeH) ? `${walk} de caminhada` : 'sem caminho a pé conhecido'}`);
+    setText(els.retQuestion, vehicleQuestion ? t`Se o veículo quebrar aqui, volto a pé? Caminho no relevo real, O₂ calculado.` : t`Volto a pé ao habitat? Caminho no relevo real, O₂ calculado.`);
+    let verdict = t`Não`;
+    if (r.ret.reaches) verdict = t`Só com a reserva`;
+    if (r.ret.ok) verdict = t`Sim`;
+    setText(els.retVerdict, r.finished ? t`Você está no habitat` : `${verdict} · ${hasPath ? t`${walk} de caminhada` : t`sem caminho a pé conhecido`}`);
     setData(els.retVerdict, 'level', level);
-    setText(els.retOxygen, r.ret.reaches ? `Gasta ${pct(r.ret.o2NeedPct)} de O₂ e chega com ${pct(r.ret.o2AfterPct)}. ${RESERVE_TEXT}` : `O O₂ não alcança. ${RESERVE_TEXT}`);
+    const oxygen = r.ret.reaches ? t`Gasta ${pct(r.ret.o2NeedPct)} de O₂ e chega com ${pct(r.ret.o2AfterPct)}.` : t`O O₂ não alcança.`;
+    setText(els.retOxygen, `${oxygen} ${RESERVE_TEXT}`);
 
     const nextGradient = zonesGradient(r.zones);
     if (nextGradient !== gradient) {
@@ -362,19 +372,19 @@ export function createHud(mount, on) {
     els.stripDone.style.transform = `scaleX(${r.progress.toFixed(4)})`;
     els.stripHere.style.transform = `translateX(${(r.progress * 100).toFixed(2)}%)`;
     setHidden(els.stripPnr, r.pnr.status !== 'ahead' || r.finished);
-    let pnrText = 'Sem ponto de não retorno nesta rota.';
+    let pnrText = t`Sem ponto de não retorno nesta rota.`;
     if (r.pnr.status === 'ahead') {
       els.stripPnr.style.transform = `translateX(${((r.pnr.distM / r.plan.path.totalM) * 100).toFixed(2)}%)`;
-      pnrText = `Ponto de não retorno em ${fmtDistance(r.pnr.aheadM)} · ${fmtDuration(r.pnr.etaH)}`;
+      pnrText = t`Ponto de não retorno em ${fmtDistance(r.pnr.aheadM)} · ${fmtDuration(r.pnr.etaH)}`;
     }
-    if (r.pnr.status === 'passed') pnrText = 'Ponto de não retorno ultrapassado.';
-    if (r.finished) pnrText = 'Saída encerrada.';
+    if (r.pnr.status === 'passed') pnrText = t`Ponto de não retorno ultrapassado.`;
+    if (r.finished) pnrText = t`Saída encerrada.`;
     setText(els.pnrText, pnrText);
     setData(els.pnrText, 'status', r.finished ? 'none' : r.pnr.status);
-    const stripLabel = `Rota: ${pct(r.progress * 100)} percorrida. ${pnrText}`;
+    const stripLabel = `${t`Rota: ${pct(r.progress * 100)} percorrida.`} ${pnrText}`;
     if (els.strip.getAttribute('aria-label') !== stripLabel) els.strip.setAttribute('aria-label', stripLabel);
     const habitat = r.shelters.find((option) => option.kind === 'habitat');
-    setRow(els.habitat, r.finished ? 'você está nele' : `${habitat.distM === null ? '' : `${fmtDistance(habitat.distM)} · `}${fmtWalk(habitat.timeH)} ${habitat.dirText}`);
+    setRow(els.habitat, r.finished ? t`você está nele` : `${habitat.distM === null ? '' : `${fmtDistance(habitat.distM)} · `}${fmtWalk(habitat.timeH)} ${habitat.dirText}`);
   }
 
   // O bloco de alerta mostra a leitura que explica o alerta mais grave. Com alerta na tela, os
@@ -457,12 +467,12 @@ export function createHud(mount, on) {
   function syncControls({ state, mode, soundOn, voiceOn, hasVoice, historyOpen, drawerOpen, mapOn, sheet: openSheet, hiddenBlocks: hidden, zoom, mic, assistantNote, voiceInfo }) {
     hiddenBlocks = hidden;
     syncSheets(openSheet);
-    // A nota só aparece quando há o que dizer: a IA verificando ou fora do ar.
-    setText(els.assistantNote, assistantNote === NORMAL_ASSISTANT_NOTE ? '' : assistantNote);
+    // A nota só traz texto quando há o que dizer: a IA verificando ou fora do ar.
+    setText(els.assistantNote, assistantNote);
     // O botão de voz diz qual voz está em uso (a neural ou a do sistema).
     if (voiceInfo && els.voice.title !== voiceInfo) els.voice.title = voiceInfo;
     // O rótulo já diz o estado; aria-pressed junto com rótulo que muda seria contraditório.
-    setText(els.pause, state.paused ? 'Continuar' : 'Pausar');
+    setText(els.pause, state.paused ? t`Continuar` : t`Pausar`);
     setData(els.pause, 'active', state.paused);
     els.speed.value = String(state.speed);
     els.sound.setAttribute('aria-pressed', String(soundOn));
@@ -478,11 +488,11 @@ export function createHud(mount, on) {
     els.zoomOut.disabled = !zoom.canOut;
     els.mic.hidden = !mic.canListen;
     els.mic.setAttribute('aria-pressed', String(mic.listening));
-    els.mic.setAttribute('aria-label', mic.listening ? 'Ouvindo. Toque para parar' : 'Falar com a IA de bordo');
+    els.mic.setAttribute('aria-label', mic.listening ? t`Ouvindo. Toque para parar` : t`Falar com a IA de bordo`);
     for (const { scenario, node } of scenarioButtons) {
       const unavailable = Boolean(scenario.needsVehicle) && mode !== 'car';
       node.disabled = unavailable;
-      node.title = unavailable ? 'Só existe no plano com veículo' : '';
+      node.title = unavailable ? t`Só existe no plano com veículo` : '';
       node.setAttribute('aria-pressed', String(Boolean(state.scenarios[scenario.id])));
     }
   }

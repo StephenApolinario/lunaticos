@@ -121,6 +121,11 @@ a:hover { color: var(--heading); }
   color: var(--muted); text-decoration: none;
 }
 .barra-nav a:hover { color: var(--heading); }
+/* Seletor de idioma: inglês (padrão) e português, com o idioma da página marcado. */
+.idiomas { display: flex; gap: 2px; font: 500 var(--text-label)/1 var(--mono); letter-spacing: 0.08em; }
+.idiomas a { padding: 0.35rem 0.5rem; border: 1px solid transparent; border-radius: 3px; color: var(--muted); text-decoration: none; }
+.idiomas a:hover { color: var(--heading); border-color: var(--line); }
+.idiomas a[aria-current="true"] { color: var(--bg); background: var(--fg); border-color: var(--fg); }
 
 /* Botão de entrada na demo: o mesmo laranja do botão do tablet. */
 .botao {
@@ -160,12 +165,27 @@ h1 { font: 800 var(--text-hero)/1.02 var(--display); letter-spacing: -0.025em; }
   border-radius: clamp(8px, 1.5vw, 22px);
   box-shadow: 0 50px 90px -40px var(--shadow), 0 0 0 1px var(--edge);
 }
-.tela-visor {
-  position: absolute; left: -9%; bottom: -14%;
-  width: 56%;
-  border-radius: clamp(8px, 1.2vw, 18px);
-  box-shadow: 0 30px 60px -20px var(--shadow), 0 0 0 1px var(--edge);
+/* O visor do capacete visto por dentro: vidro curvo, aro escuro do capacete, brilho no vidro e a
+   borda escurecendo. A captura é feita com o HUD mais para o centro, para a curva não cortar nada. */
+.capacete {
+  --aro: clamp(5px, 1vw, 15px);
+  position: relative; margin: 0; padding: var(--aro);
+  aspect-ratio: 16 / 10;
+  border-radius: 38% 38% 30% 30% / 52% 52% 40% 40%;
+  background: linear-gradient(176deg, #46515d 0%, #171d24 34%, #080b0f 68%, #262f38 100%);
+  box-shadow:
+    0 44px 70px -36px var(--shadow), 0 0 0 1px var(--edge),
+    inset 0 2px 1px rgba(255, 255, 255, 0.24), inset 0 -3px 9px rgba(0, 0, 0, 0.7);
 }
+.capacete img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.capacete::after {
+  content: ""; position: absolute; inset: var(--aro); border-radius: inherit; pointer-events: none;
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 24%),
+    radial-gradient(118% 100% at 50% 42%, transparent 54%, rgba(3, 6, 9, 0.66) 100%);
+  box-shadow: inset 0 0 0 1px rgba(191, 243, 250, 0.2);
+}
+.capacete-abertura { position: absolute; left: -11%; bottom: -17%; width: 60%; }
 
 @media (prefers-reduced-motion: no-preference) {
   @keyframes subir { from { opacity: 0; transform: translateY(20px); } }
@@ -176,7 +196,7 @@ h1 { font: 800 var(--text-hero)/1.02 var(--display); letter-spacing: -0.025em; }
   .abertura-texto > :nth-child(4) { animation-delay: 240ms; }
   .abertura-texto > :nth-child(5) { animation-delay: 320ms; }
   .tela-tablet { animation: chegar 1100ms var(--ease) 120ms both; }
-  .tela-visor { animation: subir 900ms var(--ease) 520ms both; }
+  .capacete-abertura { animation: subir 900ms var(--ease) 520ms both; }
 }
 
 /* Ficha da saída de exemplo: números que o protótipo calcula sobre o relevo real. */
@@ -225,6 +245,22 @@ h1 { font: 800 var(--text-hero)/1.02 var(--display); letter-spacing: -0.025em; }
   box-shadow: 0 0 0 5px rgba(22, 194, 213, 0.16);
   font: 600 calc(var(--pin) * 0.42)/1 var(--display); font-variant-numeric: tabular-nums;
 }
+/* Com o script, a linha acende até onde a leitura chegou e uma bolinha (o astronauta) anda sobre ela. */
+.pino { z-index: 1; transition: border-color 300ms ease, box-shadow 300ms ease, color 300ms ease, background-color 300ms ease; }
+.rota-avanco {
+  position: absolute; left: calc(var(--gutter) + var(--pin) / 2 - 1.5px); top: var(--trilho-topo, 0);
+  width: 3px; height: var(--trilho-altura, 0); border-radius: 2px;
+  background: var(--route); box-shadow: 0 0 12px rgba(22, 194, 213, 0.55);
+  transform: scaleY(var(--avanco, 0)); transform-origin: top;
+}
+.rota-astronauta {
+  position: absolute; z-index: 2; left: calc(var(--gutter) + var(--pin) / 2 - 7px); top: calc(var(--trilho-topo, 0px) - 7px);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--heading); border: 3px solid var(--route); box-shadow: 0 0 0 5px rgba(22, 194, 213, 0.3);
+  transform: translateY(var(--avanco-px, 0px));
+}
+.rota[data-viva] .pino[data-alcancada="false"] { border-color: var(--route-dim); color: var(--muted); box-shadow: none; }
+.rota[data-viva] .pino-habitat[data-alcancada="false"] { background: var(--pin-fill); border-color: var(--accent); color: var(--accent); }
 .pino-habitat { background: var(--accent); color: var(--accent-ink); border-color: var(--heading); box-shadow: 0 0 0 5px rgba(236, 122, 69, 0.22); font-weight: 800; }
 
 .parada h2 { font: 800 var(--text-h2)/1.08 var(--display); letter-spacing: -0.02em; max-width: 22ch; }
@@ -248,9 +284,9 @@ h1 { font: 800 var(--text-hero)/1.02 var(--display); letter-spacing: -0.025em; }
   gap: clamp(1.5rem, 0.5rem + 3.5vw, 4rem);
   margin-top: 1.5rem;
 }
-.tela img { border-radius: clamp(8px, 1.2vw, 18px); box-shadow: 0 40px 70px -40px var(--shadow), 0 0 0 1px var(--edge); }
+.tela > img { border-radius: clamp(8px, 1.2vw, 18px); box-shadow: 0 40px 70px -40px var(--shadow), 0 0 0 1px var(--edge); }
 .tela-invertida { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); margin-top: clamp(2rem, 1rem + 4vw, 4.5rem); }
-.tela-invertida img { order: 2; }
+.tela-invertida > :first-child { order: 2; }
 .tela-texto { display: grid; gap: 0.8rem; }
 .tela-texto ul, .lista { display: grid; gap: 0.7rem; margin-top: 0.4rem; }
 .tela-texto li, .lista li { position: relative; padding-left: 1.3rem; max-width: 30rem; }
@@ -329,10 +365,41 @@ h1 { font: 800 var(--text-hero)/1.02 var(--display); letter-spacing: -0.025em; }
 .achado strong { font: 800 clamp(2.4rem, 1.6rem + 3vw, 4rem)/1 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
 .achado span { font-size: var(--text-lede); }
 
-/* IA de bordo */
-.conversa { display: grid; gap: 1rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--line); align-self: start; }
-.conversa ul { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-.conversa li { padding: 0.55rem 0.8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-raised); font-size: var(--text-small); }
+/* IA de bordo: uma conversa com respostas reais. Sem script, as três trocas ficam à vista; com
+   script, uma troca por vez: a pergunta é digitada, a IA pensa e a resposta chega aos poucos. */
+.conversa { display: grid; gap: 0.9rem; padding: 1.25rem; background: var(--surface); border: 1px solid var(--line); align-self: start; }
+.conversa-topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.conversa-topo p { display: flex; align-items: center; gap: 0.6rem; font: 500 var(--text-label)/1 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--fg); }
+.conversa-pausa {
+  font: 500 var(--text-label)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 3px; padding: 0.4rem 0.6rem; cursor: pointer;
+}
+.conversa-pausa:hover { color: var(--heading); border-color: var(--muted); }
+.conversa-falas { display: grid; gap: 0.9rem; align-content: start; }
+.troca { display: grid; gap: 0.7rem; align-content: start; }
+.fala { max-width: 34rem; padding: 0.7rem 0.9rem; border-radius: 10px; font-size: var(--text-small); line-height: 1.55; }
+.fala-pergunta { justify-self: end; background: var(--surface-raised); border: 1px solid var(--line); border-bottom-right-radius: 3px; color: var(--heading); }
+.fala-resposta { position: relative; justify-self: start; background: rgba(22, 194, 213, 0.08); border: 1px solid var(--route-dim); border-bottom-left-radius: 3px; }
+.fala-resposta strong { color: var(--heading); font-weight: 800; }
+.conversa-nota { font: 400 var(--text-label)/1.5 var(--mono); color: var(--muted); }
+/* Com o script: as trocas ocupam a mesma área (a mais alta dá a altura do quadro, que não pula) e o
+   texto fica invisível até ser dito. Enquanto a IA pensa, o estado aparece no lugar da resposta. */
+.conversa[data-viva] .conversa-falas { display: grid; }
+.conversa[data-viva] .troca { grid-area: 1 / 1; visibility: hidden; }
+.conversa[data-viva] .troca[data-atual] { visibility: visible; }
+.conversa[data-viva] .pedaco { visibility: hidden; }
+.conversa[data-viva] .troca[data-atual] .pedaco[data-dito] { visibility: visible; }
+.conversa[data-viva] .troca[data-fase="pergunta"] .fala-resposta { visibility: hidden; }
+.conversa[data-viva] .troca[data-fase="pensando"] .fala-resposta::before {
+  content: attr(data-estado); position: absolute; left: 0.9rem; top: 0.7rem;
+  font: 400 var(--text-label)/1.9 var(--mono); color: var(--route);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes pulsar { 50% { opacity: 0.35; } }
+  .conversa[data-viva] .troca[data-fase="pensando"] .fala-resposta::before { animation: pulsar 1.1s ease-in-out infinite; }
+}
+/* Texto só para leitor de tela (a cópia parada da conversa). */
+.apenas-leitor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* De onde vem cada dado */
 .tipos { display: grid; border-top: 1px solid var(--line); max-width: 48rem; }
@@ -352,14 +419,14 @@ h1 { font: 800 var(--text-hero)/1.02 var(--display); letter-spacing: -0.025em; }
 /* Telas médias: a abertura empilha e a navegação some (o botão da demo fica). */
 @media (max-width: 60rem) {
   .barra-nav { display: none; }
-  .barra .botao-pequeno { margin-left: auto; }
+  .idiomas { margin-left: auto; }
   .abertura { grid-template-columns: minmax(0, 1fr); }
   .tela-tablet { width: 100%; }
-  .tela-visor { left: auto; right: -2%; bottom: -12%; width: 50%; }
+  .capacete-abertura { left: auto; right: -2%; bottom: -14%; width: 54%; }
   .ficha { grid-template-columns: minmax(0, 1fr); }
   .ficha-nota { grid-column: 1; }
   .dupla, .dupla-camadas, .tela, .tela-invertida { grid-template-columns: minmax(0, 1fr); }
-  .tela-invertida img { order: 0; }
+  .tela-invertida > :first-child { order: 0; }
   /* As folhas inclinadas passam da própria caixa: sobra espaço embaixo para não cobrir o título. */
   .pilha { width: min(80%, 20rem); margin-bottom: 2.5rem; }
 }
@@ -374,4 +441,7 @@ h1 { font: 800 var(--text-hero)/1.02 var(--display); letter-spacing: -0.025em; }
   .achado { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
   .botao { min-width: 0; width: 100%; }
   .barra .botao-pequeno { width: auto; }
+  /* Barra apertada: fica o nome do projeto, o idioma e o botão da demo, sem a seta. */
+  .barra { gap: 0.6rem; }
+  .marca-equipe, .barra .botao-pequeno .seta { display: none; }
 }

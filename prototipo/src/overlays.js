@@ -11,6 +11,7 @@ import { toLocal, lerp } from './geo.js';
 import { COLORS } from './config.js';
 import { h } from './dom.js';
 import { fmtDuration } from './format.js';
+import { t } from './i18n.js';
 
 const DRAPE_STEP_M = 4;
 const LINE_LIFT_M = 0.3;
@@ -156,7 +157,7 @@ export function createOverlays(scene, terrain, handlers) {
       roverPin = new CSS2DObject(element);
       group.add(roverPin);
     }
-    const title = `Rover Curiosity · posição publicada pela NASA (sol ${sol})`;
+    const title = t`Rover Curiosity · posição publicada pela NASA (sol ${sol})`;
     roverPin.element.title = title;
     roverPin.element.setAttribute('aria-label', title);
     roverPin.position.set(x, terrain.heightAt(x, z), z);
@@ -179,7 +180,7 @@ export function createOverlays(scene, terrain, handlers) {
       astronautPin = new CSS2DObject(element);
       group.add(astronautPin);
     }
-    astronautPin.element.setAttribute('aria-label', `Astronauta · ${fmtDuration(spot.elapsedH)} de saída · posição simulada`);
+    astronautPin.element.setAttribute('aria-label', t`Astronauta · ${fmtDuration(spot.elapsedH)} de saída · posição simulada`);
     astronautPin.position.set(spot.x, terrain.heightAt(spot.x, spot.z), spot.z);
     astronautPin.visible = true;
   }

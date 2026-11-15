@@ -10,6 +10,7 @@ import wave
 from collections import OrderedDict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 
 import av
 import numpy as np
@@ -21,8 +22,13 @@ HOSTS = frozenset({f"127.0.0.1:{PORTA}", f"localhost:{PORTA}"})
 MAX_TEXTO = 600
 MAX_CORPO = 4096
 CACHE_MAX = 64
-VOZES = ("pf_dora", "pm_alex", "pm_santa")
+VOZES = ("pf_dora", "pm_alex", "pm_santa", "af_heart")
 VOZ_PADRAO = "pf_dora"
+# A voz de cada idioma da interface. Pedido sem idioma vale como português.
+VOZ_DO_IDIOMA = {"pt": "pf_dora", "en": "af_heart"}
+# Como o Kokoro pronuncia cada voz: as que começam com "a" são de inglês americano.
+def pronuncia(voz: str) -> str:
+    return "en-us" if voz.startswith("a") else "pt-br"
 VELOCIDADE = (0.7, 1.5)
 ORIGENS = {"http://localhost:5183", "http://127.0.0.1:5183"}
 PASTA = Path(__file__).parent / "modelos"
@@ -30,7 +36,10 @@ PASTA = Path(__file__).parent / "modelos"
 MODELO_ESCUTA = "small"
 MAX_AUDIO = 3_000_000
 # Palavras da missão, para o reconhecimento preferir "rover" a "hover", por exemplo.
-VOCABULARIO = "Saída em Marte: oxigênio, habitat, rover Curiosity, jipe, traje, radiação, parada, protocolo, visor, abrigo, amostra."
+VOCABULARIO = {
+    "pt": "Saída em Marte: oxigênio, habitat, rover Curiosity, jipe, traje, radiação, parada, protocolo, visor, abrigo, amostra.",
+    "en": "EVA on Mars: oxygen, habitat, Curiosity rover, vehicle, suit, radiation, stop, protocol, visor, shelter, sample, walk-back.",
+}
 
 kokoro = Kokoro(str(PASTA / "kokoro-v1.0.onnx"), str(PASTA / "voices-v1.0.bin"))
 trava = threading.Lock()  # o onnxruntime fica com uma síntese por vez
@@ -59,11 +68,11 @@ def decodificar(audio: bytes) -> np.ndarray:
     return np.concatenate(partes).astype(np.float32) / 32768.0
 
 
-def reconhecer(audio: bytes) -> str:
+def reconhecer(audio: bytes, idioma: str = "pt") -> str:
     modelo = modelo_de_escuta()
     amostras = decodificar(audio)
     with trava_escuta:
-        trechos, _ = modelo.transcribe(amostras, language="pt", beam_size=3, vad_filter=True, initial_prompt=VOCABULARIO)
+        trechos, _ = modelo.transcribe(amostras, language=idioma, beam_size=3, vad_filter=True, initial_prompt=VOCABULARIO[idioma])
         return " ".join(trecho.text.strip() for trecho in trechos).strip()
 
 
@@ -73,7 +82,7 @@ def sintetizar(texto, voz, velocidade):
         if chave in cache:
             cache.move_to_end(chave)
             return cache[chave]
-        amostras, taxa = kokoro.create(texto, voice=voz, speed=velocidade, lang="pt-br")
+        amostras, taxa = kokoro.create(texto, voice=voz, speed=velocidade, lang=pronuncia(voz))
         pcm = (np.clip(amostras, -1, 1) * 32767).astype("<i2")
         saida = io.BytesIO()
         with wave.open(saida, "wb") as wav:
@@ -113,9 +122,12 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        if self.path != "/saude":
+        # /saude?idioma=en devolve a voz que fala o idioma da página.
+        caminho, _, consulta = self.path.partition("?")
+        if caminho != "/saude":
             return self.responder(404, {"erro": "não encontrado"})
-        self.responder(200, {"ok": True, "modelo": "Kokoro-82M", "vozes": list(VOZES), "voz": VOZ_PADRAO, "ouvir": True})
+        voz = VOZ_DO_IDIOMA.get(parse_qs(consulta).get("idioma", ["pt"])[0], VOZ_PADRAO)
+        self.responder(200, {"ok": True, "modelo": "Kokoro-82M", "vozes": list(VOZES), "voz": voz, "ouvir": True})
 
     def pedido_permitido(self, audio: bool = False) -> bool:
         """Só a página do protótipo pode pedir fala: confere Host, Origin e o tipo do corpo.
@@ -131,7 +143,7 @@ class Handler(BaseHTTPRequestHandler):
             and (tipo.startswith("audio/") if audio else tipo == "application/json")
         )
 
-    def ouvir(self):
+    def ouvir(self, idioma):
         if not self.pedido_permitido(audio=True):
             return self.responder(403, {"erro": "pedido recusado: origem, host ou tipo de conteúdo não permitidos"})
         try:
@@ -141,15 +153,18 @@ class Handler(BaseHTTPRequestHandler):
         if not 0 < tamanho <= MAX_AUDIO:
             return self.responder(413, {"erro": "áudio vazio ou grande demais"})
         try:
-            self.responder(200, {"texto": reconhecer(self.rfile.read(tamanho))})
+            self.responder(200, {"texto": reconhecer(self.rfile.read(tamanho), idioma)})
         except Exception as erro:  # noqa: BLE001 - o servidor não pode cair por um áudio ruim
             print("falha ao reconhecer:", erro)
             self.responder(500, {"erro": "falha ao reconhecer a fala"})
 
     def do_POST(self):
-        if self.path == "/ouvir":
-            return self.ouvir()
-        if self.path != "/falar":
+        # O idioma da escuta vem no endereço (/ouvir?idioma=en); o da fala, no corpo.
+        caminho, _, consulta = self.path.partition("?")
+        if caminho == "/ouvir":
+            pedido = parse_qs(consulta).get("idioma", ["pt"])[0]
+            return self.ouvir(pedido if pedido in VOZ_DO_IDIOMA else "pt")
+        if caminho != "/falar":
             return self.responder(404, {"erro": "não encontrado"})
         if not self.pedido_permitido():
             return self.responder(403, {"erro": "pedido recusado: origem, host ou tipo de conteúdo não permitidos"})
@@ -159,10 +174,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.responder(413, {"erro": "corpo inválido ou grande demais"})
             dados = json.loads(self.rfile.read(tamanho))
             texto = dados["texto"].strip()
-            voz = dados.get("voz", VOZ_PADRAO)
+            voz = dados.get("voz") or VOZ_DO_IDIOMA.get(dados.get("idioma"), VOZ_PADRAO)
             velocidade = float(dados.get("velocidade", 1.0))
         except (ValueError, KeyError, TypeError, AttributeError):
-            return self.responder(400, {"erro": "JSON esperado: { texto, voz?, velocidade? }"})
+            return self.responder(400, {"erro": "JSON esperado: { texto, idioma?, voz?, velocidade? }"})
         if not texto or len(texto) > MAX_TEXTO:
             return self.responder(400, {"erro": f"texto vazio ou acima de {MAX_TEXTO} caracteres"})
         if voz not in VOZES:

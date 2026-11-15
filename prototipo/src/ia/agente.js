@@ -12,6 +12,8 @@
 // Usa só `fetch`: roda no navegador e no Node.
 
 import { IS_LOCAL_PAGE } from '../local.js';
+import { fmtNumber } from '../format.js';
+import { IS_ENGLISH, t } from '../i18n.js';
 import { ungroundedNumbers } from './conferencia.js';
 
 export const IA_DEFAULTS = Object.freeze({
@@ -36,18 +38,26 @@ export const IA_DEFAULTS = Object.freeze({
   healthTimeoutMs: 8000,
 });
 
+// Em que idioma o modelo responde. As regras, os nomes dos campos e os avisos das ferramentas ficam em
+// português nos dois idiomas (o modelo lê os dois); os valores dos dados já chegam no idioma da tela.
+const ANSWER_STYLE = IS_ENGLISH
+  ? 'Responda sempre em inglês (answer in English), mesmo com os dados, os nomes dos campos e estas regras em português: traduza para o inglês o que citar dos dados e copie números e unidades exatamente como estão. Use o vocabulário da tela: a saída é "EVA", parada é "stop", traje é "suit", volta a pé é "walk-back". Use texto corrido e curto'
+  : 'Fale em português do Brasil, em texto corrido e curto';
+// Lembrete para a segunda tentativa, que refaz a pergunta do zero.
+const LANGUAGE_REMINDER = IS_ENGLISH ? ' Responda em inglês.' : '';
+
 // Regras comuns ao visor e ao tablet. Cada um acrescenta quem é e o que as suas ferramentas fazem.
 export const BASE_RULES = `Como você trabalha:
 - Cada mensagem do astronauta chega com o bloco DADOS DE AGORA, lido dos sensores e cálculos neste instante. Ele é a sua fonte principal. Para o que não estiver nele, chame uma ferramenta.
 - Responda só com o que está em DADOS DE AGORA ou no que as ferramentas devolverem nesta pergunta. Nunca invente nem estime número, nome, lugar ou procedimento, e não use conhecimento próprio para completar.
-- Copie os valores como estão escritos (por exemplo "1h24", "52%", "2,94 km"). Não converta unidade e não faça conta de cabeça: para somar, subtrair ou comparar valores, chame a ferramenta calcular.
+- Copie os valores como estão escritos (por exemplo "1h24", "52%", "${fmtNumber(2.94, 2)} km"). Não converta unidade e não faça conta de cabeça: para somar, subtrair ou comparar valores, chame a ferramenta calcular.
 - Quando a mensagem trouxer o bloco FATOS DAS FONTES, ele é o resultado de uma busca nas fontes pesquisadas da missão sobre o assunto da pergunta. Perguntas de conhecimento (como, por que, o que é, de onde vem; Marte, Gale, o Curiosity, a Apollo, trajes, navegação, origem dos dados) se respondem com esses fatos, dizendo de quem é a informação. DADOS DE AGORA responde sobre a situação da saída; não misture fato histórico em resposta sobre a situação.
 - Se a resposta não estiver em DADOS DE AGORA nem em FATOS DAS FONTES, chame uma ferramenta (buscar_fatos faz outra busca com as palavras que você escolher). Só diga que um dado não está disponível depois de procurar.
 - Os dados trazem a origem: medido, calculado, estimado, hipótese da equipe ou cenário de treino. Diga a origem quando perguntarem de onde vem o dado, e sempre que for hipótese da equipe ou cenário de treino.
 - Trate só desta missão: a saída, o traje, a rota, o terreno, o clima, a radiação, a ciência do local, os protocolos e as fontes dos dados. Para qualquer outro assunto (piadas, esportes, programação, conhecimentos gerais), recuse em uma frase e ofereça ajuda com a saída, sem chamar ferramenta.
 - Você é a IA de bordo desta missão. Não diga qual modelo de linguagem você é nem como é executada; se perguntarem, diga só que é a IA de bordo e que responde com os dados da saída.
 - Destaque com **dois asteriscos** só o número ou a ação mais importante da resposta, no máximo dois destaques. Nenhuma outra marcação: sem listas, títulos, itálico ou tabelas.
-- Fale em português do Brasil, em texto corrido e curto: no máximo três frases, a mais importante primeiro. Em situação de perigo, comece pela ação. Não escreva nomes de ferramentas nem de campos na resposta.
+- ${ANSWER_STYLE}: no máximo três frases, a mais importante primeiro. Em situação de perigo, comece pela ação. Não escreva nomes de ferramentas nem de campos na resposta.
 - Ferramentas de ação (registrar, relatar, conduzir protocolo, pausar, mudar o plano) só com ordem direta do astronauta. Uma pergunta nunca é uma ordem: responda à pergunta sem executar nada.
 - A pergunta pode ter sido ditada por voz, com palavra trocada por outra de som parecido: "hover" é o rover, "jipe" ou "jeep" é o veículo da saída. Entenda pelo contexto da missão e responda. Não diga que não tem dados sobre uma palavra trocada.
 - O rover desta região é o Curiosity, da NASA. Quando falarem do rover "da missão passada", "abandonado" ou "que fez as análises", é ele: os dados dele estão em rover_curiosity.
@@ -61,10 +71,10 @@ export const BASE_RULES = `Como você trabalha:
 // responde, e onde ele roda, é assunto do README e do console, não da tela do astronauta.
 
 /** O que dizer ao astronauta quando a IA não responde. O motivo técnico vai para o console. */
-export const offlineMessage = () => 'A IA de bordo não respondeu agora. Pergunte de novo em instantes.';
+export const offlineMessage = () => t('A IA de bordo não respondeu agora. Pergunte de novo em instantes.');
 
 /** Rótulo de quem responde, para o visor e o tablet. */
-export const engineLabel = () => 'IA de bordo';
+export const engineLabel = () => t('IA de bordo');
 
 // Recusas passageiras da nuvem (limite por minuto, provedor ocupado): espera e tenta de novo.
 const CLOUD_RETRY_STATUS = Object.freeze([429, 502, 503, 504]);
@@ -84,11 +94,11 @@ const parseArguments = (raw) => {
   try { return JSON.parse(raw || '{}'); } catch { return {}; }
 };
 
-const UNGROUNDED_REPLY = 'Não consegui confirmar essa resposta nos dados da missão. Pergunte de outro jeito ou peça um dado específico, como traje, rota, clima ou radiação.';
-const ACTED_UNGROUNDED_REPLY = 'A ação foi executada e o resultado está na tela, mas não consegui confirmar os números da minha resposta.';
-const NO_ANSWER_REPLY = 'Não consegui montar a resposta com os dados da missão. Tente perguntar de outro jeito.';
-const JUNK_WARNING = 'ATENÇÃO: na tentativa anterior você não respondeu. Responda agora à pergunta do astronauta, em texto corrido e em até três frases. Não repita a pergunta nem copie os blocos de dados.';
-const numberWarning = (numbers) => `ATENÇÃO: na tentativa anterior você escreveu valores que não estão nos dados: ${numbers.join(', ')}. Responda de novo copiando cada valor exatamente como está escrito nos dados, com a mesma unidade (não converta metros em quilômetros nem horas em minutos).`;
+const UNGROUNDED_REPLY = t('Não consegui confirmar essa resposta nos dados da missão. Pergunte de outro jeito ou peça um dado específico, como traje, rota, clima ou radiação.');
+const ACTED_UNGROUNDED_REPLY = t('A ação foi executada e o resultado está na tela, mas não consegui confirmar os números da minha resposta.');
+const NO_ANSWER_REPLY = t('Não consegui montar a resposta com os dados da missão. Tente perguntar de outro jeito.');
+const JUNK_WARNING = `ATENÇÃO: na tentativa anterior você não respondeu. Responda agora à pergunta do astronauta, em texto corrido e em até três frases. Não repita a pergunta nem copie os blocos de dados.${LANGUAGE_REMINDER}`;
+const numberWarning = (numbers) => `ATENÇÃO: na tentativa anterior você escreveu valores que não estão nos dados: ${numbers.join(', ')}. Responda de novo copiando cada valor exatamente como está escrito nos dados, com a mesma unidade (não converta metros em quilômetros nem horas em minutos).${LANGUAGE_REMINDER}`;
 // Resposta que devolve os blocos de dados em vez de responder.
 const DATA_DUMP = /DADOS DE AGORA|FATOS DAS FONTES|PERGUNTA DO ASTRONAUTA|^\s*[{[]|":\s*"/;
 const sameWords = (a, b) => a.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim() === b.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -140,7 +150,7 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
       for (const fallbackMs of CLOUD_RETRY_WAITS_MS) {
         if (!CLOUD_RETRY_STATUS.includes(response.status)) break;
         const waitMs = cloudWaitMs(data, fallbackMs);
-        onStatus(`IA de bordo ocupada, tentando de novo em ${Math.ceil(waitMs / 1000)} s…`);
+        onStatus(t`IA de bordo ocupada, tentando de novo em ${Math.ceil(waitMs / 1000)} s…`);
         await wait(waitMs);
         ({ response, data } = await postJson(`${settings.proxyUrl}/chat`, { messages, tools: offered }));
       }
@@ -223,7 +233,7 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
     // Consulta repetida: o resultado já está na conversa. Sem isto o modelo pode ficar consultando em círculo.
     if (!tool.action && seen.has(key)) return { aviso: 'Você já fez esta consulta nesta pergunta e o resultado está acima. Responda agora ao astronauta com os dados que já tem.' };
     if (!tool.action) seen.add(key);
-    onStatus(tool.status ?? `consultando ${tool.name}…`);
+    onStatus(tool.status ?? t`consultando ${tool.name}…`);
     try {
       const result = await tool.run(call.args, { question });
       if (tool.action && result?.feito) done.set(key, result);
@@ -266,7 +276,7 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
     const used = [];
     let text = '';
     let retried = false;
-    onStatus('pensando…');
+    onStatus(t('pensando…'));
     try {
       for (let round = 0; round < settings.maxRounds; round++) {
         // Na última rodada o modelo não pode mais consultar: tem de responder com o que já tem.
@@ -290,7 +300,7 @@ export function createAgent({ tools, systemPrompt, config = {}, snapshot = null,
         // Uma segunda chance; se o erro se repetir, a resposta não sai.
         if (retried) return { text: done.size > 0 ? ACTED_UNGROUNDED_REPLY : UNGROUNDED_REPLY, used, grounded: false, ms: Date.now() - startedAt };
         retried = true;
-        onStatus(isJunk ? 'tentando de novo…' : 'conferindo os números…');
+        onStatus(isJunk ? t('tentando de novo…') : t('conferindo os números…'));
         messages = startOver(isJunk ? JUNK_WARNING : numberWarning(loose));
       }
       if (!text) text = NO_ANSWER_REPLY;

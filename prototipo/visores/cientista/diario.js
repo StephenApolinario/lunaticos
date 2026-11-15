@@ -5,11 +5,14 @@
 // navegador, e só quando é chamada.
 
 import { fmtClock, fmtDuration, fmtNumber } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 
 export const MAX_NOTE_CHARS = 280;
-export const EXPORT_FILE = 'diario-da-saida.txt';
+export const EXPORT_FILE = t`diario-da-saida.txt`;
 
-const ENTRY_LABELS = Object.freeze({ saida: 'Saída', chegada: 'Chegada', amostra: 'Amostra', perigo: 'Perigo', emergencia: 'Emergência' });
+const ENTRY_LABELS = Object.freeze({
+  saida: t('Saída', 'registro do diário'), chegada: t`Chegada`, amostra: t`Amostra`, perigo: t('Perigo', 'registro do diário'), emergencia: t`Emergência`,
+});
 const REVOKE_DELAY_MS = 10000;
 
 function computeStats(entries) {
@@ -47,19 +50,20 @@ export function createJournal() {
   // Observação vazia vira "Sem observação."; devolve a observação limpa, para quem chama comentar.
   const recordSample = (note, moment, stopId = null) => {
     const text = String(note ?? '').trim().slice(0, MAX_NOTE_CHARS);
-    record('amostra', text || 'Sem observação.', moment, stopId);
+    record('amostra', text || t`Sem observação.`, moment, stopId);
     return text;
   };
   return Object.freeze({ add, record, recordSample, entries: () => entries, stats: () => stats });
 }
 
-export const entryLabel = (kind) => ENTRY_LABELS[kind] ?? 'Registro';
+export const entryLabel = (kind) => ENTRY_LABELS[kind] ?? t`Registro`;
 export const fmtPosition = ({ lat, lon, elevM }) => `lat ${fmtNumber(lat, 5)}, lon ${fmtNumber(lon, 5)}, alt ${fmtNumber(elevM)} m`;
 export const fmtStamp = ({ elapsedH, clockH }) => `${fmtDuration(elapsedH)} · ${fmtClock(clockH)}`;
 
 function entryLine(entry) {
-  const where = entry.stopId ? ` · parada ${entry.stopId}` : '';
-  return `[${fmtStamp(entry)}] ${entryLabel(entry.kind).toUpperCase()}${where} · ${fmtPosition(entry.position)} · ${entry.text}`;
+  const kind = entryLabel(entry.kind).toUpperCase();
+  const what = entry.stopId ? t`${kind} · parada ${entry.stopId}` : kind;
+  return `[${fmtStamp(entry)}] ${what} · ${fmtPosition(entry.position)} · ${entry.text}`;
 }
 
 /**
@@ -70,17 +74,17 @@ function entryLine(entry) {
  */
 export function journalToText(planLabel, entries, hazardLines = []) {
   return [
-    'DIÁRIO DA SAÍDA · cratera Gale, Marte (protótipo)',
-    `Plano: ${planLabel}`,
-    'Posições e altitudes: rotas calculadas sobre o MSL Gale Merged DEM (USGS Astrogeology / JPL-Caltech / NASA).',
-    'Hora local: calculada (algoritmo Mars24 da NASA) a partir da hora de partida escolhida. Taxa de radiação: média medida pelo RAD do Curiosity.',
-    'Temperatura: estimada entre os extremos medidos pelo REMS. Telemetria do traje e emergências: SIMULADAS.',
+    t`DIÁRIO DA SAÍDA · cratera Gale, Marte (protótipo)`,
+    t`Plano: ${planLabel}`,
+    t`Posições e altitudes: rotas calculadas sobre o MSL Gale Merged DEM (USGS Astrogeology / JPL-Caltech / NASA).`,
+    t`Hora local: calculada (algoritmo Mars24 da NASA) a partir da hora de partida escolhida. Taxa de radiação: média medida pelo RAD do Curiosity.`,
+    t`Temperatura: estimada entre os extremos medidos pelo REMS. Telemetria do traje e emergências: SIMULADAS.`,
     '',
-    'REGISTROS [tempo de saída · hora local]',
-    ...(entries.length ? entries.map(entryLine) : ['(nenhum registro)']),
+    t`REGISTROS [tempo de saída · hora local]`,
+    ...(entries.length ? entries.map(entryLine) : [t`(nenhum registro)`]),
     '',
-    `PERIGOS RELATADOS GUARDADOS NESTE NAVEGADOR (${hazardLines.length})`,
-    ...(hazardLines.length ? hazardLines.map((line) => `- ${line}`) : ['(nenhum)']),
+    t`PERIGOS RELATADOS GUARDADOS NESTE NAVEGADOR (${hazardLines.length})`,
+    ...(hazardLines.length ? hazardLines.map((line) => `- ${line}`) : [t`(nenhum)`]),
     '',
   ].join('\n');
 }

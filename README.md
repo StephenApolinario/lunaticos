@@ -58,6 +58,27 @@ Depois abrir http://localhost:5183. A entrada é a página de apresentação do 
 node prototipo/src/check.mjs
 ```
 
+### Idiomas
+
+O site e o protótipo têm dois idiomas: inglês, que é o padrão para qualquer visitante (o idioma do navegador não conta), e português do Brasil. O seletor fica no alto da apresentação e na barra do tablet. No protótipo, a escolha fica guardada no navegador e também vale pelo endereço (`?lang=en` ou `?lang=pt`); trocar de idioma recarrega a página. A entrada do site abre sempre em inglês, e o botão da demo leva o idioma da página em que a pessoa está.
+
+- **Protótipo:** o texto do código continua escrito em português, e esse texto é a chave da tradução (`` t`Volta a pé` `` em `prototipo/src/i18n.js`). O inglês fica em `prototipo/src/i18n/en/`, um arquivo por área. Texto sem tradução aparece em português.
+- **Apresentação:** uma página por idioma, `prototipo/index.html` (inglês) e `prototipo/pt.html` (português), com a mesma estrutura e imagens capturadas em cada idioma.
+- **IA de bordo:** responde no idioma da tela. As regras e as descrições das ferramentas, que só o modelo lê, ficam em português nos dois idiomas. A base de pesquisa em inglês é `prototipo/data/pesquisa-en.js`, tradução fato a fato de `pesquisa.js`; ao regerar a pesquisa é preciso traduzir de novo.
+- **Voz:** a fala e a escuta seguem o idioma (voz `pf_dora` em português e `af_heart` em inglês).
+
+Para conferir se falta tradução e se as duas páginas da apresentação têm a mesma estrutura:
+
+```bash
+node prototipo/tools/check-i18n.mjs
+```
+
+```bash
+node prototipo/tools/check-apresentacao.mjs
+```
+
+As checagens do protótipo (`check.mjs`) rodam em português, que é o texto do código; `LUNATICOS_LANG=en` na frente do comando troca para o inglês.
+
 A IA de bordo roda na nuvem, pelo [OpenRouter](https://openrouter.ai), com o modelo `openai/gpt-6-luna`. Ela precisa de internet e de uma chave com crédito no arquivo `.env` da raiz do repositório, que não entra no git:
 
 ```bash
@@ -92,7 +113,7 @@ O site publicado é a pasta `prototipo/` (arquivos estáticos, sem etapa de buil
 
 - A chave da IA fica em Settings → Environment Variables do projeto, como `OPENROUTER_API_KEY`. Depois de criar ou trocar a variável é preciso publicar de novo. Sem ela o mapa e o visor funcionam e a IA aparece fora do ar.
 - A IA só aceita pedidos vindos da própria página, com no máximo 60 chamadas por visitante a cada 5 minutos (valor escolhido pela equipe). Essa contagem fica na memória da função, então é aproximada; para um limite exato dá para criar uma regra de rate limit no firewall do projeto, no painel da Vercel. O teto em dinheiro fica na própria chave, no OpenRouter.
-- A fala e a escuta do site publicado vêm de mais três funções (`/voz/saude`, `/voz/falar` e `/voz/ouvir`, em `prototipo/api/_voz.mjs`), com a mesma chave e pelo OpenRouter: a fala é do Kokoro-82M com a mesma voz do servidor local (`pf_dora`) e a escuta é do Whisper large v3. O texto a falar e o áudio da pergunta saem do navegador para o servidor do site. A página não procura nada no computador de quem visita.
+- A fala e a escuta do site publicado vêm de mais três funções (`/voz/saude`, `/voz/falar` e `/voz/ouvir`, em `prototipo/api/_voz.mjs`), com a mesma chave e pelo OpenRouter: a fala é do Kokoro-82M com as mesmas vozes do servidor local (`pf_dora` em português e `af_heart` em inglês) e a escuta é do Whisper large v3, no idioma da tela. O texto a falar e o áudio da pergunta saem do navegador para o servidor do site. A página não procura nada no computador de quem visita.
 
 Para conferir a ponte da IA sem rede:
 
@@ -125,7 +146,7 @@ python3 prototipo/tools/check_servir.py
 O que ele faz hoje:
 
 - **Tablet:** mapa 3D com relevo e imagem reais, camadas (declive, volta a pé, rádio, radiação, térmico), a travessia do Monte Sharp com as paradas científicas e o painel "Segurança da saída". A página tem a moldura de um tablet de missão, com uma barra de estado (lugar, estação de hoje em Marte e hora de partida); a moldura é só aparência.
-- **Marte inteiro:** o tablet abre num globo de Marte em 3D (mosaico global do Viking, lido do NASA Mars Trek), com tudo escurecido menos a área mapeada. Aproximar o zoom sobre ela entra no mapa de planejamento, sem clique; afastar o zoom até o limite volta ao planeta. No resto do planeta o zoom para a 250 km de altitude, onde a imagem de 232 m por pixel ainda mostra o relevo. Com `?local` no endereço (`demo.html?local`) o tablet abre direto na área mapeada. No mapa de planejamento, o bloco de relevo fica apoiado no chão real da região (o mesmo mosaico do Viking, mais escuro e sem relevo), com o céu no horizonte.
+- **Marte inteiro:** o tablet abre sempre num globo de Marte em 3D (mosaico global do Viking, lido do NASA Mars Trek), com tudo escurecido menos a área mapeada. Aproximar o zoom sobre ela entra no mapa de planejamento, sem clique; afastar o zoom até o limite volta ao planeta. No resto do planeta o zoom para a 250 km de altitude, onde a imagem de 232 m por pixel ainda mostra o relevo. Com `?local` no endereço (`demo.html?local`) o tablet abre direto na área mapeada. No mapa de planejamento, o bloco de relevo fica apoiado no chão real da região (o mesmo mosaico do Viking, mais escuro e sem relevo), com o céu no horizonte.
 - **Qualidade da imagem:** três níveis, escolhidos no tablet e guardados no navegador. **Mínima** (padrão): foto de 2,5 m, sem sombra projetada nem imagem fina, para rodar em qualquer computador. **Média**: foto de 0,7 m já pronta (nítida de longe, sem buscar nada na rede) e sombras do relevo. **Alta**: o mesmo, com sombras suaves e, de perto, a imagem de 25 cm lida da rede; pesa em placas de vídeo modestas. No tablet parado a cena só é redesenhada quando algo muda.
 - **Imagem de perto** (qualidade alta): ao aproximar, o mapa busca na rede a imagem de 25 cm por pixel (ortofoto do USGS) só para a região em foco. Sem rede, fica a foto de 0,7 m.
 - **Rota livre:** cada clique no mapa vira a próxima parada (A, B, C… até 13). A rota sai do habitat, passa por todas na ordem e volta, calculada na hora sobre o relevo real, a pé ou de veículo, sempre pelo caminho mais seguro (foge das encostas e evita onde não há rádio).
@@ -139,7 +160,7 @@ O que ele faz hoje:
 - **Perguntas do tipo "e se":** a IA simula o mesmo plano a pé ou de veículo, com as paradas de coleta (distância, duração, oxigênio, trechos em que o veículo não passa), diz quanto tempo dá para ficar parado sem perder a volta e aponta o ponto mais próximo da rota que serve para descansar (chão plano, rádio com o habitat, fora das rochas cortantes). Ela entende palavra trocada pelo reconhecimento de voz ("hover" por rover, "jipe" por veículo).
 - **Rover Curiosity no mapa:** um pino R marca onde o rover está, pela posição que a NASA publica (lida quando o protótipo abre). A IA diz a distância até ele e monta uma rota até lá a pedido.
 - **Veículo no visor:** escolhendo "Veículo" no tablet, o visor mostra a saída de dentro de um buggy aberto de dois lugares (modelo ilustrativo, na linha do jipe lunar). Nas paradas de coleta o astronauta desce e o veículo fica estacionado ao lado.
-- **Voz e escuta:** o assistente fala com uma voz neural local (Kokoro-82M, português do Brasil) quando o servidor de voz está ligado; sem ele, usa a voz do sistema, que soa robótica. O botão Falar grava a pergunta e o mesmo servidor a transcreve neste computador (Whisper), em qualquer navegador. No site publicado a fala e a escuta vêm do próprio site, com a mesma voz. Apertar Falar corta o que a IA estiver dizendo, e com o microfone aberto ela só fala alerta de perigo, emergência e passo de protocolo.
+- **Voz e escuta:** o assistente fala com uma voz neural local (Kokoro-82M, em português do Brasil ou em inglês, conforme o idioma da tela) quando o servidor de voz está ligado; sem ele, usa a voz do sistema, que soa robótica. O botão Falar grava a pergunta e o mesmo servidor a transcreve neste computador (Whisper), em qualquer navegador. No site publicado a fala e a escuta vêm do próprio site, com a mesma voz. Apertar Falar corta o que a IA estiver dizendo, e com o microfone aberto ela só fala alerta de perigo, emergência e passo de protocolo.
 - **Visor comandado pela IA:** pedidos como "me mostra meu oxigênio", "coloca na tela a velocidade média" ou "tira o mapa" fixam ou tiram leituras do visor e ligam ou desligam painéis. Leitura que já está na tela não ganha cartão repetido: a peça que existe pisca e a IA diz onde ela fica. Os blocos de O₂, bateria e volta a pé saem a pedido e voltam sozinhos em qualquer alerta (decisão da equipe). Alertas e protocolos não saem da tela. A pedido, ela também pinta sobre o terreno do visor uma camada do mapa (térmico noturno, declive, rádio, radiação, volta a pé ou areia).
 - **Areia fofa:** a camada Areia marca a areia escura estimada pela cor da imagem HiRISE e pelo declive (não é mapa da NASA). As rotas livres preferem outro caminho, o painel de segurança diz quantos metros da rota passam por ela e a IA avisa quando há areia à frente. A travessia pronta ainda cruza 2,2 km dessa areia.
 

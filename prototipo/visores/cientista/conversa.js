@@ -3,15 +3,16 @@
 // reconhecidos voltam para quem hospeda executar.
 
 import { fmtDuration } from '../../src/format.js';
+import { t } from '../../src/i18n.js';
 import { askAssistant } from './assistente.js';
 
 const MAX_QUESTION_CHARS = 240;
 const MIC_ERRORS = Object.freeze({
-  'not-allowed': 'O navegador bloqueou o microfone. Libere o acesso ou use o teclado.',
-  'no-speech': 'Não ouvi nada. Tente de novo ou use o teclado.',
-  'sem-escuta': 'A escuta por voz não está ligada neste computador. Use o teclado.',
+  'not-allowed': t`O navegador bloqueou o microfone. Libere o acesso ou use o teclado.`,
+  'no-speech': t`Não ouvi nada. Tente de novo ou use o teclado.`,
+  'sem-escuta': t`A escuta por voz não está ligada neste computador. Use o teclado.`,
 });
-const MIC_FALLBACK = 'Não consegui usar o microfone. Use o teclado.';
+const MIC_FALLBACK = t`Não consegui usar o microfone. Use o teclado.`;
 
 /**
  * @param {{
@@ -54,7 +55,7 @@ export function createConversation({ getContext, onMessage, onAction, voice = nu
       if (reply?.action?.type) onAction(reply.action);
     } catch (error) {
       console.error(error);
-      say('O assistente falhou ao responder. Tente de novo.', 'alert');
+      say(t`O assistente falhou ao responder. Tente de novo.`, 'alert');
     }
   }
 
@@ -83,7 +84,7 @@ export function createConversation({ getContext, onMessage, onAction, voice = nu
     if (!voice) return;
     voice.setSpeaking(!voice.isSpeaking());
     onVoiceChange(voiceState());
-    voice.speak('Voz ligada.');
+    voice.speak(t`Voz ligada.`);
   }
 
   /** Cala e para de ouvir (ao sair do visor). */

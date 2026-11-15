@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Travessia Monte Sharp · protótipo 3D</title>
+  <title data-i18n="Travessia Monte Sharp · protótipo 3D">Mount Sharp Traverse · 3D prototype</title>
   <link rel="icon" href="data:,">
-  <meta name="description" content="Protótipo em Three.js: mapa de planejamento em tablet e visor de capacete para uma travessia humana no Monte Sharp, em Marte.">
+  <meta name="description" content="Three.js prototype: a planning map on a tablet and a helmet visor for a human traverse of Mount Sharp, on Mars." data-i18n-content="Protótipo em Three.js: mapa de planejamento em tablet e visor de capacete para uma travessia humana no Monte Sharp, em Marte.">
   <meta name="color-scheme" content="dark">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,36 +21,38 @@
   </script>
 </head>
 <body>
-  <div class="app" id="app" data-view="tablet">
+  <!-- data-scope="planeta" desde o HTML: enquanto os módulos carregam, o mapa local (bússola, selo e painel) não aparece. -->
+  <div class="app" id="app" data-view="tablet" data-scope="planeta">
     <header class="device-bar" id="device-bar">
-      <p class="device-brand"><span class="device-led" aria-hidden="true"></span>Tablet de missão <a class="device-team" href="./" title="Voltar à apresentação do projeto">Lunáticos</a></p>
+      <p class="device-brand"><span class="device-led" aria-hidden="true"></span><span data-i18n="Tablet de missão">Mission tablet</span> <a class="device-team" id="device-home" href="./" title="Back to the project presentation" data-i18n-title="Voltar à apresentação do projeto">Lunáticos</a></p>
       <p class="device-status">
-        <span>Cratera Gale · Monte Sharp</span>
+        <span data-i18n="Cratera Gale · Monte Sharp">Gale Crater · Mount Sharp</span>
         <span id="device-season"></span>
         <span id="device-clock"></span>
+        <span class="device-lang" id="device-lang" role="group" aria-label="Language" data-i18n-aria-label="Idioma"></span>
       </p>
     </header>
-    <main class="stage" id="stage" aria-label="Mapa 3D da travessia no Monte Sharp">
-      <p class="loading" id="loading" role="status">Gerando relevo…</p>
+    <main class="stage" id="stage" aria-label="3D map of the Mount Sharp traverse" data-i18n-aria-label="Mapa 3D da travessia no Monte Sharp">
+      <p class="loading" id="loading" role="status" data-i18n="Gerando relevo…">Generating terrain…</p>
 
       <div class="map-chrome">
         <div class="north" id="north" aria-hidden="true"><span>N</span></div>
-        <p class="badge" id="map-badge">Carregando imagem HiRISE…</p>
-        <p class="hint">Arrastar gira · botão direito ou Shift + arrastar move · rolagem aproxima</p>
+        <p class="badge" id="map-badge" data-i18n="Carregando imagem HiRISE…">Loading HiRISE image…</p>
+        <p class="hint" data-i18n="Arrastar gira · botão direito ou Shift + arrastar move · rolagem aproxima">Drag to rotate · right button or Shift + drag to pan · scroll to zoom</p>
       </div>
 
       <!-- Tela de abertura: Marte inteiro. Só a área mapeada fica iluminada e dá para entrar nela. -->
       <div class="planet-chrome" id="planet-chrome" hidden>
-        <p class="planet-title">Marte</p>
-        <p class="planet-text">Só a área mapeada está iluminada. Arraste para girar, role para aproximar e entre nela para planejar a saída.</p>
-        <button class="cta planet-enter" id="planet-enter" type="button"><span>Entrar na área mapeada</span><span class="cta-arrow" aria-hidden="true">→</span></button>
+        <p class="planet-title" data-i18n="Marte">Mars</p>
+        <p class="planet-text" data-i18n="Só a área mapeada está iluminada. Arraste para girar, role para aproximar e entre nela para planejar a saída.">Only the mapped area is lit. Drag to rotate, scroll to zoom in, and enter it to plan the EVA.</p>
+        <button class="cta planet-enter" id="planet-enter" type="button"><span data-i18n="Entrar na área mapeada">Enter the mapped area</span><span class="cta-arrow" aria-hidden="true">→</span></button>
         <p class="planet-source" id="planet-source"></p>
       </div>
 
       <div class="visor-mount" id="visor-mount" hidden></div>
     </main>
 
-    <aside class="panel" id="panel" aria-label="Planejamento da travessia"></aside>
+    <aside class="panel" id="panel" aria-label="Traverse planning" data-i18n-aria-label="Planejamento da travessia"></aside>
   </div>
   <!-- Detalhes de aparelho na moldura do tablet (câmera e botões): só aparência. -->
   <div class="device-hardware" aria-hidden="true"><span class="device-camera"></span><span class="device-buttons"></span></div>
