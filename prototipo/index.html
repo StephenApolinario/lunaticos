@@ -6,8 +6,8 @@
   <title>Martian Map · Lunáticos</title>
   <meta name="description" content="A survival guide for a walk on Mars: a tablet to plan the EVA in the habitat and a helmet visor to follow the route, built on real NASA data.">
   <meta name="color-scheme" content="dark">
-  <!-- Só o script da própria página roda aqui (a rota na rolagem e a conversa de exemplo). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'self'; form-action 'none'">
+  <!-- Só o script da própria página roda aqui (a rota na rolagem e a conversa de exemplo); de fora, só o player do vídeo no Google Drive. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-src https://drive.google.com; base-uri 'self'; form-action 'none'">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Martian Map · Lunáticos">
   <meta property="og:description" content="A walk on Mars, planned so there is time to get back. Team Lunáticos' project for the NASA Space Apps Challenge 2026.">
@@ -28,6 +28,7 @@
   <header class="barra">
     <a class="marca" href="./"><span class="marca-led" aria-hidden="true"></span>Martian Map <span class="marca-equipe">Lunáticos</span></a>
     <nav class="barra-nav" aria-label="Page sections">
+      <a href="#video">Video</a>
       <a href="#problema">Problem</a>
       <a href="#telas">Two screens</a>
       <a href="#dados">Data</a>
@@ -49,7 +50,7 @@
         <p class="lede">The project brings data from several NASA missions together over the area of a single EVA. The tablet plans the route in the habitat. The helmet visor stays with the astronaut outside.</p>
         <div class="acoes">
           <a class="botao" href="./demo.html?lang=en"><span>View demo</span><span class="seta" aria-hidden="true">→</span></a>
-          <a class="link-seta" href="#problema">How it works</a>
+          <a class="link-seta" href="#video">Watch the video</a>
         </div>
         <p class="nota">Opens in the browser, nothing to install. Best on a computer.</p>
       </div>
@@ -75,6 +76,19 @@
         <div><dt>science stops</dt><dd>3</dd></div>
       </dl>
       <p class="ficha-nota">On foot, departing at 10:00. Calculated by the prototype on the real USGS terrain.</p>
+    </section>
+
+    <section class="video" id="video" aria-labelledby="video-titulo">
+      <div class="video-texto">
+        <p class="rotulo">Project video</p>
+        <h2 id="video-titulo">The project on video.</h2>
+        <p>The team's video for the NASA Space Apps Challenge. It plays right here.</p>
+        <p><a href="https://drive.google.com/file/d/1l3T-UcPdN3OiFyqkDo1Jv-UxSsC9EQi0/view" rel="noopener">Open the video on Google Drive</a></p>
+        <p class="nota">The player is from Google Drive and only loads when this section gets close to the screen.</p>
+      </div>
+      <div class="video-quadro">
+        <iframe src="https://drive.google.com/file/d/1l3T-UcPdN3OiFyqkDo1Jv-UxSsC9EQi0/preview" title="Project video by team Lunáticos" loading="lazy" allow="autoplay; fullscreen" allowfullscreen></iframe>
+      </div>
     </section>
 
     <div class="rota">

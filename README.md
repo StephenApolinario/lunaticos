@@ -52,7 +52,7 @@ A pasta `prototipo/` tem um protótipo em Three.js para validar a ideia de duas 
 python3 prototipo/tools/servir.py
 ```
 
-Depois abrir http://localhost:5183. A entrada é a página de apresentação do projeto (`prototipo/index.html`, com o estilo e as imagens em `prototipo/apresentacao/`); o botão "Ver demo" abre o protótipo, que fica em http://localhost:5183/demo.html. As imagens da apresentação são capturas do próprio protótipo. Para conferir a matemática de projeção, rotas e relevo:
+Depois abrir http://localhost:5183. A entrada é a página de apresentação do projeto (`prototipo/index.html`, com o estilo e as imagens em `prototipo/apresentacao/`); o botão "Ver demo" abre o protótipo, que fica em http://localhost:5183/demo.html. As imagens da apresentação são capturas do próprio protótipo. O vídeo do projeto aparece numa seção logo depois da abertura, tocado pelo player do Google Drive: o link está nas duas páginas da apresentação (`index.html` e `pt.html`), e o arquivo precisa estar compartilhado com qualquer pessoa que tenha o link. Para conferir a matemática de projeção, rotas e relevo:
 
 ```bash
 node prototipo/src/check.mjs

@@ -7,8 +7,8 @@
   <meta name="description" content="Guia de sobrevivência para uma caminhada em Marte: um tablet para planejar a saída no habitat e um visor de capacete para seguir a rota, sobre dados reais da NASA.">
   <meta name="color-scheme" content="dark">
   <!-- Versão em português de index.html: a mesma estrutura, só o texto muda (conferir com tools/check-apresentacao.mjs). -->
-  <!-- Só o script da própria página roda aqui (a rota na rolagem e a conversa de exemplo). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'self'; form-action 'none'">
+  <!-- Só o script da própria página roda aqui (a rota na rolagem e a conversa de exemplo); de fora, só o player do vídeo no Google Drive. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-src https://drive.google.com; base-uri 'self'; form-action 'none'">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Martian Map · Lunáticos">
   <meta property="og:description" content="Uma caminhada em Marte, planejada para dar tempo de voltar. Projeto da equipe Lunáticos para o NASA Space Apps Challenge 2026.">
@@ -29,6 +29,7 @@
   <header class="barra">
     <a class="marca" href="./pt.html"><span class="marca-led" aria-hidden="true"></span>Martian Map <span class="marca-equipe">Lunáticos</span></a>
     <nav class="barra-nav" aria-label="Seções da página">
+      <a href="#video">Vídeo</a>
       <a href="#problema">Problema</a>
       <a href="#telas">Duas telas</a>
       <a href="#dados">Dados</a>
@@ -50,7 +51,7 @@
         <p class="lede">O projeto junta dados de várias missões da NASA na área de uma única saída. O tablet planeja a rota no habitat. O visor do capacete acompanha o astronauta lá fora.</p>
         <div class="acoes">
           <a class="botao" href="./demo.html?lang=pt"><span>Ver demo</span><span class="seta" aria-hidden="true">→</span></a>
-          <a class="link-seta" href="#problema">Como funciona</a>
+          <a class="link-seta" href="#video">Ver o vídeo</a>
         </div>
         <p class="nota">Abre no navegador, sem instalar nada. Fica melhor num computador.</p>
       </div>
@@ -76,6 +77,19 @@
         <div><dt>paradas científicas</dt><dd>3</dd></div>
       </dl>
       <p class="ficha-nota">A pé, com partida às 10:00. Calculado pelo protótipo sobre o relevo real do USGS.</p>
+    </section>
+
+    <section class="video" id="video" aria-labelledby="video-titulo">
+      <div class="video-texto">
+        <p class="rotulo">Vídeo do projeto</p>
+        <h2 id="video-titulo">O projeto em vídeo.</h2>
+        <p>O vídeo da equipe para o NASA Space Apps Challenge. Ele toca aqui mesmo.</p>
+        <p><a href="https://drive.google.com/file/d/1l3T-UcPdN3OiFyqkDo1Jv-UxSsC9EQi0/view" rel="noopener">Abrir o vídeo no Google Drive</a></p>
+        <p class="nota">O player é do Google Drive e só carrega quando esta seção chega perto da tela.</p>
+      </div>
+      <div class="video-quadro">
+        <iframe src="https://drive.google.com/file/d/1l3T-UcPdN3OiFyqkDo1Jv-UxSsC9EQi0/preview" title="Vídeo do projeto da equipe Lunáticos" loading="lazy" allow="autoplay; fullscreen" allowfullscreen></iframe>
+      </div>
     </section>
 
     <div class="rota">
